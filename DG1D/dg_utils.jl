@@ -249,29 +249,38 @@ end
 
 """
 jacobiGL(α, β, N)
-#Description
+# Description
 
     Guass Labatto quadrature points for the Jacobi Polynomial (α,β)
-
     The quadrature weights are computed as well (but not returned)
 
-#Input
+# Arguments
 
-    α, β: Jacobi polynomial descriptors
+- `α, β`: Jacobi polynomial descriptors
+- `N`:    order of quadrature
 
-    N:    order of quadrature
 
-#Return: x
+# Return: x
 
-    x: quadrature points  | array of size N+1
+- `x`: quadrature points  | array of size N+1
 
-#Example
-α = 0
-β = 0
-N = 4
-x = jacobiGL(α, β, N)
+# Examples
+```julia-repl
+julia> α = 0
+0
+julia> β = 0
+0
+julia> N = 4
+4
+julia> x = jacobiGL(α, β, N)
+5-element Array{Float64,1}:
+ -1.0
+ -0.6546536707079759
+  4.440892098500626e-16
+  0.6546536707079771
+  1.0
+```
 """
-
 function jacobiGL(α, β, N)
     x = zeros(N+1)
     w = zeros(N+1)
@@ -287,4 +296,21 @@ function jacobiGL(α, β, N)
     xtmp, w = jacobiGQ(α+1, β+1, N-2)
     @. xview = xtmp
     return x
+end
+
+
+
+"""
+Some nice documentation here.
+
+# Examples
+```jldoctest
+julia> a = [1 2; 3 4]
+2×2 Array{Int64,2}:
+ 1  2
+ 3  4
+```
+"""
+function tt(a)
+    return 1
 end

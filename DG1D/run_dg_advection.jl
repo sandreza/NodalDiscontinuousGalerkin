@@ -6,9 +6,9 @@ using BenchmarkTools
 using DifferentialEquations
 
 
-
-K = 2^2 #number of elements
-n = 2^1-1 #polynomial order,
+x
+K = 2^4 #number of elements
+n = 2^2-1 #polynomial order,
 #(for 2^8, 2^4 with 2^4-1 seems best)
 
 

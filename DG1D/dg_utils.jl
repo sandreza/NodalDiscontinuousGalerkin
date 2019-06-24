@@ -70,22 +70,21 @@ function jacobi!(y, x, α, β)
         println("Make sure the size of the arrays is correct")
         return error
     end
-    yview1 = view(y,:,1)
+    yview1 = view(y, :, 1)
     yview1 .= 1 / sqrt(γ0)
-    if n==2
-        yview1 = view(y,:,2)
+    if n == 2
+        yview1 = view(y, :, 2)
         @. yview1 = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
         return nothing
-    elseif n>2
-        yview1  = view(y,:,1)
-        yview2 = view(y,:,2)
-        yview3 = view(y,:,3)
+    elseif n > 2
+        yview2 = view(y, :, 2)
         @. yview2 = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
         aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
+
         for i in 1:(n-2)
-            yview1  = view(y,:,i)
-            yview2 = view(y,:,i+1)
-            yview3 = view(y,:,i+2)
+            yview1 = view(y, :, i)
+            yview2 = view(y, :, i+1)
+            yview3 = view(y, :, i+2)
             h1 = 2 * i + α + β
             anew = 2 /(h1 + 2)*sqrt((i+1)*(i+1+α+β)*(i+1+α)*(i+1+β)/(h1+1)/(h1+3))
             bnew = - (α^2 - β^2)/h1/(h1+2)
@@ -124,15 +123,15 @@ plot(x,dy[:,8])
 Allocates a little bit of memory
 """
 function djacobi!(y, x, α, β)
-    yview = view(y,:,1)
+    yview = view(y, :, 1)
     @. yview = 0
     m, n = size(y)
     if n>1
-        yview = view(y,:,2:n)
+        yview = view(y, :, 2:n)
         jacobi!(yview, x, α+1, β+1)
         for i in 2:n
-            yview2 = view(y,:, i)
-            @. yview2 *= sqrt( (i-1) * (α + β +i) )
+            yview2 = view(y, :, i)
+            @. yview2 *= sqrt( (i-1) * (α + β + i) )
         end
     end
     return nothing
@@ -230,11 +229,11 @@ function jacobiGQ(α, β, N)
         x[1] = (α - β) / (α + β + 2)
         w[1] = 2
     end
-    h1 = 2 .* collect(0:N) .+ α .+ β;
-    diag = - (α^2 .- β^2) ./ (h1 .+ 2) ./ h1
-    h1view = view(h1,1:N)
+    h1 = @. 2 * collect(0:N) + α + β;
+    diag = @. - (α^2 - β^2) / (h1 + 2) / h1
+    h1view = view(h1, 1:N)
     cf = collect(1:N) #common factor that shows up a lot
-    superdiag = 2 ./ (h1view .+ 2)
+    superdiag = @. 2 / (h1view + 2)
     @. superdiag *= sqrt( cf * (cf + α + β) * (cf + α) * (cf + β) )
     @. superdiag *= sqrt( 1 / (h1view + 1) / (h1view + 3) )
     J = SymTridiagonal(diag, superdiag)
@@ -242,7 +241,7 @@ function jacobiGQ(α, β, N)
         J[1,1] = -0.0
     end
     x , V = eigen(J)
-    w = (V[1,:] .^ 2 ) .* 2^(α + β + 1) / (α + β + 1)
+    w = @. (V[1,:] ^ 2 ) * 2^(α + β + 1) / (α + β + 1)
     @. w *= factorial(α) * factorial(β) / factorial(α + β)
     return x, w
 end

@@ -20,9 +20,9 @@ struct dg
     r
     x
     VX
-    EToV
-    EToE
-    EToF
+    EtoV
+    EtoE
+    EtoF
     fx
     fmask
     vmapM
@@ -54,9 +54,9 @@ struct dg
 
         #grid stuff
         nx = normals1D(K)
-        VX, EToV = unimesh1D(xmin, xmax, K)
-        EToE, EToF = connect1D(EToV)
-        x = gridvalues1D(VX, EToV, r)
+        VX, EtoV = unimesh1D(xmin, xmax, K)
+        EtoE, EtoF = connect1D(EtoV)
+        x = gridvalues1D(VX, EtoV, r)
         rx, J  = geometric_factors(x, D)
         #field stuff
         u = copy(x)
@@ -71,8 +71,8 @@ struct dg
         fmask  = [tmp[fmask1]; tmp[fmask2]]
         fmask2 = (fmask1,fmask2)
         fscale = 1 ./ J[fmask,:]
-        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EToE, EToF, x)
-        return new(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EToV, EToE, EToF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
+        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EtoE, EtoF, x)
+        return new(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EtoV, EtoE, EtoF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
     end
 end
 
@@ -89,9 +89,9 @@ struct dg_parametric{T,S,U,V,W}
     r::U
     x::T
     VX::U
-    EToV::V
-    EToE::T
-    EToF::T
+    EtoV::V
+    EtoE::T
+    EtoF::T
     fx::T
     fmask::W
     vmapM::W
@@ -122,9 +122,9 @@ struct dg_parametric{T,S,U,V,W}
         lift = lift1D(V)
         #grid stuff
         nx = normals1D(K)
-        VX, EToV = unimesh1D(xmin, xmax, K)
-        EToE, EToF = connect1D(EToV)
-        x = gridvalues1D(VX, EToV, r)
+        VX, EtoV = unimesh1D(xmin, xmax, K)
+        EtoE, EtoF = connect1D(EtoV)
+        x = gridvalues1D(VX, EtoV, r)
         rx, J  = geometric_factors(x, D)
         #field stuff
         u = copy(x)
@@ -139,8 +139,8 @@ struct dg_parametric{T,S,U,V,W}
         fmask  = [tmp[fmask1]; tmp[fmask2]]
         fmask2 = (fmask1,fmask2)
         fscale = 1 ./ J[fmask,:]
-        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EToE, EToF, x)
-        return new{typeof(u),typeof(K),typeof(r),typeof(EToV),typeof(vmapP)}(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EToV, EToE, EToF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
+        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EtoE, EtoF, x)
+        return new{typeof(u),typeof(K),typeof(r),typeof(EtoV),typeof(vmapP)}(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EtoV, EtoE, EtoF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
     end
 end
 
@@ -157,9 +157,9 @@ struct dg_collocation{T,S,U,V,W}
     r::U
     x::T
     VX::U
-    EToV::V
-    EToE::T
-    EToF::T
+    EtoV::V
+    EtoE::T
+    EtoF::T
     fx::T
     fmask::W
     vmapM::W
@@ -190,9 +190,9 @@ struct dg_collocation{T,S,U,V,W}
         lift = lift1D_v2(V)
         #grid stuff
         nx = normals1D(K)
-        VX, EToV = unimesh1D(xmin, xmax, K)
-        EToE, EToF = connect1D(EToV)
-        x = gridvalues1D(VX, EToV, r)
+        VX, EtoV = unimesh1D(xmin, xmax, K)
+        EtoE, EtoF = connect1D(EtoV)
+        x = gridvalues1D(VX, EtoV, r)
         rx, J  = geometric_factors(x, D)
         #field stuff
         u = copy(x)
@@ -207,7 +207,7 @@ struct dg_collocation{T,S,U,V,W}
         fmask  = [tmp[fmask1]; tmp[fmask2]]
         fmask2 = (fmask1,fmask2)
         fscale = 1 ./ J[fmask,:]
-        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EToE, EToF, x)
-        return new{typeof(u),typeof(K),typeof(r),typeof(EToV),typeof(vmapP)}(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EToV, EToE, EToF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
+        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask2, EtoE, EtoF, x)
+        return new{typeof(u),typeof(K),typeof(r),typeof(EtoV),typeof(vmapP)}(u, du, rhsu, K, n,np,nfp,nfaces, r, x, VX, EtoV, EtoE, EtoF, fx, fmask,vmapM, vmapP,vmapB,mapB, mapI,mapO,vmapI, vmapO, D, lift, rx, nx, fscale)
     end
 end

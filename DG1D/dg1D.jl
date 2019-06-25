@@ -62,6 +62,7 @@ struct dg{T,S,U,V,W}
         xmin: lower bound
         xmax: upper bound
 
+
     #Return Values: x
         all the members of the DG struct
 

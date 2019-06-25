@@ -49,8 +49,8 @@ struct dg
         r = jacobiGL(α, β, n)
         D = dmatrix(r, α, β)
         V = similar(D)
-        jacobi!(V, r, α, β)
-        lift = lift1D(V)
+        vandermonde!(V, r, α, β)
+        lift = ∮dΩ(V)
 
         #grid stuff
         nx = normals1D(K)
@@ -118,8 +118,8 @@ struct dg_parametric{T,S,U,V,W}
         r = jacobiGL(α, β, n)
         D = dmatrix(r, α, β)
         V = similar(D)
-        jacobi!(V, r, α, β)
-        lift = lift1D(V)
+        vandermonde!(V, r, α, β)
+        lift = ∮dΩ(V)
         #grid stuff
         nx = normals1D(K)
         VX, EtoV = unimesh1D(xmin, xmax, K)
@@ -186,8 +186,8 @@ struct dg_collocation{T,S,U,V,W}
         r = jacobiGL(α, β, n)
         D = dmatrix(r, α, β)
         V = similar(D)
-        jacobi!(V, r, α, β)
-        lift = lift1D_v2(V)
+        vandermonde!(V, r, α, β)
+        lift = ∮dΩ_v2(V)
         #grid stuff
         nx = normals1D(K)
         VX, EtoV = unimesh1D(xmin, xmax, K)

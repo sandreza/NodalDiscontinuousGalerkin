@@ -74,8 +74,11 @@ plot(x, f.(x))
 #scatter(x,f.(x)) tends to work better
 """
 function gridvalues1D(VX, EtoV, r)
+    # get low and high edges
     va = view(EtoV, :, 1)
     vb = view(EtoV, :, 2)
+
+    # compute physical coordinates of the grid points
     x = ones(length(r),1) * (VX[va]') .+ 0.5 .* (r .+ 1 ) * ((VX[vb] - VX[va])')
     return x
 end
@@ -110,10 +113,15 @@ fx = edgevalues1D(r,x)
 
 """
 function edgevalues1D(r, x)
+    # check if index is left or right edge
     f1 = abs.(r .+ 1) .< eps(1.0)*10^5
     f2 = abs.(r .- 1) .< eps(1.0)*10^5
+
+    # compute x values at selected indices
     fx1 = x[f1,:]
     fx2 = x[f2,:]
+
+    # return list of physical edge positions
     fx = [fx1; fx2]
     return fx
 end
@@ -191,29 +199,40 @@ connect1D(EtoV)
 """
 function connect1D(EtoV)
     nfaces = 2 #for 1d elements
+
+    # Find number of elements and vertices
     K = size(EtoV,1)
     total_faces = nfaces * K
     Nv = K+1
+
+    # list of local face to local vertex connections
     vn = [1, 2]
+
+    # build global face to vertex array
     FtoV = Int.(spzeros(total_faces, Nv))
     let sk = 1
-    for k = 1:K
-        for faces = 1:nfaces
-            FtoV[sk, EtoV[k, vn[faces]]] = 1;
-            sk += 1
+        for k = 1:K
+            for faces = 1:nfaces
+                FtoV[sk, EtoV[k, vn[faces]]] = 1;
+                sk += 1
+            end
         end
     end
-    end
+
+    # build global face to face array
     FtoF = FtoV * (FtoV') - sparse(I, total_faces, total_faces)
-    (faces1,faces2) = findnz(FtoF)
 
-    element1 = @. Int(floor((faces1 - 1) / nfaces) + 1)
-    face1    = @. Int(  mod((faces1 - 1),  nfaces) + 1)
-    element2 = @. Int(floor((faces2 - 1) / nfaces) + 1)
-    face2    = @. Int(  mod((faces2 - 1),  nfaces) + 1)
+    # find all face to face connections
+    (faces1, faces2) = findnz(FtoF)
 
-    #the line below is a terrible idea.
-    ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] )
+    # convert global face number to element and face numbers
+    element1 = @. Int(floor( (faces1 - 1) / nfaces) + 1)
+    face1    = @. Int(  mod( (faces1 - 1),  nfaces) + 1)
+    element2 = @. Int(floor( (faces2 - 1) / nfaces) + 1)
+    face2    = @. Int(  mod( (faces2 - 1),  nfaces) + 1)
+
+    # Rearrange into Nelement x Nfaces sized arrays
+    ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.
     EtoE = collect(1:K) * ones(1, nfaces)
     EtoF = ones(K, 1) * (collect(1:nfaces)')
     EtoE[ind] = copy(element2);

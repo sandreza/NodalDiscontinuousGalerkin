@@ -1,10 +1,7 @@
 include("dg_utils.jl")
 
-
 α = 0
 β = 0
-
-x = collect(-1.:0.01:1.)
 
 for n in [1,2,4]
     println("!!!    for n = $n")
@@ -15,13 +12,13 @@ for n in [1,2,4]
     println()
 
     V = ones(length(r),length(r))
-    jacobi!(V, r, α, β)
+    vandermonde!(V, r, α, β)
     println("V = ")
     show(stdout, "text/plain", V)
     println()
 
     dV = similar(V)
-    djacobi!(dV, r, α, β)
+    dvandermonde!(dV, r, α, β)
     println("dV = ")
     show(stdout, "text/plain", dV)
     println()

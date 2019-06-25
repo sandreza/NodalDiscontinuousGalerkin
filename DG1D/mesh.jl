@@ -84,6 +84,40 @@ function gridvalues1D(VX, EtoV, r)
 end
 
 """
+facemask1D(r)
+
+#Description
+
+    creates face mask
+
+#Arguments
+
+    r: GL points
+
+#Return Values: x
+
+    fmask: face mask for (r)
+
+#Example | dg_utils.jl
+
+r = jacobiGL(0, 0, 4)
+fmask = fmask1D(r)
+
+"""
+function fmask1D(r)
+    # check if index is left or right edge
+    fmask1 = @. abs(r+1) < eps(1.0);
+    fmask2 = @. abs(r-1) < eps(1.0);
+
+    tmp = collect(1:length(r))
+    fmask  = [tmp[fmask1]; tmp[fmask2]]
+    fmask2 = (fmask1,fmask2)
+
+    # fmask = (fmask1, fmask2)
+    return fmask2
+end
+
+"""
 edgevalues1D(r, x)
 
 #Description
@@ -113,9 +147,8 @@ fx = edgevalues1D(r,x)
 
 """
 function edgevalues1D(r, x)
-    # check if index is left or right edge
-    f1 = abs.(r .+ 1) .< eps(1.0)*10^5
-    f2 = abs.(r .- 1) .< eps(1.0)*10^5
+    # get face mask
+    f1,f2 = fmask1D(r)
 
     # compute x values at selected indices
     fx1 = x[f1,:]
@@ -191,8 +224,8 @@ connect1D(EtoV)
 
 #Return Values: EtoE, EtoF
 
-    EtoE:
-    EtoF:
+    EtoE: element to element connectivity
+    EtoF: element to face connectivity
 
 #Example
 
@@ -241,7 +274,7 @@ function connect1D(EtoV)
 end
 
 """
-buildmaps1D(K, np, nfp, nfaces, EtoE, EtoF, x)
+buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 
 #Description
 
@@ -285,43 +318,48 @@ VX, EtoV = unimesh1D(xmin, xmax, K)
 EtoE, EtoF = connect1D(EtoV)
 x = gridvalues1D(VX, EtoV, r)
 fx = edgevalues1D(r,x)
-#build fmask
-fmask1 = @. abs(r+1) < eps(1.0);
-fmask2 = @. abs(r-1) < eps(1.0);
-fmask  = (fmask1, fmask2)
 
 vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 """
 function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+    # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
     vmapM = zeros(nfp, nfaces, K)
     vmapP = zeros(nfp, nfaces, K)
+
+    # find index of face nodes wrt volume node ordering
     for k1 in 1:K
         for f1 in 1:nfaces
-            vmapM[:,f1,k1] = nodeids[fmask[f1], k1]
+            vmapM[:, f1, k1] = nodeids[fmask[f1], k1]
         end
     end
 
     for k1 = 1:K
         for f1 = 1:nfaces
-            k2 = Int.(EtoE[k1,f1])
-            f2 = Int.(EtoF[k1,f1])
-            vidM = Int.(vmapM[:,f1,k1])
-            vidP = Int.(vmapM[:,f2,k2])
+            # find neighbor
+            k2 = Int.( EtoE[k1, f1])
+            f2 = Int.( EtoF[k1, f1])
+
+            # find volume node numbers of left and right nodes
+            vidM = Int.( vmapM[:, f1, k1])
+            vidP = Int.( vmapM[:, f2, k2])
+
             x1 = x[vidM]
             x2 = x[vidP]
 
-            D = (x1 .- x2) .^ 2
+            # compute distance matrix
+            D = @. (x1 - x2)^2
             if D[1] < eps(1.0)*10^5
-                vmapP[:,f1,k1] = vidP
+                vmapP[:, f1, k1] = vidP
             end
         end
     end
 
     #reshape arrays
-    vmapP = Int.( reshape(vmapP,length(vmapP)) )
-    vmapM = Int.( reshape(vmapM,length(vmapM)) )
+    vmapP = Int.( reshape(vmapP, length(vmapP)) )
+    vmapM = Int.( reshape(vmapM, length(vmapM)) )
 
+    # Create list of boundary nodes
     mapB = Int.( collect(1:length(vmapP))[vmapP .== vmapM] )
     vmapB = Int.( vmapM[mapB] )
 
@@ -333,9 +371,26 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
     return vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO
 end
 
-#make the grid periodic
-function make_periodic1D(vmapP,u)
-    vmapP[1] =length(u)
+"""
+make_periodic1D!(vmapP, u)
+
+#Description
+
+    makes the grid periodic by modifying vmapP
+
+#Arguments
+
+    vmapP: exterior vertex map
+    u: vertex vector
+
+#Return Values: none
+
+#Example
+
+"""
+function make_periodic1D!(vmapP, u)
+    vmapP[1] = length(u)
     vmapP[end] = 1
+
     return nothing
 end

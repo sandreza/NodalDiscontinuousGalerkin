@@ -5,8 +5,6 @@ using Plots
 using BenchmarkTools
 using DifferentialEquations
 
-
-x
 K = 2^4 #number of elements
 n = 2^2-1 #polynomial order,
 #(for 2^8, 2^4 with 2^4-1 seems best)
@@ -21,8 +19,8 @@ xmax = L
 #speed of wave
 v = 2π
 α = 0.0 #1 is central flux, 0 is upwind
-#ι = dg(K, n, xmin, xmax)
-ι = dg_parametric(K, n, xmin, xmax)
+
+ι = dg(K, n, xmin, xmax)
 struct extern_params
     v
     α
@@ -51,7 +49,7 @@ dt = 0.1
 t += dt
 dg_upwind!(rhsu, u, params, t)
 =#
-make_periodic1D(ι.vmapP, ι.u)
+make_periodic1D!(ι.vmapP, ι.u)
 rhs! = dg_upwind_p!
 #run code
 tspan = (0.0,2)

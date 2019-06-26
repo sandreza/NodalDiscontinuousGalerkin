@@ -9,7 +9,7 @@ using Profile
 using Revise
 
 #number of discretization points
-n = 2^14
+n = 2^6
 #domain length
 L = 2 * pi
 #collocation points

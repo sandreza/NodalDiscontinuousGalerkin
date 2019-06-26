@@ -7,6 +7,8 @@ using LinearAlgebra    #for Guass quadrature
 """
 jacobi(x, α, β, n)
 
+CRASHES CURRENTLY
+
 evaluate a jacobi polynomial of degree n at the value x ∈ [-1, 1]
 From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
 uses the gamma function
@@ -40,7 +42,7 @@ function jacobi(x, α, β, n::Int)
 end
 
 """
-jacobi!(y, x, α, β)
+vandermonde!(y, x, α, β)
 
 evaluate a jacobi polynomial of degree n at the values x ∈ [-1, 1]
 From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
@@ -52,7 +54,7 @@ note that y is the "vandermonde matrix"
 
 Example:
 x = collect(-1:0.01:1);
-jacobi!(y,x,0,0)
+vandermonde!(y,x,0,0)
 
 This gives all the Legendre polynomials up to 9 on the interval [-1,1]
 i.e. y[:,3] is the Legendre polynomial of degree 2 evaluated at the
@@ -60,44 +62,57 @@ x values
 plot(x,y[:,8])
 Allocates a little bit of memory
 """
-function jacobi!(y, x, α, β)
+function vandermonde!(y, x, α, β)
+    # compute first two coefficients
     γ0 = 2^(α + β + 1) / (α + β + 1) * factorial(α) * factorial(β)
     γ0 /= factorial(α + β)
     γ1 = (α + 1) * (β + 1) / (α + β + 3) * γ0
-    #create view to assigne values
+
+    #create view to assign values
     m, n = size(y)
     if m != length(x)
         println("Make sure the size of the arrays is correct")
         return error
     end
-    yview1 = view(y,:,1)
+    yview1 = view(y, :, 1)
     yview1 .= 1 / sqrt(γ0)
-    if n==2
-        yview1 = view(y,:,2)
-        @. yview1 = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        return nothing
-    elseif n>2
-        yview1  = view(y,:,1)
-        yview2 = view(y,:,2)
-        yview3 = view(y,:,3)
+
+    # explicitly compute second coefficient
+    if n >= 2
+        yview2 = view(y, :, 2)
         @. yview2 = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
-        for i in 1:(n-2)
-            yview1  = view(y,:,i)
-            yview2 = view(y,:,i+1)
-            yview3 = view(y,:,i+2)
-            h1 = 2 * i + α + β
-            anew = 2 /(h1 + 2)*sqrt((i+1)*(i+1+α+β)*(i+1+α)*(i+1+β)/(h1+1)/(h1+3))
-            bnew = - (α^2 - β^2)/h1/(h1+2)
-            @. yview3 = 1 / anew * (-aold*yview1 + (x-bnew)*yview2)
-            aold = anew
+
+        if n == 2
+            return nothing
+
+        # recursively compute all higher coefficients
+        else
+            aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
+
+            for i in 3:(n)
+                # get views for ith, i-1th, and i-2th columns
+                yviewi = view(y, :, i)
+                yviewM1 = view(y, :, i-1)
+                yviewM2 = view(y, :, i-2)
+
+                # compute new a and b values
+                h1 = 2 * (i-2) + α + β
+                anew = 2 / (h1 + 2) * sqrt((i-1) * (i-1 + α + β) * (i-1 + α) * (i-1 + β) / (h1 + 1) / (h1 + 3) )
+                bnew = - (α^2 - β^2) / h1 / (h1+2)
+
+                # compute coefficients for ith column
+                @. yviewi = 1 / anew * (-aold * yviewM2 + (x-bnew) * yviewM1)
+
+                # save a coefficient for next iteration
+                aold = anew
+            end
+            return nothing
         end
-        return nothing
     end
 end
 
 """
-djacobi!(y, x, α, β)
+dvandermonde!(y, x, α, β)
 
 evaluate the derivative jacobi polynomial (α, β) of degree n at the values x ∈ [-1, 1].
 From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
@@ -113,7 +128,7 @@ x = collect(-1:0.5:1)
 
 dy = ones(length(x),10);
 
-djacobi!(dy,x,0,0)
+dvandermonde!(dy,x,0,0)
 
 This gives the derivative of Legendre polynomials up to 9 on the interval [-1,1]
 i.e. dy[:,3] is the derivative of the Legendre polynomial of degree 2 evaluated at the
@@ -123,16 +138,24 @@ plot(x,dy[:,8])
 
 Allocates a little bit of memory
 """
-function djacobi!(y, x, α, β)
-    yview = view(y,:,1)
+function dvandermonde!(y, x, α, β)
+    # set first column to zero (derivative of a constant)
+    yview = view(y, :, 1)
     @. yview = 0
+
+    # get dimensions of matrix
     m, n = size(y)
-    if n>1
-        yview = view(y,:,2:n)
-        jacobi!(yview, x, α+1, β+1)
+
+    # calculate values of derivatives
+    if n > 1
+        # set values
+        yview = view(y, :, 2:n)
+        vandermonde!(yview, x, α+1, β+1)
+
+        # multiply by scaling factors
         for i in 2:n
-            yview2 = view(y,:, i)
-            @. yview2 *= sqrt( (i-1) * (α + β +i) )
+            yview2 = view(y, :, i)
+            @. yview2 *= sqrt( (i-1) * (α + β + i) )
         end
     end
     return nothing
@@ -155,18 +178,26 @@ dy .- d*y
 allocates too much memory
 """
 function dmatrix(x, α, β)
+    # get size of matrix
     n = length(x)
+
+    #initialize empty matrices
     vr = ones(n,n)
     v = ones(n,n)
     d = ones(n,n)
-    djacobi!(vr, x, α, β)
-    jacobi!(v, x, α, β)
+
+    # calculate vandermonde matrix and grad of vandermonde matrix
+    dvandermonde!(vr, x, α, β)
+    vandermonde!(v, x, α, β)
+
+    # calculate values using D = vr * v^-1
     d = vr / v
+
     return d
 end
 
 """
-lift1D(V, y)
+∮dΩ(V, y)
 for computing fluxes
 
 helps compute a surface integral of a quantity
@@ -176,16 +207,18 @@ with respect to the full space inside an element
 the entire operator represents how fluxes flow
 into the interior of an element
 """
-function lift1D(V)
+function ∮dΩ(V)
     m,n = size(V)
+
     E = zeros(m , 2)
     E[1,1] = 1.0
     E[m,2] = 1.0
+
     return V * (transpose(V) * E)
 end
 
 """
-lift1D_v2(V, y)
+∮dΩ_v2(V, y)
 for computing fluxes
 
 nodal form
@@ -196,11 +229,13 @@ with respect to the full space inside an element
 the entire operator represents how fluxes flow
 into the interior of an element
 """
-function lift1D_v2(V)
+function ∮dΩ_v2(V)
     m,n = size(V)
+
     E = zeros(m , 2)
     E[1,1] = 1.0
     E[m,2] = 1.0
+
     return E
 end
 
@@ -226,25 +261,37 @@ x, w = jacobiGQ(α, β, N)
 function jacobiGQ(α, β, N)
     x = zeros(N+1)
     w = zeros(N+1)
-    if N==0
+
+    # explicit if N=0
+    if N == 0
         x[1] = (α - β) / (α + β + 2)
         w[1] = 2
     end
-    h1 = 2 .* collect(0:N) .+ α .+ β;
-    diag = - (α^2 .- β^2) ./ (h1 .+ 2) ./ h1
-    h1view = view(h1,1:N)
-    cf = collect(1:N) #common factor that shows up a lot
-    superdiag = 2 ./ (h1view .+ 2)
+
+    # form symmetric matrix from recurrence
+    h1 = @. 2 * collect(0:N) + α + β;
+
+    # construct diagonal matrix
+    diag = @. - (α^2 - β^2) / (h1 + 2) / h1
+
+    # construct super diagonal matrix
+    h1view = view(h1, 1:N)
+    cf = collect(1:N) # common factor that shows up a lot
+    superdiag = @. 2 / (h1view + 2)
     @. superdiag *= sqrt( cf * (cf + α + β) * (cf + α) * (cf + β) )
     @. superdiag *= sqrt( 1 / (h1view + 1) / (h1view + 3) )
+
+    # create full matrix combining the two
     J = SymTridiagonal(diag, superdiag)
     if (α + β) ≈ 0.0
         J[1,1] = -0.0
     end
-    x , V = eigen(J)
-    w = (V[1,:] .^ 2 ) .* 2^(α + β + 1) / (α + β + 1)
+
+    # compute quadrature by eigenvalue solve
+    x,V = eigen(J)
+    w = @. (V[1,:] ^ 2 ) * 2^(α + β + 1) / (α + β + 1)
     @. w *= factorial(α) * factorial(β) / factorial(α + β)
-    return x, w
+    return x,w
 end
 
 """
@@ -284,16 +331,24 @@ julia> x = jacobiGL(α, β, N)
 function jacobiGL(α, β, N)
     x = zeros(N+1)
     w = zeros(N+1)
+
+    # set end points
     x[1] = -1.0
     x[end] =  1.0
-    if N==0
+
+    # need at least two nodes
+    if N == 0
         error("What are you doing?")
     end
-    if N==1
+
+    # have exactly two nodes
+    if N == 1
         return x
     end
+
+    # compute inner nodes
     xview = view(x, 2:N)
-    xtmp, w = jacobiGQ(α+1, β+1, N-2)
+    xtmp,w = jacobiGQ(α+1, β+1, N-2)
     @. xview = xtmp
     return x
 end

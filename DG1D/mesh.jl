@@ -1,14 +1,14 @@
 
-using SparseArrays #for connectivity matrix
+using SparseArrays # for connectivity matrix
 
 """
 unimesh1D(xmin, xmax, K)
 
-#Description
+# Description
 
     Generates a uniform 1D mesh
 
-#Arguments
+# Arguments
 
     xmin: smallest value of array
 
@@ -16,13 +16,13 @@ unimesh1D(xmin, xmax, K)
 
     K: number of elements in an array
 
-#Return Values: VX, EtoV
+# Return Values: VX, EtoV
 
     VX: vertex values | an Array of size K+1
 
     EtoV: element to node connectivity | a Matrix of size Kx2
 
-#Example
+# Example
 xmin = -1
 xmax =  1
 K    =  4
@@ -42,11 +42,11 @@ end
 """
 gridvalues1D(xmin, xmax, K)
 
-#Description
+# Description
 
     Generates physical gridpoints with each element
 
-#Arguments
+# Arguments
 
     VX: vertex values | an Array of size K+1
 
@@ -54,24 +54,24 @@ gridvalues1D(xmin, xmax, K)
 
     r: LGL nodes in reference element | an array
 
-#Return Values: x
+# Return Values: x
 
     x: physical coordinates of solution
 
-#Example (uses dg_utils.jl as well)
+# Example (uses dg_utils.jl as well)
 
 xmin = 0
 xmax = 2π
 K = 4
-#call functions
+# call functions
 VX, EtoV = unimesh1D(xmin, xmax, K)
 r = jacobiGL(0, 0, 4)
 x = gridvalues1D(VX, EtoV, r)
-#x[:,1] is the physical coordinates within the first element
-#for plotting
+# x[:,1] is the physical coordinates within the first element
+# for plotting
 f(x) = sin(x)
 plot(x, f.(x))
-#scatter(x,f.(x)) tends to work better
+# scatter(x,f.(x)) tends to work better
 """
 function gridvalues1D(VX, EtoV, r)
     # get low and high edges
@@ -86,19 +86,20 @@ end
 """
 facemask1D(r)
 
-#Description
+# Description
 
     creates face mask
 
-#Arguments
+# Arguments
 
     r: GL points
 
-#Return Values: x
+# Return Values: x
 
-    fmask: face mask for (r)
+    fmask1: standard facemask
+    fmask2: alternate form
 
-#Example | dg_utils.jl
+# Example | dg_utils.jl
 
 r = jacobiGL(0, 0, 4)
 fmask = fmask1D(r)
@@ -106,53 +107,50 @@ fmask = fmask1D(r)
 """
 function fmask1D(r)
     # check if index is left or right edge
-    fmask1 = @. abs(r+1) < eps(1.0);
-    fmask2 = @. abs(r-1) < eps(1.0);
+    fm1 = @. abs(r+1) < eps(1.0);
+    fm2 = @. abs(r-1) < eps(1.0);
+    fmask1 = (fm1,fm2)
 
+    # alternate form
     tmp = collect(1:length(r))
-    fmask  = [tmp[fmask1]; tmp[fmask2]]
-    fmask2 = (fmask1,fmask2)
+    fmask2  = [tmp[fm1]; tmp[fm2]]
 
-    # fmask = (fmask1, fmask2)
-    return fmask2
+    fmask = (fmask1, fmask2)
+    return fmask
 end
 
 """
-edgevalues1D(r, x)
+edgevalues1D(fmask, x)
 
-#Description
+# Description
 
     calculates edge values
 
-#Arguments
+# Arguments
 
-    r: GL points
+    fmask: face mask for GL edges
 
     x:  physical coordinates of solution on each element
 
-#Return Values: x
+# Return Values: x
 
     fx: face values of x
 
-#Example | dg_utils.jl
+# Example | dg_utils.jl
 
 r = jacobiGL(0, 0, 4)
-
 x = gridvalues1D(VX, EtoV, r)
+fmask = fmask1D(r)[1]
+fx = edgevalues1D(fmask,x)
 
-fx = edgevalues1D(r,x)
-
-#the locations of the edges in element 1 is fx[:, 1]
+# the locations of the edges in element 1 is fx[:, 1]
 
 
 """
-function edgevalues1D(r, x)
-    # get face mask
-    f1,f2 = fmask1D(r)
-
+function edgevalues1D(fmask, x)
     # compute x values at selected indices
-    fx1 = x[f1,:]
-    fx2 = x[f2,:]
+    fx1 = x[fmask[1],:]
+    fx2 = x[fmask[2],:]
 
     # return list of physical edge positions
     fx = [fx1; fx2]
@@ -162,19 +160,19 @@ end
 """
 normals1D(K)
 
-#Description
+# Description
 
     calculates face normals
 
-#Arguments
+# Arguments
 
     K: number of elements
 
-#Return Values: nx
+# Return Values: nx
 
     nx: face normals along each grid
 
-#Example
+# Example
 
 """
 function normals1D(K)
@@ -186,52 +184,52 @@ end
 """
 geometric_factors(x, Dr)
 
-#Description
+# Description
 
     computes the geometric factors for local mappings of 1D elements
 
-#Arguments
+# Arguments
 
     x: physical coordinates of solution for each element
 
     Dr:
 
-#Return Values: rx, J
+# Return Values: rx, J
 
     rx: inverse jacobian
 
     J: jacobian (in 1D a scalar)
 
-#Example
+# Example
 
 """
 function geometric_factors(x, Dr)
     J = Dr * x
-    rx = 1 ./ J #for 1D
+    rx = 1 ./ J # for 1D
     return rx, J
 end
 
 """
 connect1D(EtoV)
 
-#Description
+# Description
 
     builds global connectivity arrays for 1D
 
-#Arguments
+# Arguments
 
     EtoV: element to node connectivity | a Matrix of size Kx2
 
-#Return Values: EtoE, EtoF
+# Return Values: EtoE, EtoF
 
     EtoE: element to element connectivity
     EtoF: element to face connectivity
 
-#Example
+# Example
 
 """
 function connect1D(EtoV)
-    nfaces = 2 #for 1d elements
+    nfaces = 2 # for 1d elements
 
     # Find number of elements and vertices
     K = size(EtoV,1)
@@ -275,36 +273,31 @@ end
 
 """
 buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
-
-#Description
+# Description
 
     connectivity matrices for element to elements and elements to face
 
-#Arguments
-    K: number of elements
-    np: number of points within an element (polynomial degree + 1)
-    nfp: 1
-    nfaces: 2
-    fmask: an element by element mask to extract edge values
-    EtoE: element to element connectivity
-    EtoF: element to face connectivity
-    x: Guass lobatto points
+# Arguments
 
-#Return Values: vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO
+-   `K`: number of elements
+-   `np`: number of points within an element (polynomial degree + 1)
+-   `nfp`: 1
+-   `nfaces`: 2
+-   `fmask`: an element by element mask to extract edge values
+-   `EtoE`: element to element connectivity
+-   `EtoF`: element to face connectivity
+-   `x`: Guass lobatto points
 
-    vmapM: vertex indices, (used for interior u values)
+# Return Values: vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO
 
-    vmapP: vertex indices, (used for exterior u values)
+-   `vmapM`: vertex indices, (used for interior u values)
+-   `vmapP`: vertex indices, (used for exterior u values)
+-   `vmapB`: vertex indices, corresponding to boundaries
+-   `mapB`: use to extract vmapB from vmapM
+-   `mapI`: Index of left boundary condition
+-   `mapO`: Index of right boundary condition
 
-    vmapB: vertex indices, corresponding to boundaries
-
-    mapB: use to extract vmapB from vmapM
-
-    mapI: Index of left boundary condition
-
-    mapO: Index of right boundary condition
-
-#Example | uses dg_utils.jl
+# Example | uses dg_utils.jl
 
 K = 3
 n = 3; α = 0; β = 0; xmin = 0; xmax = 2π;
@@ -326,7 +319,6 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
     nodeids = reshape(collect(1:(K*np)), np, K)
     vmapM = zeros(nfp, nfaces, K)
     vmapP = zeros(nfp, nfaces, K)
-
     # find index of face nodes wrt volume node ordering
     for k1 in 1:K
         for f1 in 1:nfaces
@@ -355,7 +347,7 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
         end
     end
 
-    #reshape arrays
+    # reshape arrays
     vmapP = Int.( reshape(vmapP, length(vmapP)) )
     vmapM = Int.( reshape(vmapM, length(vmapM)) )
 
@@ -363,7 +355,7 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
     mapB = Int.( collect(1:length(vmapP))[vmapP .== vmapM] )
     vmapB = Int.( vmapM[mapB] )
 
-    #inflow and outflow maps
+    # inflow and outflow maps
     mapI = 1
     mapO = K * nfaces
     vmapI = 1
@@ -374,18 +366,18 @@ end
 """
 make_periodic1D!(vmapP, u)
 
-#Description
+# Description
 
     makes the grid periodic by modifying vmapP
 
-#Arguments
+# Arguments
 
     vmapP: exterior vertex map
     u: vertex vector
 
-#Return Values: none
+# Return Values: none
 
-#Example
+# Example
 
 """
 function make_periodic1D!(vmapP, u)

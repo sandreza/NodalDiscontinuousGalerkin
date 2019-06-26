@@ -242,12 +242,12 @@ end
 
 """
 jacobiGQ(α, β, N)
-#Description
+# Description
     Guass Quadrature points and weights for the Jacobi Polynomial (α,β)
-#Input
+# Input
 α, β: Jacobi polynomial descriptors
 N:    order of quadrature points
-#Return: x,w
+# Return: x,w
 x: quadrature points | array of size N+1
 w: quadrature weights | array of size N+1
 

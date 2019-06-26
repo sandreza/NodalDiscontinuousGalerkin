@@ -4,14 +4,10 @@ include("mesh.jl")
 using Plots
 using BenchmarkTools
 
-# need to figure out the fmask situation
-# what the hell is going on with them?
-# I tried to make a function and it fails horribly
-
 struct dg{T,S,U,V,W}
     u::T
     du::T
-    rhsu::T
+    uʰ::T
 
     K::S
     n::S
@@ -51,11 +47,11 @@ struct dg{T,S,U,V,W}
     """
     dg(KK, nn, xmin, xmax)
 
-    #Description
+    # Description
 
         initialize DG struct
 
-    #Arguments
+    # Arguments
 
         KK: number of elements
         nn: polynomial order
@@ -63,7 +59,7 @@ struct dg{T,S,U,V,W}
         xmax: upper bound
 
 
-    #Return Values: x
+    # Return Values: x
         all the members of the DG struct
 
     """
@@ -112,11 +108,11 @@ struct dg{T,S,U,V,W}
         # set up the solution
         u = copy(x)
         du = zeros(nfp*nfaces,K)
-        rhsu = copy(x)
+        uʰ = copy(x)
 
         # build connectibity maps
-        vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask1, EtoE, EtoF, x)
+        vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, np,nfp,nfaces, fmask1, EtoE,EtoF, x)
 
-        return new{typeof(u),typeof(K),typeof(r),typeof(EtoV),typeof(vmapP)}(u,du,rhsu, K,n, np,nfp,nfaces, r,x, VX,EtoV, EtoE,EtoF, fx,fmask2, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,lift,rx,nx,fscale)
+        return new{typeof(u),typeof(K),typeof(r),typeof(EtoV),typeof(vmapP)}(u,du,uʰ, K,n, np,nfp,nfaces, r,x, VX,EtoV, EtoE,EtoF, fx,fmask2, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,lift,rx,nx,fscale)
     end
 end

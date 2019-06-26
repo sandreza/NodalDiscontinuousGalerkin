@@ -1,13 +1,13 @@
-
 include("dg1D.jl")
 include("dg_advection.jl")
+
 using Plots
 using BenchmarkTools
 using DifferentialEquations
 
 K = 2^4 #number of elements
 n = 2^2-1 #polynomial order,
-#(for 2^8, 2^4 with 2^4-1 seems best)
+# (for 2^8, 2^4 with 2^4-1 seems best)
 
 
 println("The degrees of freedom are ")
@@ -21,16 +21,11 @@ v = 2π
 α = 0.0 #1 is central flux, 0 is upwind
 
 ι = dg(K, n, xmin, xmax)
-struct extern_params
-    v
-    α
-end
 struct extern_params_parametric{T,S}
     v::T
     α::S
 end
-#ε = extern_params(v, α) #first is velocity, second is value for α
-ε = extern_params_parametric(v, α)
+ε = extern_params_parametric(v, α) # first is velocity, second is value for α
 params = (ι, ε)
 x = ι.x
 u = ι.u

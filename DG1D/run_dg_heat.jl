@@ -1,16 +1,16 @@
 include("dg1D.jl")
-include("dg_advection.jl")
+include("dg_heat.jl")
 
 using Plots
 using BenchmarkTools
 using DifferentialEquations
 
 # choose eqn type
-periodic = true
+periodic = false
 
 # set number of DG elements and polynomial order
 K = 2^3 #number of elements
-n = 2^3-1 #polynomial order,
+n = 2^2-1 #polynomial order,
 # (for 2^8, 2^4 with 2^4-1 seems best)
 println("The degrees of freedom are ")
 println((n+1) * K)
@@ -22,19 +22,21 @@ xmax = L
 ι    = dg(K, n, xmin, xmax)
 
 # set external parameters
-v = 2π # speed of wave
-α = 0.0 # 1 is central flux, 0 is upwind
-ε = external_params(v, α)
+ϰ = 1   # diffusivity constant
+α = 1 # 1 is central flux, 0 is upwind
+ε = external_params(ϰ, α)
 
 # easy access
 x  = ι.x
 u  = ι.u
 uʰ = ι.uʰ
+q = copy(u)
+dq = copy(ι.du)
 
 # determine timestep
 Δx  = minimum(x[2,:] - x[1,:])
-CFL = 0.75
-dt  = CFL * Δx / v
+CFL = 0.25
+dt  = CFL * Δx^2 / ϰ #since two derivatives show up
 dt *= 0.5 / 1
 
 if periodic
@@ -48,8 +50,8 @@ end
 
 # run code
 tspan  = (0.0, 2.0)
-params = (ι, ε, periodic)
-rhs! = dg_upwind!
+params = (ι, ε, periodic, q, dq)
+rhs! = dg_heat!
 
 prob = ODEProblem(rhs!, u, tspan, params);
 sol  = solve(prob, Tsit5(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5(), Heun()
@@ -70,14 +72,3 @@ for i in indices
     display(plt)
     sleep(0.25)
 end
-
-wrongness = norm(sol.u[1]-sol.u[end]) / norm(sol.u[1])
-println("The error in the solution is ")
-println(wrongness)
-
-println("To find where the computational bottleneck is")
-println("Evaluating the right hand side takes")
-@btime dg_upwind!(ι.uʰ, ι.u, params, 0)
-
-println("Performing a matrix multiplication")
-@btime mul!(ι.uʰ, ι.D, ι.u)

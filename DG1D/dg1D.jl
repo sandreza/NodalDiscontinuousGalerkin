@@ -4,52 +4,44 @@ include("mesh.jl")
 using Plots
 using BenchmarkTools
 
-struct dg{T,S,U,V,W}
-    u::T
-    du::T
-    uʰ::T
-
+struct mesh{T,S,U,W}
+    # inputs
     K::S
     n::S
 
-    np::S
+    # face stuff
     nfp::S
     nfaces::S
 
+    # GL points
     r::U
     x::T
 
-    VX::U
-    EtoV::V
-
-    EtoE::T
-    EtoF::T
-
-    fx::T
-    fmask::W
-
+    # vertex maps
     vmapM::W
     vmapP::W
     vmapB::W
     mapB::W
 
+    # inflow/outflow maps
     mapI::S
     mapO::S
     vmapI::S
     vmapO::S
 
+    # structures for computation
     D::T
     lift::T
     rx::T
-    nx::T
+    normals::T
     fscale::T
 
     """
-    dg(KK, nn, xmin, xmax)
+    mesh(KK, nn, xmin, xmax)
 
     # Description
 
-        initialize DG struct
+        initialize mesh struct
 
     # Arguments
 
@@ -60,10 +52,10 @@ struct dg{T,S,U,V,W}
 
 
     # Return Values: x
-        all the members of the DG struct
+        return grid values
 
     """
-    function dg(KK, nn, xmin, xmax)
+    function mesh(KK, nn, xmin, xmax)
         # initialize parameters
         K = KK
         α = 0; β = 0;
@@ -74,16 +66,8 @@ struct dg{T,S,U,V,W}
         nfp = 1
         nfaces = 2
 
-        # comput Gauss Lobatto grid
+        # compute Gauss Lobatto grid
         r = jacobiGL(α, β, n)
-
-        # build reference element matrices
-        D = dmatrix(r, α, β)
-        V = similar(D)
-        vandermonde!(V, r, α, β)
-
-        # build surface integral terms
-        lift = ∮dΩ(V)
 
         # build grid
         VX, EtoV = unimesh1D(xmin, xmax, K)
@@ -91,28 +75,65 @@ struct dg{T,S,U,V,W}
         # build coordinates of all the nodes
         x = gridvalues1D(VX, EtoV, r)
 
-        # calculate geometric factors
-        rx, J  = geometric_factors(x, D)
-
-        # compute masks for edge nodes
-        fmask1,fmask2 = fmask1D(r)
-        fx = edgevalues1D(fmask1,x)
-
-        # build surface normals and inverse metric at the surface
-        nx = normals1D(K)
-        fscale = 1 ./ J[fmask2,:]
-
         # build connectivity matrix
         EtoE, EtoF = connect1D(EtoV)
 
-        # set up the solution
-        u = copy(x)
-        du = zeros(nfp*nfaces,K)
-        uʰ = copy(x)
+        # build face masks
+        fmask1,fmask2 = fmask1D(r)
 
         # build connectibity maps
         vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, np,nfp,nfaces, fmask1, EtoE,EtoF, x)
 
-        return new{typeof(u),typeof(K),typeof(r),typeof(EtoV),typeof(vmapP)}(u,du,uʰ, K,n, np,nfp,nfaces, r,x, VX,EtoV, EtoE,EtoF, fx,fmask2, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,lift,rx,nx,fscale)
+        # build differentiation matrix
+        D = dmatrix(r, α, β)
+
+        # build surface integral terms
+        V = similar(D)
+        vandermonde!(V, r, α, β)
+        lift = ∮dΩ(V)
+
+        # calculate geometric factors
+        rx,J = geometric_factors(x, D)
+
+        # build surface normals
+        normals = normals1D(K)
+
+        # build inverse metric at the surface
+        fscale = 1 ./ J[fmask2,:]
+
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nfp,nfaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,lift,rx,normals,fscale)
+    end
+end
+
+struct dg{T}
+    u::T
+    uʰ::T
+    flux::T
+
+    """
+    dg(mesh)
+
+    # Description
+
+        initialize dg struct
+
+    # Arguments
+
+    -   `mesh`: a mesh to compute on
+
+    # Return Values:
+
+    -   `u` : the field to be computed
+    -   `uʰ`: numerical solutions for the field
+    -   `flux`: the numerical flux for the computation
+
+    """
+    function dg(mesh)
+        # set up the solution
+        u    = copy(mesh.x)
+        uʰ   = copy(mesh.x)
+        flux = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+
+        return new{typeof(u)}(u, uʰ, flux)
     end
 end

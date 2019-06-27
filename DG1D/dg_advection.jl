@@ -50,26 +50,27 @@ maybe define a function that acts on dg structs?
 """
 function dg_upwind!(uʰ, u, params, t)
     # unpack params
-    ι = params[1] # internal parameters
-    ε = params[2] # external parameters
-    periodic = params[3]
+    𝒢 = params[1] # grid parameters
+    ι = params[2] # internal parameters
+    ε = params[3] # external parameters
+    periodic = params[4]
 
     # Form field differences at faces
-    diffs = reshape( (u[ι.vmapM] - u[ι.vmapP]), (ι.nfp * ι.nfaces, ι.K ))
-    @. ι.du = 1//2 * diffs * (ε.v * ι.nx - (1 - ε.α) * abs(ε.v * ι.nx))
+    diffs = reshape( (u[𝒢.vmapM] - u[𝒢.vmapP]), size(ι.flux))
+    @. ι.flux = 1//2 * diffs * (ε.v * 𝒢.normals - (1 - ε.α) * abs(ε.v * 𝒢.normals))
 
     # Inflow and Outflow boundary conditions
     if !periodic
         uin = -sin(ε.v * t)
-        ι.du[ι.mapI]  = @. (u[ι.vmapI] - uin)
-        ι.du[ι.mapI] *= @. 1//2 * (ε.v * ι.nx[ι.mapI] - (1-ε.α) * abs(ε.α * abs(ε.v * ι.nx[ι.mapI])))
-        ι.du[ι.mapO]  = 0
+        ι.flux[𝒢.mapI]  = @. (u[𝒢.vmapI] - uin)
+        ι.flux[𝒢.mapI] *= @. 1//2 * (ε.v * 𝒢.normals[𝒢.mapI] - (1-ε.α) * abs(ε.α * abs(ε.v * 𝒢.normals[𝒢.mapI])))
+        ι.flux[𝒢.mapO]  = 0
     end
 
     # rhs of the semi-discerte PDE, ∂ᵗu = -∂ˣu
-    mul!(uʰ, ι.D, u)
-    @. uʰ *= -ε.v * ι.rx
-    lift = ι.lift * (ι.fscale .* ι.du )
+    mul!(uʰ, 𝒢.D, u)
+    @. uʰ *= -ε.v * 𝒢.rx
+    lift = 𝒢.lift * (𝒢.fscale .* ι.flux )
     @. uʰ += lift
     return nothing
 end

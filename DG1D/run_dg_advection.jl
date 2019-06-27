@@ -19,17 +19,13 @@ println((n+1) * K)
 L    = 2π
 xmin = 0.0
 xmax = L
-ι    = dg(K, n, xmin, xmax)
+𝒢 = mesh(K, n, xmin, xmax)
+x = 𝒢.x
 
 # set external parameters
 v = 2π # speed of wave
 α = 0.0 # 1 is central flux, 0 is upwind
 ε = external_params(v, α)
-
-# easy access
-x  = ι.x
-u  = ι.u
-uʰ = ι.uʰ
 
 # determine timestep
 Δx  = minimum(x[2,:] - x[1,:])
@@ -37,18 +33,21 @@ CFL = 0.75
 dt  = CFL * Δx / v
 dt *= 0.5 / 1
 
+# set up solution
+ι = dg(𝒢)
+u = ι.u
 if periodic
     # initial condition for periodic problem
-    @. u = exp(-4 * (ι.x - L/2)^2)
-    make_periodic1D!(ι.vmapP, ι.u)
+    @. u = exp(-4 * (x - L/2)^2)
+    make_periodic1D!(𝒢.vmapP, u)
 else
     # initial condition for textbook example problem
-    @. u = sin(ι.x)
+    @. u = sin(x)
 end
 
 # run code
 tspan  = (0.0, 2.0)
-params = (ι, ε, periodic)
+params = (𝒢, ι, ε, periodic)
 rhs! = dg_upwind!
 
 prob = ODEProblem(rhs!, u, tspan, params);
@@ -80,4 +79,4 @@ println("Evaluating the right hand side takes")
 @btime dg_upwind!(ι.uʰ, ι.u, params, 0)
 
 println("Performing a matrix multiplication")
-@btime mul!(ι.uʰ, ι.D, ι.u)
+@btime mul!(ι.uʰ, 𝒢.D, ι.u)

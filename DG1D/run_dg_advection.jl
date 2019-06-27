@@ -29,7 +29,6 @@ v = 2π # speed of wave
 # easy access
 x  = ι.x
 u  = ι.u
-uʰ = ι.uʰ
 
 # determine timestep
 Δx  = minimum(x[2,:] - x[1,:])

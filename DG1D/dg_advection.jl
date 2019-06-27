@@ -55,7 +55,7 @@ function dg_upwind!(uʰ, u, params, t)
     periodic = params[3]
 
     # Form field differences at faces
-    diffs = reshape( (u[ι.vmapM] - u[ι.vmapP]), (ι.nfp * ι.nfaces, ι.K ))
+    diffs = reshape( (u[ι.vmapM] - u[ι.vmapP]), (ι.nfp * ι.nfaces, ι.K))
     @. ι.du = 1//2 * diffs * (ε.v * ι.nx - (1 - ε.α) * abs(ε.v * ι.nx))
 
     # Inflow and Outflow boundary conditions

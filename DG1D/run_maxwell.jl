@@ -16,13 +16,8 @@ println((n+1) * K)
 L    = 4
 xmin = -2.0
 xmax = xmin + L
-intE  = dg(K, n, xmin, xmax)
-intH  = dg(K, n, xmin, xmax)
-
-# easy access
-x  = intE.x
-E = intE.u
-H = intH.u
+𝒢 = mesh(K, n, xmin, xmax)
+x = 𝒢.x
 
 # determine timestep
 Δx  = minimum(x[2,:] - x[1,:])
@@ -36,19 +31,18 @@ dt *= 0.5 / 1
 ext  = material_params(ϵ.(x), μ.(x))
 
 # initial conditions
-@. E = sin(π*x) * (x < 0)
-@. H = 0
+E = dg(𝒢)
+H = dg(𝒢)
+@. E.u = sin(π*x) * (x < 0)
+@. H.u = 0
 
 # solve equations
 tspan  = (0.0, 10.0)
-params = (intE, intH, ext)
+params = (𝒢, E, H, ext)
 rhs! = dg_maxwell!
 
-Eʰ = similar(E)
-Hʰ = similar(H)
-
-u  = [E ,H ]
-uʰ = [Eʰ,Hʰ]
+u  = [E.u , H.u ]
+uʰ = [E.uʰ, H.uʰ]
 
 dg_maxwell!( uʰ, u, params, 0)
 

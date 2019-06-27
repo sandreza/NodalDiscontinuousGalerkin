@@ -168,17 +168,17 @@ normals1D(K)
 
     K: number of elements
 
-# Return Values: nx
+# Return Values: normals
 
-    nx: face normals along each grid
+    normals: face normals along each grid
 
 # Example
 
 """
 function normals1D(K)
-    nx  = ones(2,K)
-    @. nx[1,:] *= -1
-    return nx
+    normals  = ones(2,K)
+    @. normals[1,:] *= -1
+    return normals
 end
 
 """

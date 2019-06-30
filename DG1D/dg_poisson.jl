@@ -90,13 +90,12 @@ end
 
 
 #builds the matrix (one column at a time)
-function poisson_setup(𝒢)
+function poisson_setup(𝒢, periodic, τ)
     L = zeros(length(𝒢.x), length(𝒢.x))
     ι = dg(𝒢)
     # set external parameters
     ϰ = 1.0   # diffusivity constant, doesnt actually enter in for now
     α = 1.0 # 1 is central flux, 0 is upwind, doesnt actually enter in for now
-    τ = 1.0
     ε = external_params(ϰ, α)
 
     @. ι.u = 0.0

@@ -1,5 +1,7 @@
 include("dg1D.jl")
+include("dg_poisson.jl")
 include("dg_heat.jl")
+include("dg_advection.jl")
 
 using Plots
 using BenchmarkTools
@@ -11,7 +13,7 @@ periodic = false #need to keep as false
 timings = true   #to see how different linear solvers perform
 
 # set number of DG elements and polynomial order
-K = 2^3 #number of elements
+K = 2^4 #number of elements
 n = 2^3 - 1 #polynomial order,
 
 # for 64 total dof, K = 2^3, n = 2^3 -1 is the break even point b/w sparse and full
@@ -54,7 +56,7 @@ sol = -sin.(α * x)
 
 params = (𝒢, ι, ε, periodic, q, dq, τ)
 
-∇² = poisson_setup(𝒢, periodic)
+∇² = poisson_setup(𝒢, periodic, τ)
 
 ∇² = Symmetric(∇²)
 display(∇²)

@@ -1,5 +1,6 @@
 include("dg1D.jl")
 include("dg_heat.jl")
+include("dg_utils.jl")
 
 using Plots
 using BenchmarkTools
@@ -30,7 +31,7 @@ xmax = L
 ϰ = 1.0   # diffusivity constant, doesnt actually enter in for now
 α = 1.0 # 1 is central flux, 0 is upwind, doesnt actually enter in for now
 τ = 1.0
-ε = external_params(ϰ, α)
+ε = [ϰ, α]
 
 # easy access
 x  = 𝒢.x

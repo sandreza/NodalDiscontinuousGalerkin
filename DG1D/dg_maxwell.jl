@@ -40,12 +40,13 @@ function dg_maxwell!(uʰ, u, params, t)
     H   = params[3] # internal parameters for H
     ext = params[4] # external parameters
 
-    # unpack variables
+    # unpack variables, no need to
+    #=
     @. E.u  = u[1]
     @. H.u  = u[2]
     @. E.uʰ = uʰ[1]
     @. H.uʰ = uʰ[2]
-
+    =#
     # compute impedence
     Z = @. sqrt(ext.μ / ext.ϵ)
 
@@ -84,11 +85,12 @@ function dg_maxwell!(uʰ, u, params, t)
     liftH = 𝒢.lift * (𝒢.fscale .* H.flux)
     @. H.uʰ += liftH / ext.μ
 
-    # pass values back into arguments
+    # pass values back into arguments, no need to
+    #=
     @. u[1]  = E.u
     @. u[2]  = H.u
     @. uʰ[1] = E.uʰ
     @. uʰ[2] = H.uʰ
-
+    =#
     return nothing
 end

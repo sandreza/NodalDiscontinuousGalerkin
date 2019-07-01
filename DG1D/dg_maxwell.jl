@@ -85,7 +85,7 @@ function dg_maxwell!(uʰ, u, params, t)
     liftH = 𝒢.lift * (𝒢.fscale .* H.flux)
     @. H.uʰ += liftH / ext.μ
 
-    # pass values back into arguments, no need to
+    # pass values back into arguments
     #=
     @. u[1]  = E.u
     @. u[2]  = H.u

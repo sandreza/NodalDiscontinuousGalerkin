@@ -1,23 +1,29 @@
-include("dg_utils.jl")
+include("../DG1D/dg_utils.jl")
 
 """
 rstoab(r,s)
 
-Description:
+# Description
 
-Changes from (r,s) coordinate to (a,b) coordinates
+Changes from (r,s) coordinate to (a,b) coordinates.
 
-Inputs: r,s
+# Inputs
 
-    r: a vector
-    s: a vector
+- `r`: a vector
+- `s`: a vector
 
-Return: a,b
+# Return
 
-    a: a vector: first coordinate pair
-    b: a vector; second coordinate pair
+- `a`: a vector: first coordinate pair
+- `b`: a vector; second coordinate pair
+
+# Example
+
+a, b = rstoab([-0.5, 0.5], [0.5, -0.5])
+
+
 """
-function rs2ab(r,s)
+function rstoab(r,s)
     np = length(r);
     a = zeros(np)
     for i in 1:np
@@ -28,7 +34,7 @@ function rs2ab(r,s)
         end
     end
     b = s
-    return a,b
+    return a, b
 end
 
 function warp_factor(n, rout)
@@ -52,8 +58,28 @@ Description:
     Returns the interpolation nodes for the 2D GL points
 
 """
-
 function nodes2D(n)
+    α° = [0.0000 0.0000 1.4152 0.1001 0.2751 0.9800 1.0999 1.2832 1.3648 1.4773 1.4959 1.5743 1.5770 1.6223 1.6258];
+    if n < 16
+        α = α°[n]
+    elseif
+        α = 5/3
+    end
+    np = (n+1) * (n+2) / 2;
+    L1 = zeros(np)
+    L2 = zeros(np)
+    L3 = zeros(np)
+    sk = 1;
+    for j ∈ 1:(n+1)
+        for m ∈ 1:(n+2-j)
+            L1[sk] = (j-1)/n
+            L3[sk] = (m-1)/n
+            sk += 1
+        end
+    end
+    @. L2 = 1.0 - L1 - L3
+    x = -L2 + L3
+    y = (-L2 - L3 + 2 .* L1 ) / sqrt(3)
     return
 end
 
@@ -66,7 +92,6 @@ Description:
     Returns the rs coordinates
 
 """
-
 function xy2rs(x,y)
     return
 end
@@ -79,7 +104,6 @@ Description:
     Matrix to convert from modal to nodal basis
 
 """
-
 function vandermonde2D(n,r,s)
     return
 end
@@ -94,35 +118,34 @@ Description:
     gradient
 
 """
-
-function ∇()
-    return
+function ∇(u)
+    return nothing
 end
 
 
 """
-∇∘()
+∇o()
 
 Description:
 
     Divergenence
 
 """
-
-function ∇∘()
-    return
+function ∇o(u)
+    return nothing
 end
 
 
 """
-∇×()
+∇x()
 
-Description:
+# Description
+
+- The curl operator in 2D. unicode is (nabla x)
 
     Curl
 
 """
-
-function ∇×()
-    return
+function ∇x(u)
+    return nothing
 end

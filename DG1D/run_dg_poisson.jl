@@ -10,11 +10,11 @@ using BandedMatrices
 
 # choose eqn type
 periodic = false #need to keep as false
-timings = true   #to see how different linear solvers perform
+timings = false   #to see how different linear solvers perform
 
 # set number of DG elements and polynomial order
-K = 2^4 #number of elements
-n = 2^3 - 1 #polynomial order,
+K = 2^5 #number of elements
+n = 2^1 - 1 #polynomial order,
 
 # for 64 total dof, K = 2^3, n = 2^3 -1 is the break even point b/w sparse and full
 # for K = 2^4, n = 2^2 - 1 sparse does better
@@ -37,7 +37,7 @@ xmax = L
 # set external parameters
 ϰ = 1.0   #
 α = 1.0   # parameter for solution, 1.0 is the example in the book
-τ = 1.0
+τ = 1.0  # penalty parameter
 ε = external_params(ϰ, α)
 
 # easy access
@@ -61,6 +61,8 @@ params = (𝒢, ι, ε, periodic, q, dq, τ)
 ∇² = Symmetric(∇²)
 display(∇²)
 
+#for plotting
+theme(:juno)
 
 
 s∇²  = sparse(∇²)

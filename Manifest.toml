@@ -110,10 +110,10 @@ deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 
 [[DiffEqBase]]
-deps = ["Compat", "DocStringExtensions", "FunctionWrappers", "IterativeSolvers", "IteratorInterfaceExtensions", "LinearAlgebra", "MuladdMacro", "Parameters", "RecipesBase", "RecursiveArrayTools", "RecursiveFactorization", "Requires", "Roots", "SparseArrays", "StaticArrays", "Statistics", "SuiteSparse", "TableTraits", "TreeViews"]
-git-tree-sha1 = "7a18ebde8418a167b0ce8fdb334a8c0342734020"
+deps = ["Compat", "Distributed", "DocStringExtensions", "FunctionWrappers", "IterativeSolvers", "IteratorInterfaceExtensions", "LinearAlgebra", "MuladdMacro", "Parameters", "RecipesBase", "RecursiveArrayTools", "RecursiveFactorization", "Requires", "Roots", "SparseArrays", "StaticArrays", "Statistics", "SuiteSparse", "TableTraits", "TreeViews"]
+git-tree-sha1 = "ca30d4e41c6591183812ebd29498e32b0dd3a327"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "5.10.3"
+version = "5.11.1"
 
 [[DiffEqCallbacks]]
 deps = ["DataStructures", "DiffEqBase", "LinearAlgebra", "OrdinaryDiffEq", "RecipesBase", "RecursiveArrayTools", "StaticArrays", "Test"]
@@ -414,9 +414,9 @@ version = "0.5.8"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "FixedPointNumbers", "GR", "GeometryTypes", "JSON", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "Reexport", "Requires", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs"]
-git-tree-sha1 = "c446e51959578de01b5a4efa72ca6f2460e38196"
+git-tree-sha1 = "85eed66b6d128b1c89ca76eaf63f7d1142160eef"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "0.25.1"
+version = "0.25.2"
 
 [[PoissonRandom]]
 deps = ["Random", "Statistics", "Test"]
@@ -501,9 +501,9 @@ uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[Showoff]]
 deps = ["Dates"]
-git-tree-sha1 = "03a819b222591508e452ae3ca0333657cf070cbc"
+git-tree-sha1 = "e032c9df551fb23c9f98ae1064de074111b7bc39"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
-version = "0.3.0"
+version = "0.3.1"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"

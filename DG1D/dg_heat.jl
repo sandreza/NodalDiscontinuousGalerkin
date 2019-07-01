@@ -1,5 +1,5 @@
 """
-dg_heat!(uʰ, u, params, t)
+dg_heat!(u̇, u, params, t)
 
 
 # Description
@@ -26,13 +26,13 @@ x = par_i.x
 u = par_i.u
 
 @. u = sin(par_i.x) # initial condition
-uʰ = par_i.uʰ
+u̇ = par_i.u̇
 
-@btime dg_heat!(uʰ, u, params, t)
+@btime dg_heat!(u̇, u, params, t)
 scatter!(x,u, leg = false)
 
 """
-function dg_heat!(uʰ, u, params, t)
+function dg_heat!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1]
     ι = params[2] # internal parameters
@@ -74,9 +74,9 @@ function dg_heat!(uʰ, u, params, t)
         dq[𝒢.mapO]  =  @. (q[𝒢.vmapO] - qout) / 2
     end
     # solve for uʰ
-    mul!(uʰ, 𝒢.D, q)
-    @. uʰ *=  𝒢.rx
+    mul!(u̇, 𝒢.D, q)
+    @. u̇ *=  𝒢.rx
     lift = 𝒢.lift * (𝒢.fscale .* 𝒢.normals .* dq )
-    @. uʰ -= lift
+    @. u̇ -= lift
     return nothing
 end

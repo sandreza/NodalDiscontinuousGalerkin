@@ -257,10 +257,10 @@ function connect1D(EtoV)
     (faces1, faces2) = findnz(FtoF)
 
     # convert global face number to element and face numbers
-    element1 = @. Int(floor( (faces1 - 1) / nfaces) + 1)
-    face1    = @. Int(  mod( (faces1 - 1),  nfaces) + 1)
-    element2 = @. Int(floor( (faces2 - 1) / nfaces) + 1)
-    face2    = @. Int(  mod( (faces2 - 1),  nfaces) + 1)
+    element1 = @. floor(Int, (faces1 - 1) / nfaces) + 1
+    face1    = @. Int( mod( (faces1 - 1),  nfaces) + 1)
+    element2 = @. floor(Int, (faces2 - 1) / nfaces) + 1
+    face2    = @. Int( mod( (faces2 - 1),  nfaces) + 1)
 
     # Rearrange into Nelement x Nfaces sized arrays
     ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.

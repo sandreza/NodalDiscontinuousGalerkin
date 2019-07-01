@@ -1,12 +1,13 @@
 include("dg1D.jl")
 include("dg_heat.jl")
+include("dg_utils.jl")
 
 using Plots
 using BenchmarkTools
 using DifferentialEquations
 
 # choose eqn type
-periodic = false
+periodic = true
 
 # set number of DG elements and polynomial order
 K = 2^3 #number of elements
@@ -19,38 +20,45 @@ println((n+1) * K)
 L    = 2π
 xmin = 0.0
 xmax = L
-ι    = dg(K, n, xmin, xmax)
+
+# generate mesh variables
+𝒢 = mesh(K, n, xmin, xmax)
+
+# generate internal variables
+ι = dg(𝒢)
 
 # set external parameters
-ϰ = 1   # diffusivity constant
-α = 1 # 1 is central flux, 0 is upwind
-ε = external_params(ϰ, α)
+ϰ = 1.0   # diffusivity constant, doesnt actually enter in for now
+α = 1.0 # 1 is central flux, 0 is upwind, doesnt actually enter in for now
+τ = 1.0
+ε = [ϰ, α]
 
 # easy access
-x  = ι.x
+x  = 𝒢.x
 u  = ι.u
 u̇ = ι.u̇
 q = copy(u)
-dq = copy(ι.du)
+dq = copy(ι.flux)
 
 # determine timestep
 Δx  = minimum(x[2,:] - x[1,:])
-CFL = 0.25
+CFL = 0.2
 dt  = CFL * Δx^2 / ϰ #since two derivatives show up
 dt *= 0.5 / 1
 
 if periodic
     # initial condition for periodic problem
-    @. u = exp(-4 * (ι.x - L/2)^2)
-    make_periodic1D!(ι.vmapP, ι.u)
+    @. u = exp(-4 * (𝒢.x - L/2)^2)
+    make_periodic1D!(𝒢.vmapP, ι.u)
 else
     # initial condition for textbook example problem
-    @. u = sin(ι.x)
+    @. u = sin(𝒢.x)
 end
 
 # run code
 tspan  = (0.0, 2.0)
-params = (ι, ε, periodic, q, dq)
+
+params = (𝒢, ι, ε, periodic, q, dq, τ)
 rhs! = dg_heat!
 
 prob = ODEProblem(rhs!, u, tspan, params);

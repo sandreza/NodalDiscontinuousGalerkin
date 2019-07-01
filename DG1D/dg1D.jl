@@ -4,6 +4,7 @@ include("mesh.jl")
 using Plots
 using BenchmarkTools
 
+
 struct mesh{T,S,U,W}
     # inputs
     K::S
@@ -31,6 +32,8 @@ struct mesh{T,S,U,W}
 
     # structures for computation
     D::T
+    M::T
+    Mi::T
     lift::T
     rx::T
     normals::T
@@ -92,6 +95,10 @@ struct mesh{T,S,U,W}
         vandermonde!(V, r, α, β)
         lift = ∮dΩ(V)
 
+        # build mass matrix and inverse of mass matrix
+        Mi = V * V'
+        M = inv(Mi)
+
         # calculate geometric factors
         rx,J = geometric_factors(x, D)
 
@@ -101,7 +108,7 @@ struct mesh{T,S,U,W}
         # build inverse metric at the surface
         fscale = 1 ./ J[fmask2,:]
 
-        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nfp,nfaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,lift,rx,normals,fscale)
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nfp,nfaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,M,Mi,lift,rx,normals,fscale)
     end
 end
 

@@ -19,7 +19,7 @@ struct external_params{T,S}
 end
 
 """
-dg_upwind!(uʰ, u, params, t)
+dg_upwind!(u̇, u, params, t)
 
 # Example
 
@@ -41,14 +41,14 @@ x = par_i.x
 u = par_i.u
 
 @. u = sin(par_i.x) # initial condition
-uʰ = par_i.uʰ
+u̇ = par_i.u̇
 
-@btime dg_upwind!(uʰ, u, params, t)
+@btime dg_upwind!(u̇, u, params, t)
 scatter!(x,u, leg = false)
 
 maybe define a function that acts on dg structs?
 """
-function dg_upwind!(uʰ, u, params, t)
+function dg_upwind!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ι = params[2] # internal parameters
@@ -68,9 +68,9 @@ function dg_upwind!(uʰ, u, params, t)
     end
 
     # rhs of the semi-discerte PDE, ∂ᵗu = -∂ˣu
-    mul!(uʰ, 𝒢.D, u)
-    @. uʰ *= -ε.v * 𝒢.rx
+    mul!(u̇, 𝒢.D, u)
+    @. u̇ *= -ε.v * 𝒢.rx
     lift = 𝒢.lift * (𝒢.fscale .* ι.flux )
-    @. uʰ += lift
+    @. u̇ += lift
     return nothing
 end

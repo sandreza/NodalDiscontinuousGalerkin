@@ -19,7 +19,7 @@ struct material_params{T}
 end
 
 """
-dg_maxwell!(uʰ, u, params, t)
+dg_maxwell!(u̇, u, params, t)
 
 # Description
 
@@ -27,26 +27,25 @@ dg_maxwell!(uʰ, u, params, t)
 
 # Arguments
 
--   `uʰ = (Eʰ, Hʰ)`: container for numerical solutions to fields
+-   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
 -   `u  = (E , H )`: container for starting field values
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 -   `t`: time to evaluate at
 
 """
-function dg_maxwell!(uʰ, u, params, t)
+function dg_maxwell!(u̇, u, params, t)
     # unpack params
     𝒢   = params[1] # grid parameters
     E   = params[2] # internal parameters for E
     H   = params[3] # internal parameters for H
     ext = params[4] # external parameters
 
-    # unpack variables, no need to
-    #=
-    @. E.u  = u[1]
-    @. H.u  = u[2]
-    @. E.uʰ = uʰ[1]
-    @. H.uʰ = uʰ[2]
-    =#
+    # unpack variables
+    @. E.u = u[1]
+    @. H.u = u[2]
+    @. E.u̇ = u̇[1]
+    @. H.u̇ = u̇[2]
+
     # compute impedence
     Z = @. sqrt(ext.μ / ext.ϵ)
 
@@ -75,22 +74,21 @@ function dg_maxwell!(uʰ, u, params, t)
     @. H.flux = 1/(Y⁻ + Y⁺) * (𝒢.normals * Y⁻ * dE - dH)
 
     # compute right hand side of the PDE's
-    mul!(E.uʰ, 𝒢.D, H.u)
-    @. E.uʰ *= -𝒢.rx
-    liftE = 𝒢.lift * (𝒢.fscale .* E.flux)
-    @. E.uʰ += liftE / ext.ϵ
+    mul!(E.u̇, 𝒢.D, H.u)
+    @. E.u̇ *= -𝒢.rx
+    liftE   = 𝒢.lift * (𝒢.fscale .* E.flux)
+    @. E.u̇ += liftE / ext.ϵ
 
-    mul!(H.uʰ, 𝒢.D, E.u)
-    @. H.uʰ *= -𝒢.rx
-    liftH = 𝒢.lift * (𝒢.fscale .* H.flux)
-    @. H.uʰ += liftH / ext.μ
+    mul!(H.u̇, 𝒢.D, E.u)
+    @. H.u̇ *= -𝒢.rx
+    liftH   = 𝒢.lift * (𝒢.fscale .* H.flux)
+    @. H.u̇ += liftH / ext.μ
 
-    # pass values back into arguments, no need to
-    #=
-    @. u[1]  = E.u
-    @. u[2]  = H.u
-    @. uʰ[1] = E.uʰ
-    @. uʰ[2] = H.uʰ
-    =#
+    # pass values back into arguments
+    @. u̇[1] = E.u̇
+    @. u̇[2] = H.u̇
+    @. E.flux = 0
+    @. H.flux = 0
+
     return nothing
 end

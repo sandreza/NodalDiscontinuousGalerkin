@@ -10,7 +10,7 @@ using BandedMatrices
 
 # choose eqn type
 periodic = false #need to keep as false
-timings = false   #to see how different linear solvers perform
+timings = true   #to see how different linear solvers perform
 
 # set number of DG elements and polynomial order
 K = 2^5 #number of elements
@@ -43,7 +43,7 @@ xmax = L
 # easy access
 x  = 𝒢.x
 u  = ι.u
-uʰ = ι.uʰ
+u̇ = ι.u̇
 q = copy(u)
 dq = copy(ι.flux)
 
@@ -93,3 +93,5 @@ if timings == true
     println("banded solve")
     @btime comp_sol = b∇² \ tmp
 end
+
+#scatter(𝒢.x,reshape(eig_vec[:,end],size(𝒢.x)),legend=false)

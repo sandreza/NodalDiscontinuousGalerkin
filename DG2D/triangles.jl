@@ -80,7 +80,18 @@ function nodes2D(n)
     @. L2 = 1.0 - L1 - L3
     x = -L2 + L3
     y = (-L2 - L3 + 2 .* L1 ) / sqrt(3)
-    return
+    blend1 = 4 * L2 .* L3
+    blend2 = 4 * L1 .* L3
+    blend3 = 4 * L1 .* L3
+    warpf1 = warp_factor(n, L3 - L2)
+    warpf2 = warp_factor(n, L1 - L3)
+    warpf3 = warp_factor(n, L2 - L1)
+    warp1 = @. blend1 * warpf1 * (1 + (α * L1 )^2 )
+    warp2 = @. blend2 * warpf2 * (1 + (α * L2 )^2 )
+    warp3 = @. blend3 * warpf3 * (1 + (α * L3 )^2 )
+    x = x + 1*warp1 + cos(2π/3) * warp2 + cos(4π/3) * warp3
+    y = y + 0*warp1 + sin(2π/3) * warp2 + sin(4π/3) * warp3
+    return x, y
 end
 
 

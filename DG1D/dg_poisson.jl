@@ -2,7 +2,7 @@
 
 
 """
-dg_poisson!(uʰ, u, params, t)
+dg_poisson!(u̇, u, params, t)
 
 
 # Description
@@ -29,13 +29,13 @@ x = par_i.x
 u = par_i.u
 
 @. u = sin(par_i.x) # initial condition
-uʰ = par_i.uʰ
+u̇ = par_i.u̇
 
-@btime dg_poisson!(uʰ, u, params, t)
+@btime dg_poisson!(u̇, u, params, t)
 scatter!(x,u, leg = false)
 
 """
-function dg_poisson!(uʰ, u, params, t)
+function dg_poisson!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # internal parameters
     ι = params[2]
@@ -78,14 +78,15 @@ function dg_poisson!(uʰ, u, params, t)
     end
     #modify with τ
     fluxq = @. (dq / 2 + τ * 𝒢.normals * ι.flux)
-    # solve for uʰ
-    mul!(uʰ, 𝒢.D, q)
-    @. uʰ *=  𝒢.rx
+    # solve for u̇
+    mul!(u̇, 𝒢.D, q)
+    @. u̇ *=  𝒢.rx
     lift = 𝒢.lift * (𝒢.fscale .* 𝒢.normals .* fluxq )
-    @. uʰ -= lift
-    tmp =  𝒢.M * uʰ #multiply by mass matrix
-    @. uʰ = tmp / 𝒢.rx
+    @. u̇ -= lift
+    tmp =  𝒢.M * u̇ #multiply by mass matrix
+    @. u̇ = tmp / 𝒢.rx
     return nothing
+
 end
 
 
@@ -105,8 +106,8 @@ function poisson_setup(𝒢, periodic, τ)
     params = (𝒢, ι, ε, periodic, q, dq, τ)
     for i in 1:length(𝒢.x)
         ι.u[i] = 1.0
-        dg_poisson!(ι.uʰ, ι.u, params, 0)
-        @. L[:,i] = ι.uʰ[:]
+        dg_poisson!(ι.u̇, ι.u, params, 0)
+        @. L[:,i] = ι.u̇[:]
         ι.u[i] = 0.0
     end
     return L

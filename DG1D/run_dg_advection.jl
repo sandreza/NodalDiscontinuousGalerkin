@@ -52,16 +52,19 @@ rhs! = dg_upwind!
 
 prob = ODEProblem(rhs!, u, tspan, params);
 sol  = solve(prob, Tsit5(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5(), Heun()
-# @code_warntype dg_upwind!(ι.uʰ, ι.u, params, 0)
-# @btime dg_upwind!(ι.uʰ, ι.u, params, 0)
+# @code_warntype dg_upwind!(ι.u̇, ι.u, params, 0)
+# @btime dg_upwind!(ι.u̇, ι.u, params, 0)
 # @btime sol = solve(prob, Tsit5(), dt=dt, adaptive = false);
 
 # plotting
 theme(:juno)
 nt = length(sol.t)
 num = 20
-indices = Int(floor(nt/num)) * collect(1:num)
-indices[end] = length(sol.t)
+step = floor(Int, nt/num)
+num = floor(Int, nt/step)
+indices = step * collect(1:num)
+pushfirst!(indices, 1)
+push!(indices, nt)
 
 for i in indices
     plt = plot(x, sol.u[i], xlims=(0,L), ylims = (-1.1,1.1), marker = 3,    leg = false)
@@ -76,7 +79,7 @@ println(wrongness)
 
 println("To find where the computational bottleneck is")
 println("Evaluating the right hand side takes")
-@btime dg_upwind!(ι.uʰ, ι.u, params, 0)
+@btime dg_upwind!(ι.u̇, ι.u, params, 0)
 
 println("Performing a matrix multiplication")
-@btime mul!(ι.uʰ, 𝒢.D, ι.u)
+@btime mul!(ι.u̇, 𝒢.D, ι.u)

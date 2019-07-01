@@ -29,7 +29,7 @@ xmax = L
 # easy access
 x  = ι.x
 u  = ι.u
-uʰ = ι.uʰ
+u̇ = ι.u̇
 q = copy(u)
 dq = copy(ι.du)
 
@@ -55,15 +55,15 @@ rhs! = dg_heat!
 
 prob = ODEProblem(rhs!, u, tspan, params);
 sol  = solve(prob, Tsit5(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5(), Heun()
-# @code_warntype dg_upwind!(ι.uʰ, ι.u, params, 0)
-# @btime dg_upwind!(ι.uʰ, ι.u, params, 0)
+# @code_warntype dg_upwind!(ι.u̇, ι.u, params, 0)
+# @btime dg_upwind!(ι.u̇, ι.u, params, 0)
 # @btime sol = solve(prob, Tsit5(), dt=dt, adaptive = false);
 
 # plotting
 theme(:juno)
 nt = length(sol.t)
 num = 20
-indices = Int(floor(nt/num)) * collect(1:num)
+indices = floor(Int, nt/num) * collect(1:num)
 indices[end] = length(sol.t)
 
 for i in indices

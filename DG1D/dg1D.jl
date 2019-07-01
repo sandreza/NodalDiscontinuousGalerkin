@@ -107,7 +107,7 @@ end
 
 struct dg{T}
     u::T
-    uʰ::T
+    u̇::T
     flux::T
 
     """
@@ -124,17 +124,17 @@ struct dg{T}
     # Return Values:
 
     -   `u` : the field to be computed
-    -   `uʰ`: numerical solutions for the field
+    -   `u̇`: numerical solutions for the field
     -   `flux`: the numerical flux for the computation
 
     """
     function dg(mesh)
         # set up the solution
         u    = copy(mesh.x)
-        uʰ   = copy(mesh.x)
+        u̇   = copy(mesh.x)
         flux = zeros(mesh.nfp * mesh.nfaces, mesh.K)
 
-        return new{typeof(u)}(u, uʰ, flux)
+        return new{typeof(u)}(u, u̇, flux)
     end
 end
 
@@ -144,7 +144,7 @@ rk4b = [ 1432997174477.0/9575080441755.0, 5161836677717.0/13612068292357.0, 1720
 rk4c = [ 0.0, 1432997174477.0/9575080441755.0, 2526269341429.0/6820363962896.0, 2006345519317.0/3224310063776.0, 2802321613138.0/2924317926251.0]
 
 """
-rk_solver!(uʰ, u, params, t)
+rk_solver!(u̇, u, params, t)
 
 # Description
 
@@ -152,36 +152,35 @@ rk_solver!(uʰ, u, params, t)
 
 # Arguments
 
--   `uʰ = (Eʰ, Hʰ)`: container for numerical solutions to fields
+-   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
 -   `u  = (E , H )`: container for starting field values
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 -   `t`: time to evaluate at
 
 """
-function rk_solver!(rhs!, uʰ, u, params, tspan, dt)
+function rk_solver!(rhs!, u̇, u, params, tspan, dt)
     # Runge-Kutta residual storage
     nsol = length(u)
     res = Any[]
     for iRes in 1:nsol
         push!(res, zeros(size(u[iRes])))
-        # res[iRes] = similar(u[iRes])
-        # @. res[iRes][:] = 0
     end
 
     # store solutions at all times
-    Nsteps = Int(floor(tspan[end] / dt))
+    Nsteps = ceil(Int, tspan[end] / dt)
     sol = Any[]
 
     # time step loop
     for tstep in 1:Nsteps
         for iRK in 1:5
             # get numerical solution
-            rhs!(uʰ, u, params, dt)
+            rhs!(u̇, u, params, dt)
 
             # update solutions
             for iRes in 1:nsol
-                res[iRes] = rk4a[iRK] * res[iRes] + dt * uʰ[iRes]
+                res[iRes] = rk4a[iRK] * res[iRes] + dt * u̇[iRes]
                 u[iRes] = u[iRes] + rk4b[iRK] * res[iRes]
+                # seems to differ from matlab code during this step ???
             end
         end
 

@@ -73,18 +73,10 @@ function dg_heat!(u̇, u, params, t)
         dq[𝒢.mapI]  =  @. (q[𝒢.vmapI] - qin) / 2
         dq[𝒢.mapO]  =  @. (q[𝒢.vmapO] - qout) / 2
     end
-<<<<<<< HEAD
-    # solve for u̇
-    mul!(u̇, ι.D, q)
-    @. u̇ *=  ι.rx
-    lift = ι.lift * (ι.fscale .* ι.nx .* dq )
-    @. u̇ -= lift
-=======
     # solve for uʰ
-    mul!(uʰ, 𝒢.D, q)
-    @. uʰ *=  𝒢.rx
+    mul!(u̇, 𝒢.D, q)
+    @. u̇ *=  𝒢.rx
     lift = 𝒢.lift * (𝒢.fscale .* 𝒢.normals .* dq )
-    @. uʰ -= lift
->>>>>>> sandreza/master
+    @. u̇ -= lift
     return nothing
 end

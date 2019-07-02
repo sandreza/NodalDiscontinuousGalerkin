@@ -145,9 +145,9 @@ function dvandermonde(x, α, β, N)
     # set values using vandermonde matrix
     v = vandermonde(x, α+1, β+1, N)
     for i in 1:N
-        vview = view(v, :, i)
-        vrview = view(vr, :, i+1)
-        @. vrview = sqrt(i * (α + β + i+1)) * vview
+        vi = view(v, :, i)
+        vrP1 = view(vr, :, i+1)
+        @. vrP1 = sqrt(i * (α + β + i+1)) * vi
     end
 
     return vr

@@ -42,153 +42,145 @@ function jacobi(x, α, β, n::Int)
 end
 
 """
-vandermonde!(y, x, α, β)
+vandermonde(x, α, β, N)
 
-evaluate a jacobi polynomial of degree n at the values x ∈ [-1, 1]
-From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
-uses the gamma function
-returns an array of size n+1, all the jacobi polynomials
-up to value n
-overwrites the matrix y, an (length(x)) by (m=(n+1)) matrix
-note that y is the "vandermonde matrix"
+# Description
 
-Example:
-x = collect(-1:0.01:1);
-vandermonde!(y,x,0,0)
+    Return vandermonde matrix of order N at the values x
+    Allocates a little bit of memory
 
-This gives all the Legendre polynomials up to 9 on the interval [-1,1]
-i.e. y[:,3] is the Legendre polynomial of degree 2 evaluated at the
-x values
-plot(x,y[:,8])
-Allocates a little bit of memory
+# Arguments
+
+-   `x`: points at which to evaluate the Jacobi polynomials
+-   `α`: first parameter for Jacobi polynomials
+-   `β`: second paramater for Jacobi polynomials
+-   `N`: maximum order of Jacobi polynomial to include
+
+# Return Values
+
+-   `v`: vandermonde matrix
+
+# Example
+
+    See LegendreTests.jl
+
 """
-function vandermonde!(y, x, α, β)
+function vandermonde(x, α, β, N)
     # compute first two coefficients
-    γ0 = 2^(α + β + 1) / (α + β + 1) * factorial(α) * factorial(β)
-    γ0 /= factorial(α + β)
+    γ0 = 2^(α + β + 1) * factorial(α) * factorial(β) / ((α + β + 1) * factorial(α + β))
     γ1 = (α + 1) * (β + 1) / (α + β + 3) * γ0
 
-    #create view to assign values
-    m, n = size(y)
-    if m != length(x)
-        println("Make sure the size of the arrays is correct")
-        return error
-    end
-    yview1 = view(y, :, 1)
-    yview1 .= 1 / sqrt(γ0)
+    # create view to assign values
+    v = zeros(length(x), N+1)
+    v1 = view(v, :, 1)
+    @. v1 = 1 / sqrt(γ0)
 
     # explicitly compute second coefficient
-    if n >= 2
-        yview2 = view(y, :, 2)
-        @. yview2 = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-
-        if n == 2
-            return nothing
-
-        # recursively compute all higher coefficients
-        else
-            aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
-
-            for i in 3:(n)
-                # get views for ith, i-1th, and i-2th columns
-                yviewi = view(y, :, i)
-                yviewM1 = view(y, :, i-1)
-                yviewM2 = view(y, :, i-2)
-
-                # compute new a and b values
-                h1 = 2 * (i-2) + α + β
-                anew = 2 / (h1 + 2) * sqrt((i-1) * (i-1 + α + β) * (i-1 + α) * (i-1 + β) / (h1 + 1) / (h1 + 3) )
-                bnew = - (α^2 - β^2) / h1 / (h1+2)
-
-                # compute coefficients for ith column
-                @. yviewi = 1 / anew * (-aold * yviewM2 + (x-bnew) * yviewM1)
-
-                # save a coefficient for next iteration
-                aold = anew
-            end
-            return nothing
-        end
+    if N == 0
+        return v
     end
+
+    v2 = view(v, :, 2)
+    @. v2 = ( (α + β + 2) * x/2 + (α - β)/2) / sqrt(γ1)
+
+    if N == 1
+        return v
+    end
+
+    aʲ = 2 / (2 + α + β) * sqrt((α+1) * (β+1) / (α + β + 3))
+
+    for i in 3:(N+1)
+        # get views for ith, i-1th, and i-2th columns
+        vi = view(v, :, i)
+        vM1 = view(v, :, i-1)
+        vM2 = view(v, :, i-2)
+
+        # compute new a and b values
+        h1 = 2 * (i-2) + α + β
+        aⁱ = 2 / (h1 + 2) * sqrt((i-1) * (i-1 + α + β) * (i-1 + α) * (i-1 + β) / ((h1 + 1) * (h1 + 3)))
+        bⁱ = - (α^2 - β^2) / (h1 * (h1 + 2))
+
+        # compute coefficients for ith column
+        @. vi = 1 / aⁱ * (-aʲ * vM2 + (x - bⁱ) * vM1)
+
+        # save a coefficient for next iteration
+        aʲ = aⁱ
+    end
+
+    return v
 end
 
 """
-dvandermonde!(y, x, α, β)
+dvandermonde(x, α, β, N)
 
-evaluate the derivative jacobi polynomial (α, β) of degree n at the values x ∈ [-1, 1].
-From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
-returns an array of size n+1, the derivative of all the jacobi polynomials
-up to of value n
-overwrites the matrix y, an (length(x)) by (m=(n+1)) matrix
+# Description
 
-Example:
+    Return the gradient of the vandermonde matrix of order N at the values x
+    Allocates a little bit of memory
 
-x = collect(-1:0.01:1);
+# Arguments
 
-x = collect(-1:0.5:1)
+-   `x`: points at which to evaluate the Jacobi polynomials
+-   `α`: first parameter for Jacobi polynomials
+-   `β`: second paramater for Jacobi polynomials
+-   `N`: maximum order of Jacobi polynomial to include
 
-dy = ones(length(x),10);
+# Return Values
 
-dvandermonde!(dy,x,0,0)
+-   `vr`: gradient of vandermonde matrix
 
-This gives the derivative of Legendre polynomials up to 9 on the interval [-1,1]
-i.e. dy[:,3] is the derivative of the Legendre polynomial of degree 2 evaluated at the
-x values
+# Example
 
-plot(x,dy[:,8])
+    See LegendreTests.jl
 
-Allocates a little bit of memory
 """
-function dvandermonde!(y, x, α, β)
-    # set first column to zero (derivative of a constant)
-    yview = view(y, :, 1)
-    @. yview = 0
+function dvandermonde(x, α, β, N)
+    # create empty matrix (also handles first set of derivatives)
+    vr = zeros(length(x), N+1)
 
-    # get dimensions of matrix
-    m, n = size(y)
-
-    # calculate values of derivatives
-    if n > 1
-        # set values
-        yview = view(y, :, 2:n)
-        vandermonde!(yview, x, α+1, β+1)
-
-        # multiply by scaling factors
-        for i in 2:n
-            yview2 = view(y, :, i)
-            @. yview2 *= sqrt( (i-1) * (α + β + i) )
-        end
+    if N == 0
+        return vr
     end
-    return nothing
+
+    # set values using vandermonde matrix
+    v = vandermonde(x, α+1, β+1, N)
+    for i in 1:N
+        vview = view(v, :, i)
+        vrview = view(vr, :, i+1)
+        @. vrview = sqrt(i * (α + β + i+1)) * vview
+    end
+
+    return vr
 end
 
 """
-dmatrix(x, α, β)
+dmatrix(x, α, β, N)
 
-output is the differentiation matrix for nodal values of jacobi polynomial (α, β) of degree n at the values x ∈ [-1, 1]
-From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
-returns a matrix of size length(x) by length(x)
+# Description
 
-Example:
-x = collect(-1:0.5:1);
-d = dmatrix(x,0,0)
-y = x.^2 .+ 2 .* x .+ 8
-dy  = 2 .* x .+ 2
-dy .- d*y
+    Return the differentiation matrix of order N at the values x
+    Allocates too much memory
 
-allocates too much memory
+# Arguments
+
+-   `x`: points at which to evaluate the Jacobi polynomials
+-   `α`: first parameter for Jacobi polynomials
+-   `β`: second paramater for Jacobi polynomials
+-   `N`: maximum order of Jacobi polynomial to include
+
+# Return Values
+
+-   `D`: the differentiation matrix
+
+# Example
+
+    See LegendreTests.jl
+
 """
-function dmatrix(x, α, β)
-    # get size of matrix
-    n = length(x)
-
-    #initialize empty matrices
-    vr = ones(n,n)
-    v = ones(n,n)
-    d = ones(n,n)
-
+function dmatrix(x, α, β, N)
     # calculate vandermonde matrix and grad of vandermonde matrix
-    dvandermonde!(vr, x, α, β)
-    vandermonde!(v, x, α, β)
+    vr = dvandermonde(x, α, β, N)
+    v  =  vandermonde(x, α, β, N)
 
     # calculate values using D = vr * v^-1
     d = vr / v

@@ -58,7 +58,7 @@ gridvalues1D(xmin, xmax, K)
 
     x: physical coordinates of solution
 
-# Example (uses dg_utils.jl as well)
+# Example (uses ../utils.jl as well)
 
 xmin = 0
 xmax = 2π
@@ -99,7 +99,7 @@ facemask1D(r)
     fmask1: standard facemask
     fmask2: alternate form
 
-# Example | dg_utils.jl
+# Example | ../utils.jl
 
 r = jacobiGL(0, 0, 4)
 fmask = fmask1D(r)
@@ -136,7 +136,7 @@ edgevalues1D(fmask, x)
 
     fx: face values of x
 
-# Example | dg_utils.jl
+# Example | ../utils.jl
 
 r = jacobiGL(0, 0, 4)
 x = gridvalues1D(VX, EtoV, r)
@@ -297,7 +297,7 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 -   `mapI`: Index of left boundary condition
 -   `mapO`: Index of right boundary condition
 
-# Example | uses dg_utils.jl
+# Example | uses ../utils.jl
 
 K = 3
 n = 3; α = 0; β = 0; xmin = 0; xmax = 2π;

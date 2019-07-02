@@ -1,4 +1,4 @@
-include("dg_utils.jl")
+include("../utils.jl")
 include("mesh.jl")
 
 using Plots
@@ -88,11 +88,10 @@ struct mesh{T,S,U,W}
         vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, np,nfp,nfaces, fmask1, EtoE,EtoF, x)
 
         # build differentiation matrix
-        D = dmatrix(r, α, β)
+        D = dmatrix(r, α, β, n)
 
         # build surface integral terms
-        V = similar(D)
-        vandermonde!(V, r, α, β)
+        V = vandermonde(r, α, β, n)
         lift = ∮dΩ(V)
 
         # build mass matrix and inverse of mass matrix

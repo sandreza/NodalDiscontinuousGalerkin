@@ -57,7 +57,7 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 end
 
 """
-rectangle(k, v, EtoV)
+rectangle(k, vmap, EtoV)
 
 # Description
 
@@ -66,7 +66,7 @@ rectangle(k, v, EtoV)
 # Arguments
 
 -   `k`: element number in global map
--   `v`: array of vertices
+-   `vmap`: array of vertices
 -   `EtoV`: element to vertex map
 
 # Return Values: x
@@ -85,7 +85,7 @@ struct rectangle{T, S, U}
 
     function rectangle(k, vmap, EtoV)
         index = k
-        vertices = EtoV[k, :]
+        vertices = view(EtoV, k, :)
 
         xmin = vmap[vertices[1]][1]
         ymin = vmap[vertices[1]][2]

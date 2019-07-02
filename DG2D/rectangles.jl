@@ -118,10 +118,38 @@ phys2ideal(x, y, Dᵏ)
 
 """
 function phys2ideal(x, y, Dᵏ)
-    r = 2*(x - Dᵏ.xmin) / (Dᵏ.xmax - Dᵏ.xmin) - 1
-    s = 2*(y - Dᵏ.ymin) / (Dᵏ.ymax - Dᵏ.ymin) - 1
+    r = 2 * (x - Dᵏ.xmin) / (Dᵏ.xmax - Dᵏ.xmin) - 1
+    s = 2 * (y - Dᵏ.ymin) / (Dᵏ.ymax - Dᵏ.ymin) - 1
 
     return r,s
+end
+
+"""
+ideal2phys(r, s, Dᵏ)
+
+# Description
+
+    Converts from ideal [-1,1]⨂[-1,1] square to physical rectangle Dᵏ
+
+# Arguments
+
+-   `r`: first ideal coordinate
+-   `s`: second ideal coordinate
+-   `Dᵏ`: element to compute in
+
+# Return Values
+
+-   `x`: first physical coordinate
+-   `y`: second physical coordinate
+
+# Example
+
+"""
+function ideal2phys(r, s, Dᵏ)
+    x = 1//2 * (r + 1) * (Dᵏ.xmax - Dᵏ.xmin) + Dᵏ.xmin
+    y = 1//2 * (s + 1) * (Dᵏ.ymax - Dᵏ.ymin) + Dᵏ.ymin
+
+    return x,y
 end
 
 """
@@ -143,18 +171,18 @@ vandermonde_square(r, s)
 # Example
 
 """
-function vandermonde_square(r, s)
-    # get lengths
-    n = length(r)
-    m = length(s)
-
-    # construct identity matrices
-    Iⁿ = Matrix(I, n, n)
-    Iᵐ = Matrix(I, m, m)
+function vandermonde_square(α, β, N, M)
+    # get GL nodes in each dimnesion
+    r = jacobiGL(α, β, N)
+    s = jacobiGL(α, β, M)
 
     # construct 1D vandermonde matrices
-    Vⁿ = vandermonde(r, 0, 0, n)
-    Vᵐ = vandermonde(s, 0, 0, m)
+    Vⁿ = vandermonde(r, 0, 0, N)
+    Vᵐ = vandermonde(s, 0, 0, M)
+
+    # construct identity matrices
+    Iⁿ = Matrix(I, N, N)
+    Iᵐ = Matrix(I, M, M)
 
     # compute 2D vandermonde matrix
     V = kron(Iᵐ, Vⁿ) * kron(Vᵐ, Iⁿ)'

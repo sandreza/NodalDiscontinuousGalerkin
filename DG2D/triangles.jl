@@ -21,7 +21,6 @@ Changes from (r,s) coordinate to (a,b) coordinates.
 
 a, b = rstoab([-0.5, 0.5], [0.5, -0.5])
 
-
 """
 function rstoab(r,s)
     np = length(r);
@@ -40,14 +39,15 @@ end
 function warp_factor(n, rout)
     LGLr = jacobiGL(0, 0, n)
     req = collect(range(-1,1, length = n+1))
-    Veq = ones(n+1,n+1)
-    jacobi!(Veq, req, 0, 0)
+    veq = vandermonde(req, 0, 0, n)
     nr = length(rout)
-    pmat = zeros(n+1,nr)
-    for i in 1:(n+1)
-        pmat[i,:] = jacobi(rout, 0, 0, i-1)
-    end
-    return
+    pmat = vandermonde(rout, 0, 0, n)'
+    lmat = veq' \ pmat
+    warp = lmat' * (LGLr - req)
+    zerof = (abs.(rout) .< (1.0 -  1.0e-10) )
+    sf = @. 1.0 - (zerof *rout )^2
+    warp = warp ./ sf + warp .* (zerof .- 1)
+    return warp
 end
 
 """
@@ -82,8 +82,8 @@ function nodes2D(n)
     x = -L2 + L3
     y = (-L2 - L3 + 2 .* L1 ) / sqrt(3)
     blend1 = 4 * L2 .* L3
-    blend2 = 4 * L1 .* L3
-    blend3 = 4 * L1 .* L3
+    blend2 = 4 * L3 .* L1
+    blend3 = 4 * L1 .* L2
     warpf1 = warp_factor(n, L3 - L2)
     warpf2 = warp_factor(n, L1 - L3)
     warpf3 = warp_factor(n, L2 - L1)

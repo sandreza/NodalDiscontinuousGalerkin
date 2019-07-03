@@ -7,13 +7,21 @@ using LinearAlgebra    #for Guass quadrature
 """
 jacobi(x, α, β, n)
 
-CRASHES CURRENTLY
+# Description
 
-evaluate a jacobi polynomial of degree n at the value x ∈ [-1, 1]
-From Nodal Discontinuous Galerkin Methods by Hesthaven and Warburton
-uses the gamma function
-returns an array of size n+1, all the jacobi polynomials
-up to value n
+- Evaluates the jacobi polynomial at the point x
+
+# Arguments
+
+- `x`: point at which you will evaluate the jacobi polynomial
+- `α`: first parameter for Jacobi polynomials
+- `β`: second parameter for Jacobi polynomials
+- `n` : order
+
+# Return
+
+-  `y`: the value of the of the Jacobi polynomial
+
 """
 function jacobi(x, α, β, n::Int)
     γ0 = 2^(α + β + 1) / (α + β + 1) * factorial(α) * factorial(β)
@@ -23,10 +31,10 @@ function jacobi(x, α, β, n::Int)
     PL = zeros(n+1)
     PL[1] = 1 / sqrt(γ0)
     if n==0
-        return PL
+        return PL[end]
     elseif n==1
         PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        return PL
+        return PL[end]
     else
         PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
         aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
@@ -37,7 +45,7 @@ function jacobi(x, α, β, n::Int)
             PL[i+2] = 1 / anew * (-aold*PL[i] + (x-bnew)*PL[i+1])
             aold = anew
         end
-        return PL
+        return PL[end]
     end
 end
 
@@ -53,7 +61,7 @@ vandermonde(x, α, β, N)
 
 -   `x`: points at which to evaluate the Jacobi polynomials
 -   `α`: first parameter for Jacobi polynomials
--   `β`: second paramater for Jacobi polynomials
+-   `β`: second parameter for Jacobi polynomials
 -   `N`: maximum order of Jacobi polynomial to include
 
 # Return Values

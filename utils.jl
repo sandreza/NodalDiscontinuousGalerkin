@@ -189,7 +189,7 @@ function dmatrix(x, α, β, N)
 end
 
 """
-∮dΩ(V, y)
+lift(V, y)
 for computing fluxes
 
 helps compute a surface integral of a quantity
@@ -199,7 +199,7 @@ with respect to the full space inside an element
 the entire operator represents how fluxes flow
 into the interior of an element
 """
-function ∮dΩ(V)
+function lift(V)
     m,n = size(V)
 
     E = zeros(m , 2)
@@ -210,7 +210,7 @@ function ∮dΩ(V)
 end
 
 """
-∮dΩ_v2(V, y)
+lift_v2(V, y)
 for computing fluxes
 
 nodal form
@@ -221,7 +221,7 @@ with respect to the full space inside an element
 the entire operator represents how fluxes flow
 into the interior of an element
 """
-function ∮dΩ_v2(V)
+function lift_v2(V)
     m,n = size(V)
 
     E = zeros(m , 2)

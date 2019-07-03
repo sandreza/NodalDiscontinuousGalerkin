@@ -62,19 +62,20 @@ function nodes2D(n)
     α° = [0.0000 0.0000 1.4152 0.1001 0.2751 0.9800 1.0999 1.2832 1.3648 1.4773 1.4959 1.5743 1.5770 1.6223 1.6258];
     if n < 16
         α = α°[n]
-    elseif
+    else
         α = 5/3
     end
-    np = (n+1) * (n+2) / 2;
+    np = Int((n+1) * (n+2) / 2);
     L1 = zeros(np)
     L2 = zeros(np)
     L3 = zeros(np)
-    sk = 1;
-    for j ∈ 1:(n+1)
-        for m ∈ 1:(n+2-j)
-            L1[sk] = (j-1)/n
-            L3[sk] = (m-1)/n
-            sk += 1
+    let sk = 1
+        for j ∈ 1:(n+1)
+            for m ∈ 1:(n+2-j)
+                L1[sk] = (j-1)/n
+                L3[sk] = (m-1)/n
+                sk += 1
+            end
         end
     end
     @. L2 = 1.0 - L1 - L3

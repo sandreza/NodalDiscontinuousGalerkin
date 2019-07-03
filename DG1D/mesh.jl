@@ -182,7 +182,7 @@ function normals1D(K)
 end
 
 """
-geometric_factors(x, Dr)
+geometric_factors(x, Dʳ)
 
 # Description
 
@@ -192,7 +192,7 @@ geometric_factors(x, Dr)
 
     x: physical coordinates of solution for each element
 
-    Dr:
+    Dʳ:
 
 # Return Values: rx, J
 
@@ -203,8 +203,8 @@ geometric_factors(x, Dr)
 # Example
 
 """
-function geometric_factors(x, Dr)
-    J = Dr * x
+function geometric_factors(x, Dʳ)
+    J = Dʳ * x
     rx = 1 ./ J # for 1D
     return rx, J
 end
@@ -474,7 +474,7 @@ struct mesh{T,S,U,W}
 
         # build surface integral terms
         V = vandermonde(r, α, β, n)
-        lift = ∮dΩ(V)
+        lift = lift(V)
 
         # build mass matrix and inverse of mass matrix
         Mi = V * V'

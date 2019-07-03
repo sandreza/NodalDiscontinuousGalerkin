@@ -233,6 +233,7 @@ function vandermonde2D(n,r,s)
     end
     return V2D
 end
+<<<<<<< HEAD
 
 """
 dvandermonde2D(n,r,s)
@@ -338,3 +339,5 @@ end
 function ∇x(u)
     return nothing
 end
+=======
+>>>>>>> 0811b51c7181cbd0d9bcb9acaa8ab5480a2e1a93

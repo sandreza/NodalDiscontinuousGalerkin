@@ -146,26 +146,35 @@ function simplex2DP(a,b, i::Int, j::Int)
     h1 = @. jacobi(a, 0, 0, i)
     h2 = @. jacobi(b, 2*i + 1, 0, j)
     p = @. sqrt(2.0) * h1 * h2 * (1-b)^i
-    return P
+    return p
 end
 
 
 """
 vandermonde2D(n,r,s)
 
-Description:
+# Description
 
     Matrix to convert from modal to nodal basis. Depends on Simplex2DP
+
+# Arguments
+
+- `n`:
+- `r`:
+- `s`:
+
+
 
 """
 function vandermonde2D(n,r,s)
     np = Int((n+1) * (n+2) / 2);
-    V2D = zeros(length(r), n)
+    V2D = zeros(length(r), np)
     a,b = rstoab(r,s)
-    for sk ∈ 1:(n+1)
+    let sk = 1
         for i ∈ 0:n
             for j ∈ 0:(n - i)
                 V2D[:, sk] = simplex2DP(a,b,i,j)
+                sk += 1
             end
         end
     end

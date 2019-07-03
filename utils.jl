@@ -31,10 +31,10 @@ function jacobi(x, α, β, n::Int)
     PL = zeros(n+1)
     PL[1] = 1 / sqrt(γ0)
     if n==0
-        return PL
+        return PL[end]
     elseif n==1
         PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        return PL
+        return PL[end]
     else
         PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
         aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))

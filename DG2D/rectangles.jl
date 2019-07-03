@@ -97,17 +97,17 @@ struct rectangle{T, S, U}
 end
 
 """
-phys2ideal(x, y, Dᵏ)
+phys2ideal(x, y, Ωᵏ)
 
 # Description
 
-    Converts from physical rectangle Dᵏ to ideal [-1,1]⨂[-1,1] square for legendre interpolation
+    Converts from physical rectangle Ωᵏ to ideal [-1,1]⨂[-1,1] square for legendre interpolation
 
 # Arguments
 
 -   `x`: first physical coordinate
 -   `y`: second physical coordinate
--   `Dᵏ`: element to compute in
+-   `Ωᵏ`: element to compute in
 
 # Return Values
 
@@ -117,25 +117,25 @@ phys2ideal(x, y, Dᵏ)
 # Example
 
 """
-function phys2ideal(x, y, Dᵏ)
-    r = 2 * (x - Dᵏ.xmin) / (Dᵏ.xmax - Dᵏ.xmin) - 1
-    s = 2 * (y - Dᵏ.ymin) / (Dᵏ.ymax - Dᵏ.ymin) - 1
+function phys2ideal(x, y, Ωᵏ)
+    r = 2 * (x - Ωᵏ.xmin) / (Ωᵏ.xmax - Ωᵏ.xmin) - 1
+    s = 2 * (y - Ωᵏ.ymin) / (Ωᵏ.ymax - Ωᵏ.ymin) - 1
 
     return r,s
 end
 
 """
-ideal2phys(r, s, Dᵏ)
+ideal2phys(r, s, Ωᵏ)
 
 # Description
 
-    Converts from ideal [-1,1]⨂[-1,1] square to physical rectangle Dᵏ
+    Converts from ideal [-1,1]⨂[-1,1] square to physical rectangle Ωᵏ
 
 # Arguments
 
 -   `r`: first ideal coordinate
 -   `s`: second ideal coordinate
--   `Dᵏ`: element to compute in
+-   `Ωᵏ`: element to compute in
 
 # Return Values
 
@@ -145,9 +145,9 @@ ideal2phys(r, s, Dᵏ)
 # Example
 
 """
-function ideal2phys(r, s, Dᵏ)
-    x = 1//2 * (r + 1) * (Dᵏ.xmax - Dᵏ.xmin) + Dᵏ.xmin
-    y = 1//2 * (s + 1) * (Dᵏ.ymax - Dᵏ.ymin) + Dᵏ.ymin
+function ideal2phys(r, s, Ωᵏ)
+    x = 1//2 * (r + 1) * (Ωᵏ.xmax - Ωᵏ.xmin) + Ωᵏ.xmin
+    y = 1//2 * (s + 1) * (Ωᵏ.ymax - Ωᵏ.ymin) + Ωᵏ.ymin
 
     return x,y
 end
@@ -177,15 +177,15 @@ function vandermondeSQ(N, M)
     s = jacobiGL(0, 0, M)
 
     # construct 1D vandermonde matrices
-    Vr = vandermonde(r, 0, 0, N)
-    Vs = vandermonde(s, 0, 0, M)
+    Vʳ = vandermonde(r, 0, 0, N)
+    Vˢ = vandermonde(s, 0, 0, M)
 
     # construct identity matrices
     Iⁿ = Matrix(I, N+1, N+1)
     Iᵐ = Matrix(I, M+1, M+1)
 
     # compute 2D vandermonde matrix
-    V = kron(Iᵐ, Vr) * kron(Vs, Iⁿ)
+    V = kron(Iᵐ, Vʳ) * kron(Vˢ, Iⁿ)
     return V
 end
 
@@ -203,8 +203,8 @@ dmatricesSQ(N, M)
 
 # Return Values
 
--   `Dr`: the differentiation matrix wrt first coordinate
--   `Ds`: the differentiation matrix wrt to second coordinate
+-   `Dʳ`: the differentiation matrix wrt first coordinate
+-   `Dˢ`: the differentiation matrix wrt to second coordinate
 
 # Example
 
@@ -215,18 +215,18 @@ function dmatricesSQ(N, M)
     s = jacobiGL(0, 0, M)
 
     # construct 1D vandermonde matrices
-    Dr = dmatrix(r, 0, 0, N)
-    Ds = dmatrix(s, 0, 0, M)
+    Dʳ = dmatrix(r, 0, 0, N)
+    Dˢ = dmatrix(s, 0, 0, M)
 
     # construct identity matrices
     Iⁿ = Matrix(I, N+1, N+1)
     Iᵐ = Matrix(I, M+1, M+1)
 
     # compute 2D vandermonde matrix
-    Dr = kron(Iᵐ, Dr)
-    Ds = kron(Ds, Iⁿ)
+    Dʳ = kron(Iᵐ, Dʳ)
+    Dˢ = kron(Dˢ, Iⁿ)
 
-    return Dr,Ds
+    return Dʳ,Dˢ
 end
 
 """
@@ -243,8 +243,8 @@ dvandermondeSQ(N, M)
 
 # Return Values
 
--   `Vr`: gradient of vandermonde matrix wrt to first coordinate
--   `Vs`: gradient of vandermonde matrix wrt to second coordinate
+-   `Vʳ`: gradient of vandermonde matrix wrt to first coordinate
+-   `Vˢ`: gradient of vandermonde matrix wrt to second coordinate
 
 # Example
 
@@ -254,13 +254,13 @@ function dvandermondeSQ(N, M)
     V = vandermondeSQ(N, M)
 
     # get differentiation matrices
-    Dr,Ds = dmatricesSQ(N, M)
+    Dʳ,Dˢ = dmatricesSQ(N, M)
 
     # calculate using definitions
-    Vr = Dr * V
-    Vs = Ds * V
+    Vʳ = Dʳ * V
+    Vˢ = Dˢ * V
 
-    return Vr,Vs
+    return Vʳ,Vˢ
 end
 
 """

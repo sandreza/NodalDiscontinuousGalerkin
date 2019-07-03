@@ -1,9 +1,9 @@
-include("dg_utils.jl")
+include("../utils.jl")
 
 α = 0
 β = 0
 
-for n in [1,2,4]
+for n in [1, 2, 4]
     println("!!!    for n = $n")
 
     r = jacobiGL(α, β, n)
@@ -11,19 +11,17 @@ for n in [1,2,4]
     show(stdout, "text/plain", r)
     println()
 
-    V = ones(length(r),length(r))
-    vandermonde!(V, r, α, β)
+    V = vandermonde(r, α, β, n)
     println("V = ")
     show(stdout, "text/plain", V)
     println()
 
-    dV = similar(V)
-    dvandermonde!(dV, r, α, β)
+    dV = dvandermonde(r, α, β, n)
     println("dV = ")
     show(stdout, "text/plain", dV)
     println()
 
-    D = dmatrix(r, α, β)
+    D = dmatrix(r, α, β, n)
     println("D = ")
     show(stdout, "text/plain", D)
     println()

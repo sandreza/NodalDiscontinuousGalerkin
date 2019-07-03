@@ -1,6 +1,6 @@
 include("dg1D.jl")
 include("dg_heat.jl")
-include("dg_utils.jl")
+include("../utils.jl")
 
 using Plots
 using BenchmarkTools

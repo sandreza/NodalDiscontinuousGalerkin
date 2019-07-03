@@ -58,7 +58,7 @@ gridvalues1D(xmin, xmax, K)
 
     x: physical coordinates of solution
 
-# Example (uses dg_utils.jl as well)
+# Example (uses ../utils.jl as well)
 
 xmin = 0
 xmax = 2π
@@ -99,7 +99,7 @@ facemask1D(r)
     fmask1: standard facemask
     fmask2: alternate form
 
-# Example | dg_utils.jl
+# Example | ../utils.jl
 
 r = jacobiGL(0, 0, 4)
 fmask = fmask1D(r)
@@ -136,7 +136,7 @@ edgevalues1D(fmask, x)
 
     fx: face values of x
 
-# Example | dg_utils.jl
+# Example | ../utils.jl
 
 r = jacobiGL(0, 0, 4)
 x = gridvalues1D(VX, EtoV, r)
@@ -297,7 +297,7 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 -   `mapI`: Index of left boundary condition
 -   `mapO`: Index of right boundary condition
 
-# Example | uses dg_utils.jl
+# Example | uses ../utils.jl
 
 K = 3
 n = 3; α = 0; β = 0; xmin = 0; xmax = 2π;
@@ -385,4 +385,110 @@ function make_periodic1D!(vmapP, u)
     vmapP[end] = 1
 
     return nothing
+end
+
+struct mesh{T,S,U,W}
+    # inputs
+    K::S
+    n::S
+
+    # face stuff
+    nfp::S
+    nfaces::S
+
+    # GL points
+    r::U
+    x::T
+
+    # vertex maps
+    vmapM::W
+    vmapP::W
+    vmapB::W
+    mapB::W
+
+    # inflow/outflow maps
+    mapI::S
+    mapO::S
+    vmapI::S
+    vmapO::S
+
+    # structures for computation
+    D::T
+    M::T
+    Mi::T
+    lift::T
+    rx::T
+    normals::T
+    fscale::T
+
+    """
+    mesh(KK, nn, xmin, xmax)
+
+    # Description
+
+        initialize mesh struct
+
+    # Arguments
+
+        KK: number of elements
+        nn: polynomial order
+        xmin: lower bound
+        xmax: upper bound
+
+
+    # Return Values: x
+        return grid values
+
+    """
+    function mesh(KK, nn, xmin, xmax)
+        # initialize parameters
+        K = KK
+        α = 0; β = 0;
+        n = nn
+
+        # number of vertices
+        np = n+1
+        nfp = 1
+        nfaces = 2
+
+        # compute Gauss Lobatto grid
+        r = jacobiGL(α, β, n)
+
+        # build grid
+        VX, EtoV = unimesh1D(xmin, xmax, K)
+
+        # build coordinates of all the nodes
+        x = gridvalues1D(VX, EtoV, r)
+
+        # build connectivity matrix
+        EtoE, EtoF = connect1D(EtoV)
+
+        # build face masks
+        fmask1,fmask2 = fmask1D(r)
+
+        # build connectibity maps
+        vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, np,nfp,nfaces, fmask1, EtoE,EtoF, x)
+
+        # build differentiation matrix
+        D = dmatrix(r, α, β, n)
+
+        # build surface integral terms
+        V = vandermonde(r, α, β, n)
+        lift = ∮dΩ(V)
+
+        # build mass matrix and inverse of mass matrix
+        Mi = V * V'
+        M = inv(Mi)
+
+        # calculate geometric factors
+        rx,J = geometric_factors(x, D)
+
+        # build surface normals
+        normals = normals1D(K)
+
+        # build inverse metric at the surface
+        fscale = 1 ./ J[fmask2,:]
+
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nfp,nfaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,M,Mi,lift,rx,normals,fscale)
+    end
 end

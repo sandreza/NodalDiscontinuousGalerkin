@@ -97,28 +97,81 @@ end
 
 
 """
-xy2rs(n)
+xytors(n)
 
-Description:
+# Description
 
-    Returns the rs coordinates
+-    maps the (x,y) coordinates of an equilateral triangle to the standard right triangle
+
+# Arguments
+
+-    `x`: x-coordinate values in the equilateral triangle, an array
+-    `y`: y-coordinate values in the equilateral triangle, an array
+
+# Outputs: r,s
+
+-    `r`: r-coordinate values in the standard right triangle, an array
+-    `s`: s-coordinate values in the standard right triangle, an array
 
 """
-function xy2rs(x,y)
-    return
+function xytors(x,y)
+    L1 = @. (sqrt(3.0) * y + 1) / 3.0
+    L2 = @. (-3.0 * x - sqrt(3.0) * y + 2.0) / 6.0
+    L3 = @. ( 3.0 * x - sqrt(3.0) * y + 2.0) / 6.0
+    r = -L2 + L3 - L1
+    s = -L2 -L3 + L1
+    return r, s
 end
+
+"""
+simplex2DP
+
+# Description
+
+- Evaluate the Jacobi polynomials at nodal values on the a,b grid
+
+# Inputs
+
+- `a`: first coordinate
+- `b`: second coordinate
+- `i`: jacobi polynomial parameter, Legendre hard coded
+- `j`: jacobi polynomial parameter, Legendre hard coded
+
+# Outputs
+
+- `p`: value of the jacobi polynomial
+
+"""
+function simplex2DP(a,b, i::Int, j::Int)
+    h1 = @. jacobi(a, 0, 0, i)
+    h2 = @. jacobi(b, 2*i + 1, 0, j)
+    p = @. sqrt(2.0) * h1 * h2 * (1-b)^i
+    return P
+end
+
 
 """
 vandermonde2D(n,r,s)
 
 Description:
 
-    Matrix to convert from modal to nodal basis
+    Matrix to convert from modal to nodal basis. Depends on Simplex2DP
 
 """
 function vandermonde2D(n,r,s)
-    return
+    np = Int((n+1) * (n+2) / 2);
+    V2D = zeros(length(r), n)
+    a,b = rstoab(r,s)
+    for sk ∈ 1:(n+1)
+        for i ∈ 0:n
+            for j ∈ 0:(n - i)
+                V2D[:, sk] = simplex2DP(a,b,i,j)
+            end
+        end
+    end
+    return V2D
 end
+
 
 
 

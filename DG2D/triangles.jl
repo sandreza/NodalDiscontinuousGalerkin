@@ -149,6 +149,57 @@ function simplex2DP(a,b, i::Int, j::Int)
     return p
 end
 
+"""
+gradsimplex2DP
+
+# Description
+
+- Evaluate the derivative Jacobi polynomials at nodal values on the a,b grid
+
+# Inputs
+
+- `a`: first coordinate
+- `b`: second coordinate
+- `i`: jacobi polynomial parameter, Legendre hard coded
+- `j`: jacobi polynomial parameter, Legendre hard coded
+
+# Outputs
+
+- `dmodedr`: value of the derivative of the jacobi polynomial
+- `dmodeds`: value of the derivative of the jacobi polynomial
+
+"""
+function gradsimplex2DP(a,b, id::Int, jd::Int)
+    fa = @. jacobi(a, 0, 0, id)
+    dfa = @. djacobi(a,0,0, id)
+    fb = @. jacobi(b, 2*id + 1, 0, jd)
+    dfb = @. djacobi(b, 2*id + 1, 0, jd)
+
+    #r-derivative
+    # ∂ / ∂_r = ∂a / ∂_r + ∂b /  ∂_r = (2 / (1-b)) ∂ / ∂_a
+    dmodedr = dfa .* fb
+    if id>0
+        @. dmodedr *= ( 0.5 * (1-b) )^(id-1)
+    end
+    #s-derivative
+    # ∂ / ∂_s = (1+a/2)/(1-b/2) ∂ / ∂_a + ∂ / ∂_b
+    dmodeds = @. dfa * fb * (1+a) / 2
+    if id>0
+        @. dmodeds *= ( 0.5 * (1-b) )^(id-1)
+    end
+
+    tmp = @. dfb * ( (0.5 * (1-b)) )^id
+    if id>0
+        @. tmp -= 0.5 * id * fb * ( (0.5 * (1-b)) )^(id-1)
+    end
+    @. dmodeds += fa * tmp
+
+    #normalize
+    @. dmodedr *= 2^(id + 0.5)
+    @. dmodeds *= 2^(id + 0.5)
+    return dmodedr, dmodeds
+end
+
 
 """
 vandermonde2D(n,r,s)
@@ -163,7 +214,9 @@ vandermonde2D(n,r,s)
 - `r`:
 - `s`:
 
+# Outputs
 
+- `V2D`: 2D vandermonde matrix
 
 """
 function vandermonde2D(n,r,s)
@@ -179,6 +232,68 @@ function vandermonde2D(n,r,s)
         end
     end
     return V2D
+end
+
+"""
+dvandermonde2D(n,r,s)
+
+# Description
+
+- gradient of model basis (i,j) at (r,s) at order N
+
+# Arguments
+
+- `n`:
+- `r`:
+- `s`:
+
+# Outputs
+
+- `V2Dr`: 2D partial derivative vandermonde matrix
+- `V2Ds`: 2D partial derivative vandermonde matrix
+
+"""
+function dvandermonde2D(n,r,s)
+    np = Int((n+1) * (n+2) / 2);
+    V2Dr = zeros(length(r), np)
+    V2Ds = zeros(length(r), np)
+    a,b = rstoab(r,s)
+    let sk = 1
+        for i ∈ 0:n
+            for j ∈ 0:(n - i)
+                V2Dr[:, sk], V2Ds[:, sk] = gradsimplex2DP(a,b,i,j)
+                sk += 1
+            end
+        end
+    end
+    return V2Dr, V2Ds
+end
+
+"""
+dmatrices(n,r,s)
+
+# Description
+
+- gradient of nodal basis (i,j) at (r,s) at order N
+
+# Arguments
+
+- `n`:
+- `r`:
+- `s`:
+- `V`: vandermond matrix in 2D
+
+# Outputs
+
+- `∂r`: partial derivative
+- `∂s`: partial derivative
+
+"""
+function dmatrices(n, r, s, V)
+     Vr, Vs = dvandermonde(n,r,s)
+     ∂r = Vr / V
+     ∂s = Vs / V
+    return ∂r, ∂s
 end
 
 

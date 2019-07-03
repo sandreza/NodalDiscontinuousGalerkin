@@ -50,6 +50,36 @@ function jacobi(x, α, β, n::Int)
 end
 
 """
+djacobi(x, α, β, n)
+
+# Description
+
+- Evaluates the derivative of the jacobi polynomial at the point x
+
+# Arguments
+
+- `x`: point at which you will evaluate the derivative of the jacobi polynomial
+- `α`: first parameter for Jacobi polynomials
+- `β`: second parameter for Jacobi polynomials
+- `n` : order
+
+# Return
+
+-  `y`: the derivative of the of the Jacobi polynomial
+
+"""
+function djacobi(x, α, β, n::Int)
+    if n==0
+        dp = 0.0
+        return dp
+    end
+    dp = sqrt(n * (n + α + β + 1)) * jacobi(x, α + 1, β + 1, n-1)
+    return dp
+end
+
+
+
+"""
 vandermonde(x, α, β, N)
 
 # Description

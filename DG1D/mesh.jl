@@ -474,7 +474,7 @@ struct mesh{T,S,U,W}
 
         # build surface integral terms
         V = vandermonde(r, α, β, n)
-        lift = lift(V)
+        lift = lift1D(V)
 
         # build mass matrix and inverse of mass matrix
         Mi = V * V'

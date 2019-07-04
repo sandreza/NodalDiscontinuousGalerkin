@@ -57,7 +57,7 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 end
 
 """
-rectangle(k, vmap, EtoV)
+rectangle(k, N, M, vmap, EtoV)
 
 # Description
 
@@ -66,6 +66,8 @@ rectangle(k, vmap, EtoV)
 # Arguments
 
 -   `k`: element number in global map
+-   `N`: polynomial order along first axis within element
+-   `M`: polynomial order along second axis within element
 -   `vmap`: array of vertices
 -   `EtoV`: element to vertex map
 
@@ -74,7 +76,7 @@ rectangle(k, vmap, EtoV)
     return index and vertices
 
 """
-struct rectangle{T, S, U}
+struct rectangle{T, S, U, V, W}
     index::T
     vertices::S
 
@@ -83,7 +85,19 @@ struct rectangle{T, S, U}
     ymin::U
     ymax::U
 
-    function rectangle(k, vmap, EtoV)
+    rˣ::V
+    rʸ::V
+    sˣ::V
+    sʸ::V
+
+    xorder::T
+    yorder::T
+
+    Dʳ::W
+    Dˢ::W
+    lift::W
+
+    function rectangle(k, N, M, vmap, EtoV)
         index = k
         vertices = view(EtoV, k, :)
 
@@ -92,7 +106,18 @@ struct rectangle{T, S, U}
         xmax = vmap[vertices[end]][1]
         ymax = vmap[vertices[end]][2]
 
-        return new{typeof(index),typeof(vertices),typeof(xmin)}(index, vertices, xmin,xmax,ymin,ymax)
+        rˣ = 2 / (xmax - xmin)
+        rʸ = 0
+        sˣ = 0
+        sʸ = 2 / (ymax - ymin)
+
+        xorder = N
+        yorder = M
+
+        Dʳ,Dˢ = dmatricesSQ(N, M)
+        lift = liftSQ(N, M)
+
+        return new{typeof(index),typeof(vertices),typeof(xmin),typeof(rˣ),typeof(lift)}(index,vertices, xmin,xmax,ymin,ymax,  rˣ,rʸ,sˣ,sʸ, xorder,yorder, Dʳ,Dˢ, lift)
     end
 end
 
@@ -118,8 +143,8 @@ phys2ideal(x, y, Ωᵏ)
 
 """
 function phys2ideal(x, y, Ωᵏ)
-    r = 2 * (x - Ωᵏ.xmin) / (Ωᵏ.xmax - Ωᵏ.xmin) - 1
-    s = 2 * (y - Ωᵏ.ymin) / (Ωᵏ.ymax - Ωᵏ.ymin) - 1
+    r = Ωᵏ.rˣ * (x - Ωᵏ.xmin) - 1
+    s = Ωᵏ.sʸ * (y - Ωᵏ.ymin) - 1
 
     return r,s
 end
@@ -146,8 +171,8 @@ ideal2phys(r, s, Ωᵏ)
 
 """
 function ideal2phys(r, s, Ωᵏ)
-    x = 1//2 * (r + 1) * (Ωᵏ.xmax - Ωᵏ.xmin) + Ωᵏ.xmin
-    y = 1//2 * (s + 1) * (Ωᵏ.ymax - Ωᵏ.ymin) + Ωᵏ.ymin
+    x = (r + 1) / Ωᵏ.rˣ + Ωᵏ.xmin
+    y = (s + 1) / Ωᵏ.sʸ + Ωᵏ.ymin
 
     return x,y
 end
@@ -264,7 +289,7 @@ function dvandermondeSQ(N, M)
 end
 
 """
-LiftSQ(N, M)
+liftSQ(N, M)
 
 # Description
 
@@ -282,7 +307,7 @@ LiftSQ(N, M)
 # Example
 
 """
-function LiftSQ(N,M)
+function liftSQ(N,M)
     # get 2D vandermonde matrix
     V = vandermondeSQ(N,M)
 

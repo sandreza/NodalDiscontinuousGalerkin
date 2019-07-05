@@ -233,7 +233,6 @@ function vandermonde2D(n,r,s)
     end
     return V2D
 end
-<<<<<<< HEAD
 
 """
 dvandermonde2D(n,r,s)
@@ -282,7 +281,7 @@ dmatrices(n,r,s)
 - `n`:
 - `r`:
 - `s`:
-- `V`: vandermond matrix in 2D
+- `V`: vandermonde matrix in 2D
 
 # Outputs
 
@@ -298,46 +297,151 @@ function dmatrices(n, r, s, V)
 end
 
 
-
-
 """
-∇()
+lift_tri(n, fmask, r, s, V)
 
-Description:
-
-    gradient
-
-"""
-function ∇(u)
-    return nothing
-end
-
-
-"""
-∇o()
-
-Description:
-
-    Divergenence
-
-"""
-function ∇o(u)
-    return nothing
-end
-
-
-"""
-∇x()
+# NEEDS TO BE TESTED
 
 # Description
 
-- The curl operator in 2D. unicode is (nabla x)
+- lift operation for computing surface integrals
 
-    Curl
+# Arguments
+
+- `n` :
+- `fmask`:
+- `r`:
+- `s`:
+- `V`: vandermonde matrix in 2D
+
+# Outputs
+
+- `lift`: the lift operator
+
 
 """
-function ∇x(u)
-    return nothing
+function lift_tri(n, fmask, r, s, V)
+    np = Int( (n+1) * (n+2) /2 )
+    nfp = n+1
+    nfaces = 3 #it's a triangle
+    ℰ = zeros(np, nfaces*nfp)
+
+    #face 1
+    edge1_mask = fmask[:,1]
+    faceR = r[edge1_mask];
+    v = vandermonde(faceR, 0, 0, n)
+    mass_edge_1 = inv(v * v')
+    ℰ[edge1_mask, 1:nfp] = mass_edge_1
+
+    #face 2
+    edge2_mask = fmask[:,2]
+    faceR = r[edge2_mask];
+    v = vandermonde(faceR, 0, 0, n)
+    mass_edge_2 = inv(v * v')
+    ℰ[edge2_mask, (nfp+1):(2*nfp)] = mass_edge_2
+
+    #face 3
+    edge3_mask = fmask[:,3]
+    faceS = s[edge3_mask];
+    v = vandermonde(faceS, 0, 0, n)
+    mass_edge_3 = inv(v * v')
+    ℰ[edge3_mask, (2*nfp+1):(3*nfp)] = mass_edge_3
+
+    #compute lift
+    lift = V * (V' * ℰ)
+    return lift
 end
-=======
->>>>>>> 0811b51c7181cbd0d9bcb9acaa8ab5480a2e1a93
+
+
+"""
+
+geometricfactors2D(x, y, Dr, Ds)
+
+# NEEDS TO BE TESTED
+
+# Description
+
+- Metric elements for local mappings of elements
+
+# Arguments
+
+- `x`:
+- `y`:
+- `Dr`:
+- `Ds`:
+
+# Outputs : xr, xs, yr, ys, J
+
+- `rx`:
+- `sx`:
+- `ry`:
+- `sy`:
+- `J`: jacobian
+
+"""
+function geometricfactors2D(x, y, Dr, Ds)
+    xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
+    J = - xs .* xr + xr .* ys; #determinant
+    rx = ys ./ J; sx = - yr ./ J; ry = - xs . J; sy = xr ./ J;
+    return rx, sx, ry, sy, J
+end
+
+"""
+normals2D(x, y, Dr, Ds, fmask, nfp, K)
+
+# NOT TESTED
+
+# Description
+
+- Returns unit normal vector along each element
+
+# Arguments
+
+- lots
+
+# Outputs
+
+- `nx`: normal along x-direction
+- `ny`: normal along y-direction
+- `sJ`: amplitude of unnormalized vector
+
+"""
+
+function normals2D(x, y, Dr, Ds, fmask, nfp, K)
+    xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
+    J = - xs .* xr + xr .* ys; #determinant
+
+    #interpolate geometric factors to face nodes
+    fxr = xr[fmask,:]
+    fxs = xs[fmask,:]
+    fyr = yr[fmask,:]
+    fys = ys[fmask,:]
+
+    #build normals
+    nx = zeros(3*nfp, K) #3 edges on a triangle
+    ny = zeros(3*nfp, K) #3 edges on a triangle
+    fid1 = collect(         1:nfp     )
+    fid2 = collect(   (nfp+1):(2*nfp) )
+    fid3 = collect( (2*nfp+1):(3*nfp) )
+
+    # face 1
+
+    nx[fid1, :] =  fyr[fid1, :]
+    ny[fid1, :] = -fxr[fid1, :]
+
+    # face 2
+
+    nx[fid2, :] =  fys[fid2, :]
+    ny[fid2, :] = -fxr[fid2, :]
+
+    # face 3
+
+    nx[fid3, :] = -fys[fid3, :]
+    ny[fid3, :] =  fxs[fid3, :]
+
+    #normalize
+    sJ = @. sqrt(nx^2, ny^2)
+    @. nx /= sJ
+    @. ny /= sJ
+    return nx, ny, sJ
+end

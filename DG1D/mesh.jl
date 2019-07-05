@@ -254,7 +254,9 @@ function connect1D(EtoV)
     FtoF = FtoV * (FtoV') - sparse(I, total_faces, total_faces)
 
     # find all face to face connections
-    (faces1, faces2) = findnz(FtoF)
+    # check
+    #(faces1, faces2) = findnz(FtoF)
+    faces1, faces2 = findnz(FtoF .== 1)
 
     # convert global face number to element and face numbers
     element1 = @. floor(Int, (faces1 - 1) / nfaces) + 1

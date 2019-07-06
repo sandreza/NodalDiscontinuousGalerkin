@@ -342,9 +342,13 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
             x2 = x[vidP]
 
             # compute distance matrix
+            # need to figure out this part
             D = @. (x1 - x2)^2
-            if D[1] < eps(1.0)*10^5
-                vmapP[:, f1, k1] = vidP
+            m = length(x1)
+            for j = 1:m
+                if D[j] < eps(1.0)*10^5
+                    vmapP[j, f1, k1] = vidP[j]
+                end
             end
         end
     end

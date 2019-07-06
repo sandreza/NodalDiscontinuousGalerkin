@@ -516,3 +516,151 @@ function connect2D(EToV)
     EtoF[ind] = face2;
     return EtoE, EtoF
 end
+
+
+"""
+triangle_connect2D(EToV)
+
+# NOT TESTED
+
+# Description
+
+-
+
+# Arguments
+
+-  `EToV`: element to vertices map
+
+# Output
+
+-  `EToE`: element to element map
+-  `EToF`: element to face map
+
+# Comments
+
+
+"""
+function triangle_connect2D(EToV)
+    nfaces = 3
+    K = size(EToV, 1)
+    number_nodes = maximum(EToV)
+
+    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]; EToV[:,[3,1]]]
+    fnodes = @. sort(fnodes, dims = 2 )-1
+
+    #default element to element and element to faces connectivity
+    EToE = ones(K,1) * collect(1:nfaces)'
+
+    id = fnodes[:,1] * number_nodes + fnodes[:,2] +1;
+    spNodeToNode = [id, collect(1:nfaces*K)', EToE[:], EToF[:]]
+
+    # check
+    sorted = sort(spNodeToNode, dims = 1)
+    bool_list = sorted[1:(end-1),1] == sorted[2:end,1]
+    m,n = size(sorted)
+    indlist = collect(1:m)
+    [indices, dummy] = indlist[bool_list]
+
+    #make links reflexive
+    matchL = [sorted[indices,:] ; sorted[indices .+ 1 , :]]
+    matchR = [sorted[indices .+ 1,:] ; sorted[indices , :]]
+
+    # insert matches
+    @. EToE[matchL[:,2]] = matchR[:,3]
+    @. EToF[match[:,2]] = matchR[:,4]
+
+    return EToE, EToF
+end
+
+
+"""
+
+buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+
+# Description
+
+- connectivity matrices for element to elements and elements to face
+
+# Arguments
+
+-   `K`: number of elements
+-   `np`: number of points within an element (polynomial degree + 1)
+-   `nfp`: 1
+-   `nfaces`: 2
+-   `fmask`: an element by element mask to extract edge values
+-   `EtoE`: element to element connectivity
+-   `EtoF`: element to face connectivity
+-   `x`: Guass Lobatto points along x-direction
+-   `y`: Guass Lobatto points along y-direction
+-   `VX`: vertex stuff
+-   `VY`: vertex stuff
+
+# Return Values: vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO
+
+-   `vmapM`: vertex indices, (used for interior u values)
+-   `vmapP`: vertex indices, (used for exterior u values)
+-   `vmapB`: vertex indices, corresponding to boundaries
+-   `mapB`: use to extract vmapB from vmapM
+
+
+"""
+function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
+    # number volume nodes consecutively
+    nodeids = reshape(collect(1:(K*np)), np, K)
+    vmapM = zeros(nfp, nfaces, K)
+    vmapP = zeros(nfp, nfaces, K)
+    # find index of face nodes wrt volume node ordering
+    for k1 in 1:K
+        for f1 in 1:nfaces
+            vmapM[:, f1, k1] = nodeids[fmask[f1], k1]
+        end
+    end
+
+    one = ones(1, nfp)
+    for k1 = 1:K
+        for f1 = 1:nfaces
+            # find neighbor
+            k2 = Int.( EtoE[k1, f1])
+            f2 = Int.( EtoF[k1, f1])
+
+            # reference length of edge
+            v1 = EToV[k1,f1]
+            v2 = EToV[k1, 1 + mod(f1,nfaces)]
+            refd = @. sqrt( (VX[v1] - VX[v2])^2  + (VY[v1] - VY[v2])^2       )
+
+            # find volume node numbers of left and right nodes
+            vidM = Int.( vmapM[:, f1, k1])
+            vidP = Int.( vmapM[:, f2, k2])
+
+            x1 = x[vidM]; y1 = y[vidM]
+            x2 = x[vidP]; y2 = y[vidP]
+
+            # may need to reshape before multiplication
+            x1 = x1 * one
+            y1 = y1 * one
+            x2 = x2 * one
+            y2 = y2 * one
+
+            # compute distance matrix
+            D = @. (x1 - x2' )^2 + (y1 - y2' )^2
+            mask = @. D < eps(refd)
+
+            #find linear indices
+            m,n = size(D)
+            d = collect(1:m)
+            idM =  @. Int( floor( (d[mask]-1) / 3) + 1 )
+            idP =  @. Int( mod( (d[mask]-1) , 3) + 1 )
+            vmapP[idM, f1, k1] = vidP[idP]
+            @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
+        end
+
+        # reshape arrays
+        vmapP = Int.( reshape(vmapP, length(vmapP)) )
+        vmapM = Int.( reshape(vmapM, length(vmapM)) )
+
+        # Create list of boundary nodes
+        mapB = Int.( collect(1:length(vmapP))[vmapP .== vmapM] )
+        vmapB = Int.( vmapM[mapB] )
+
+        return vmapM, vmapP, vmapB, mapB
+    end

@@ -43,10 +43,10 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     j = 1
     for l in 1:L
         for k in 1:K
-            EtoV[j,1] = Int(k + (L+1) * (l-1))
+            EtoV[j,2] = Int(k + (L+1) * (l-1))
             EtoV[j,3] = Int(k + (L+1) * l)
 
-            EtoV[j,2] = Int(EtoV[j,1] + 1)
+            EtoV[j,1] = Int(EtoV[j,2] + 1)
             EtoV[j,4] = Int(EtoV[j,3] + 1)
 
             j += 1

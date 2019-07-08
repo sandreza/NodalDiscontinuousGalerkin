@@ -377,7 +377,7 @@ geometricfactors2D(x, y, Dr, Ds)
 - `Dr`:
 - `Ds`:
 
-# Outputs : xr, xs, yr, ys, J
+# Outputs : rx, sx, ry, sy, J
 
 - `rx`:
 - `sx`:
@@ -419,10 +419,10 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
     J = - xs .* xr + xr .* ys; #determinant
 
     #interpolate geometric factors to face nodes
-    fxr = xr[fmask,:]
-    fxs = xs[fmask,:]
-    fyr = yr[fmask,:]
-    fys = ys[fmask,:]
+    fxr = xr[fmask[:],:]
+    fxs = xs[fmask[:],:]
+    fyr = yr[fmask[:],:]
+    fys = ys[fmask[:],:]
 
     #build normals
     nx = zeros(3*nfp, K) #3 edges on a triangle
@@ -438,8 +438,8 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
 
     # face 2
 
-    nx[fid2, :] =  fys[fid2, :]
-    ny[fid2, :] = -fxr[fid2, :]
+    nx[fid2, :] =  fys[fid2, :] - fyr[fid2, :]
+    ny[fid2, :] = -fxs[fid2, :] + fxr[fid2, :]
 
     # face 3
 
@@ -447,7 +447,7 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
     ny[fid3, :] =  fxs[fid3, :]
 
     #normalize
-    sJ = @. sqrt(nx^2, ny^2)
+    sJ = @. sqrt(nx^2 + ny^2)
     @. nx /= sJ
     @. ny /= sJ
     return nx, ny, sJ
@@ -515,11 +515,11 @@ function connect2D(EToV)
 
     # Rearrange into Nelement x Nfaces sized arrays
     ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.
-    EtoE = collect(1:K) * ones(1, nfaces)
-    EtoF = ones(K, 1) * (collect(1:nfaces)')
-    EtoE[ind] = copy(element2);
-    EtoF[ind] = face2;
-    return EtoE, EtoF
+    EToE = collect(1:K) * ones(1, nfaces)
+    EToF = ones(K, 1) * (collect(1:nfaces)')
+    EToE[ind] = copy(element2);
+    EToF[ind] = face2;
+    return EToE, EToF
 end
 
 
@@ -554,17 +554,15 @@ function triangle_connect2D(EToV)
     fnodes = sort(fnodes, dims = 2 ) .- 1
 
     #default element to element and element to faces connectivity
-    EToE = ones(K,1) * collect(1:nfaces)'
+    EToE = collect(1:K) * ones(1, nfaces)
+    EToF = ones(K,1) * collect(1:nfaces)'
 
     id =  @. fnodes[:,1] * number_nodes + fnodes[:,2] + 1;
-    spNodeToNode = [id, collect(1:nfaces*K)', EToE[:], EToF[:]]
+    spNodeToNode = Int.( [id collect(1:nfaces*K) EToE[:] EToF[:]] )
 
     # check
-    sorted = sort(spNodeToNode, dims = 1)
-    bool_list = sorted[1:(end-1),1] == sorted[2:end,1]
-    m, n = size(sorted)
-    indlist = collect(1:m)
-    indices, dummy = indlist[bool_list]
+    sorted = sortslices(spNodeToNode, dims = 1)
+    indices = findall(sorted[1:(end-1),1] .== sorted[2:end,1])
 
     #make links reflexive
     matchL = [sorted[indices,:] ; sorted[indices .+ 1 , :]]
@@ -572,7 +570,9 @@ function triangle_connect2D(EToV)
 
     # insert matches
     @. EToE[matchL[:,2]] = matchR[:,3]
-    @. EToF[match[:,2]] = matchR[:,4]
+    @. EToF[matchL[:,2]] = matchR[:,4]
+    EToE = Int.(EToE)
+    EToF = Int.(EToF)
 
     return EToE, EToF
 end
@@ -580,7 +580,7 @@ end
 
 """
 
-buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
+buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 
 # Description
 
@@ -593,8 +593,8 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 -   `nfp`: 1
 -   `nfaces`: 2
 -   `fmask`: an element by element mask to extract edge values
--   `EtoE`: element to element connectivity
--   `EtoF`: element to face connectivity
+-   `EToE`: element to element connectivity
+-   `EToF`: element to face connectivity
 -   `x`: Guass Lobatto points along x-direction
 -   `y`: Guass Lobatto points along y-direction
 -   `VX`: vertex stuff
@@ -608,24 +608,26 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
+function buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
     # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
-    vmapM = zeros(nfp, nfaces, K)
-    vmapP = zeros(nfp, nfaces, K)
+    vmapM = zeros(Int, nfp, nfaces, K)
+    vmapP = zeros(Int, nfp, nfaces, K)
+    mapM = collect(1: (K*nfp*nfaces) )'
+    mapP = copy( reshape(mapM, nfp, nfaces, K) )
     # find index of face nodes wrt volume node ordering
     for k1 in 1:K
         for f1 in 1:nfaces
-            vmapM[:, f1, k1] = nodeids[fmask[f1], k1]
+            vmapM[:, f1, k1] = nodeids[fmask[:,f1], k1]
         end
     end
 
-    one = ones(1, nfp)
+    let one1 = ones(1, nfp)
     for k1 = 1:K
         for f1 = 1:nfaces
             # find neighbor
-            k2 = Int.( EtoE[k1, f1])
-            f2 = Int.( EtoF[k1, f1])
+            k2 = EToE[k1, f1]
+            f2 = EToF[k1, f1]
 
             # reference length of edge
             v1 = EToV[k1,f1]
@@ -633,17 +635,17 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
             refd = @. sqrt( (VX[v1] - VX[v2])^2  + (VY[v1] - VY[v2])^2       )
 
             # find volume node numbers of left and right nodes
-            vidM = Int.( vmapM[:, f1, k1])
-            vidP = Int.( vmapM[:, f2, k2])
+            vidM = vmapM[:, f1, k1]
+            vidP = vmapM[:, f2, k2]
 
             x1 = x[vidM]; y1 = y[vidM]
             x2 = x[vidP]; y2 = y[vidP]
 
             # may need to reshape before multiplication
-            x1 = x1 * one
-            y1 = y1 * one
-            x2 = x2 * one
-            y2 = y2 * one
+            x1 = x1 * one1
+            y1 = y1 * one1
+            x2 = x2 * one1
+            y2 = y2 * one1
 
             # compute distance matrix
             D = @. (x1 - x2' )^2 + (y1 - y2' )^2
@@ -651,12 +653,13 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
             #find linear indices
             m,n = size(D)
-            d = collect(1:m)
-            idM =  @. Int( floor( (d[mask]-1) / 3) + 1 )
-            idP =  @. Int( mod( (d[mask]-1) , 3) + 1 )
+            d = collect(1:(m*n))
+            idM =  @. Int( floor( (d[mask[:]]-1) / m) + 1 )
+            idP =  @. Int( mod( (d[mask[:]]-1) , m) + 1 )
             vmapP[idM, f1, k1] = vidP[idP]
             @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
         end
+    end
     end
         # reshape arrays
         vmapP = Int.( reshape(vmapP, length(vmapP)) )

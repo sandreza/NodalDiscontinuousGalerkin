@@ -18,7 +18,7 @@ element2D(k, N, M, vmap, EtoV)
     return index and vertices
 
 """
-mutable struct element2D <: AbstractElement2D
+struct Element2D{N} <: AbstractElement2D
     # identifying features
     index::Int
     vertices::Array{Int,1}
@@ -47,51 +47,33 @@ mutable struct element2D <: AbstractElement2D
     sˣ::Array{Float64,1}
     sʸ::Array{Float64,1}
 
-
     # only index and vertices are well defined for an element of arbitrary shape
-    function element2D(k, EtoV)
-        element = new()
-        element.index = k
-        element.vertices = view(EtoV, k, :)
+    function Element2D{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift) where N
+        xʳ = Dʳ * x
+        xˢ = Dˢ * x
 
-        return element
+        # partial derivatives of y
+        yʳ = Dʳ * y
+        yˢ = Dˢ * y
+
+        # Jacobian
+        J =  @. - xˢ * yʳ + xʳ * yˢ # determinant
+
+        # partial derivatives of r
+        rˣ = @.   yˢ / J
+        rʸ = @. - xˢ / J
+
+        # partial derivatives of s
+        sˣ = @. - yʳ / J
+        sʸ = @.   xʳ / J
+
+        return new{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
     end
 end
 
-"""
-geometricfactors2D!(Ω)
-
-# NEEDS TO BE TESTED
-
-# Description
-
--   Compute metric factors for an element
-
-# Arguments
-
--   `Ω`: element to compute metric factors for
-
-"""
-function geometricfactors2D!(Ω)
-    # partial derivatives of x
-    Ω.xʳ = Ω.Dʳ * Ω.x
-    Ω.xˢ = Ω.Dˢ * Ω.x
-
-    # partial derivatives of y
-    Ω.yʳ = Ω.Dʳ * Ω.y
-    Ω.yˢ = Ω.Dˢ * Ω.y
-
-    # Jacobian
-    Ω.J = - Ω.xˢ .* Ω.yʳ + Ω.xʳ .* Ω.yˢ #determinant
-
-    # partial derivatives of r
-    Ω.rˣ =   Ω.yˢ ./ Ω.J
-    Ω.rʸ = - Ω.xˢ ./ Ω.J
-
-    # partial derivatives of s
-    Ω.sˣ = - Ω.yʳ ./ Ω.J
-    Ω.sʸ =   Ω.xʳ ./ Ω.J
-    return
+### exampleeeee
+function nfaces(::Element2D{N}) where N
+    return N
 end
 
 """

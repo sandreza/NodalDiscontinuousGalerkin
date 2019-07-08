@@ -393,7 +393,7 @@ function make_periodic1D!(vmapP, u)
     return nothing
 end
 
-struct mesh{T,S,U,W}
+struct Mesh{T,S,U,W}
     # inputs
     K::S
     n::S
@@ -446,7 +446,7 @@ struct mesh{T,S,U,W}
         return grid values
 
     """
-    function mesh(KK, nn, xmin, xmax)
+    function Mesh(KK, nn, xmin, xmax)
         # initialize parameters
         K = KK
         α = 0; β = 0;

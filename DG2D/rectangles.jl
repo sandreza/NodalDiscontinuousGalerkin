@@ -17,39 +17,44 @@ rectangle(k, N, M, vmap, EtoV)
 
 # Return Values:
 
--   `Ω`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
+-   `rect`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
 
 """
-
 function rectangle(k, EtoV, N, M, vmap)
-    Ω = element2D(k, EtoV)
+    vertices = view(EtoV, k, :)
 
-    r = jacobiGL(0, 0, N)
-    s = jacobiGL(0, 0, M)
+    # GL points in each dimension
+    a = jacobiGL(0, 0, N)
+    b = jacobiGL(0, 0, M)
 
-    (Ω.Dʳ, Ω.Dˢ) = dmatricesSQ(r, s)
-    Ω.lift = liftSQ(r, s)
+    # differentiation and lift matrices through tensor products
+    Dʳ,Dˢ = dmatricesSQ(a, b)
+    lift = liftSQ(a, b)
 
-    Ω.r = []
-    Ω.s = []
-    for i in r
-        for j in s
-            push!(Ω.r, i)
-            push!(Ω.s, j)
+    # arrays of first,second coordinate of GL tensor product
+    r = []
+    s = []
+    for i in a
+        for j in b
+            push!(r, i)
+            push!(s, j)
         end
     end
 
-    xmin = vmap[Ω.vertices[2]][1]
-    ymin = vmap[Ω.vertices[2]][2]
-    xmax = vmap[Ω.vertices[end]][1]
-    ymax = vmap[Ω.vertices[end]][2]
+    # get min and max values of physical coordinates
+    xmin = vmap[vertices[2]][1]
+    ymin = vmap[vertices[2]][2]
+    xmax = vmap[vertices[end]][1]
+    ymax = vmap[vertices[end]][2]
 
-    Ω.x = @. (xmax - xmin) * (Ω.r + 1) / 2
-    Ω.y = @. (ymax - ymin) * (Ω.s + 1) / 2
+    # create physical coordinates of GL points
+    x = @. (xmax - xmin) * (r + 1) / 2
+    y = @. (ymax - ymin) * (s + 1) / 2
 
-    geometricfactors2D!(Ω)
+    # construct element
+    rect = Element2D{4}(k,vertices, r,s, x,y, Dʳ,Dˢ,lift)
 
-    return Ω
+    return rect
 end
 
 """

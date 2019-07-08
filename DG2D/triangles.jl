@@ -277,7 +277,7 @@ function dvandermonde2D(n,r,s)
 end
 
 """
-dmatrices(n,r,s)
+dmatrices2D(n,r,s)
 
 # Description
 
@@ -296,8 +296,8 @@ dmatrices(n,r,s)
 - `∂s`: partial derivative
 
 """
-function dmatrices(n, r, s, V)
-     Vr, Vs = dvandermonde(n,r,s)
+function dmatrices2D(n, r, s, V)
+     Vr, Vs = dvandermonde2D(n,r,s)
      ∂r = Vr / V
      ∂s = Vs / V
     return ∂r, ∂s
@@ -388,7 +388,7 @@ geometricfactors2D(x, y, Dr, Ds)
 """
 function geometricfactors2D(x, y, Dr, Ds)
     xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
-    J = - xs .* xr + xr .* ys; #determinant
+    J = - xs .* yr + xr .* ys; #determinant
     rx = ys ./ J; sx = - yr ./ J; ry = - xs ./ J; sy = xr ./ J;
     return rx, sx, ry, sy, J
 end
@@ -667,4 +667,87 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
         vmapB = Int.( vmapM[mapB] )
 
         return vmapM, vmapP, vmapB, mapB
+end
+
+
+"""
+global_grid(r, s, EToV, VX, VY)
+
+# Description
+
+- Create a global grid from the elements
+
+# Arguments
+
+- `r` : ideal coordinates
+- `s` : ideal coordinates
+- `EToV` : element to vertices
+- `VX` : x-coordinate of vertices
+- `VY` : y-coordinate of vertices
+
+# Return x, y
+
+- `x` : x-coordinates of grid
+- `y` : y-coordinates of grid
+
+"""
+function global_grid(r, s, EToV, VX, VY)
+    #need to transpose so that the matrix multiply works
+    va = EToV[:,1]'
+    vb = EToV[:,2]'
+    vc = EToV[:,3]'
+    # global x and y values constructed from ideal coordinates and grid
+    x =  0.5 * ( - (r+s) * VX[va] + (1 .+ r)*VX[vb] + (1 .+s)*VX[vc])
+    y =  0.5 * ( - (r+s) * VY[va] + (1 .+ r)*VY[vb] + (1 .+s)*VY[vc])
+    return x, y
+end
+
+"""
+create_fmask(r,s)
+
+# Description
+
+- mask to get edge nodes
+
+# Arguments
+
+- `r` : ideal coordinates
+- `s` : ideal coordinates
+
+#Return
+
+-  `fmask`: array of boolean values of edge nodes
+
+"""
+function create_fmask(r, s)
+    fmask1 = findall( abs.( s .+ 1) .< eps(10.0) )'
+    fmask2 = findall( abs.( r .+ s ) .< eps(10.0) )'
+    fmask3 = findall( abs.( r .+ 1) .< eps(10.0) )'
+    fmask = [fmask1; fmask2; fmask3]'
+    return fmask
+end
+
+"""
+find_edge_nodes(fmask, x, y)
+
+# Description
+
+- find the values on the grid that correspond to edges
+
+# Arguments
+
+- `fmask` : mask to extract edge values, use the function create_fmask(r,s)
+-  `x` : x-coordinates of grid
+-  `y` : y-coordinates of grid
+
+# Return
+
+- `edge_x`: x-coordinate of edge values (called Fx in NDG)
+- `edge_y`: y-coorsdinate of edge values (called Fy in NDG)
+
+"""
+function find_edge_nodes(fmask, x, y)
+    edge_x = x[fmask[:],:]
+    edge_y = y[fmask[:],:]
+    return edge_x, edge_y
 end

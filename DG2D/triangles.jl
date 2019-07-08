@@ -55,9 +55,14 @@ end
 """
 nodes2D(n)
 
-Description:
+# Description
 
-    Returns the interpolation nodes for the 2D GL points
+- Returns the interpolation nodes for the 2D GL points
+
+# Return: x, y
+
+- `x`: x-coordinate of GL points
+- `y`: y-coordinate of GL points
 
 """
 function nodes2D(n)
@@ -99,7 +104,7 @@ end
 
 
 """
-xytors(n)
+xytors(x,y)
 
 # Description
 
@@ -384,7 +389,7 @@ geometricfactors2D(x, y, Dr, Ds)
 function geometricfactors2D(x, y, Dr, Ds)
     xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
     J = - xs .* xr + xr .* ys; #determinant
-    rx = ys ./ J; sx = - yr ./ J; ry = - xs . J; sy = xr ./ J;
+    rx = ys ./ J; sx = - yr ./ J; ry = - xs ./ J; sy = xr ./ J;
     return rx, sx, ry, sy, J
 end
 
@@ -525,7 +530,7 @@ triangle_connect2D(EToV)
 
 # Description
 
--
+- different connectivity
 
 # Arguments
 
@@ -545,21 +550,21 @@ function triangle_connect2D(EToV)
     K = size(EToV, 1)
     number_nodes = maximum(EToV)
 
-    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]; EToV[:,[3,1]]]
-    fnodes = @. sort(fnodes, dims = 2 )-1
+    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]]; EToV[:,[3,1]];]
+    fnodes = sort(fnodes, dims = 2 ) .- 1
 
     #default element to element and element to faces connectivity
     EToE = ones(K,1) * collect(1:nfaces)'
 
-    id = fnodes[:,1] * number_nodes + fnodes[:,2] +1;
+    id =  @. fnodes[:,1] * number_nodes + fnodes[:,2] + 1;
     spNodeToNode = [id, collect(1:nfaces*K)', EToE[:], EToF[:]]
 
     # check
     sorted = sort(spNodeToNode, dims = 1)
     bool_list = sorted[1:(end-1),1] == sorted[2:end,1]
-    m,n = size(sorted)
+    m, n = size(sorted)
     indlist = collect(1:m)
-    [indices, dummy] = indlist[bool_list]
+    indices, dummy = indlist[bool_list]
 
     #make links reflexive
     matchL = [sorted[indices,:] ; sorted[indices .+ 1 , :]]
@@ -575,7 +580,7 @@ end
 
 """
 
-buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
@@ -601,7 +606,6 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 -   `vmapP`: vertex indices, (used for exterior u values)
 -   `vmapB`: vertex indices, corresponding to boundaries
 -   `mapB`: use to extract vmapB from vmapM
-
 
 """
 function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
@@ -653,7 +657,7 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
             vmapP[idM, f1, k1] = vidP[idP]
             @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
         end
-
+    end
         # reshape arrays
         vmapP = Int.( reshape(vmapP, length(vmapP)) )
         vmapM = Int.( reshape(vmapM, length(vmapM)) )
@@ -663,4 +667,4 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
         vmapB = Int.( vmapM[mapB] )
 
         return vmapM, vmapP, vmapB, mapB
-    end
+end

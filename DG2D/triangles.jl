@@ -356,39 +356,6 @@ end
 
 
 """
-
-geometricfactors2D(x, y, Dr, Ds)
-
-# NEEDS TO BE TESTED
-
-# Description
-
-- Metric elements for local mappings of elements
-
-# Arguments
-
-- `x`:
-- `y`:
-- `Dr`:
-- `Ds`:
-
-# Outputs : xr, xs, yr, ys, J
-
-- `rx`:
-- `sx`:
-- `ry`:
-- `sy`:
-- `J`: jacobian
-
-"""
-function geometricfactors2D(x, y, Dr, Ds)
-    xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
-    J = - xs .* xr + xr .* ys; #determinant
-    rx = ys ./ J; sx = - yr ./ J; ry = - xs . J; sy = xr ./ J;
-    return rx, sx, ry, sy, J
-end
-
-"""
 normals2D(x, y, Dr, Ds, fmask, nfp, K)
 
 # NOT TESTED

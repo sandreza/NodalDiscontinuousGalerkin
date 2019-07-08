@@ -1,180 +1,55 @@
-include("../utils.jl")
-
-"""
-rectmesh2D(xmin, xmax, ymin, ymax, K, L)
-
-# Description
-
-    Generates a 2D mesh of uniform squares
-
-# Arguments
-
--   `xmin`: smallest value of first dimension
--   `xmax`:  largest value of first dimension
--   `ymin`: smallest value of second dimension
--   `ymax`:  largest value of second dimension
--   `K`: number of divisions in first dimension
--   `L`: number of divisions in second dimension
-
-# Return Values: VX, EtoV
-
--   `VX`: vertex values | an Array of size K+1
--   `EtoV`: element to node connectivity | a Matrix of size Kx2
-
-# Example
-
-"""
-function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
-    # 1D arrays
-    vx,mapx = unimesh1D(xmin, xmax, K)
-    vy,mapy = unimesh1D(ymin, ymax, L)
-
-    # construct array of vertices
-    vertices = Any[] # need to find a way to not make type Any
-    for x in vx
-        for y in vy
-            push!(vertices, (x,y))
-        end
-    end
-    # v = reshape(v, K+1, L+1)
-
-    # construct element to vertex map
-    EtoV = Int.(ones(K*L, 4))
-    j = 1
-    for l in 1:L
-        for k in 1:K
-            EtoV[j,2] = Int(k + (L+1) * (l-1))
-            EtoV[j,3] = Int(k + (L+1) * l)
-
-            EtoV[j,1] = Int(EtoV[j,2] + 1)
-            EtoV[j,4] = Int(EtoV[j,3] + 1)
-
-            j += 1
-        end
-    end
-
-    return vertices,EtoV
-end
+include("element2D.jl")
 
 """
 rectangle(k, N, M, vmap, EtoV)
 
 # Description
 
-    initialize rectangle struct
+    create a rectangular element
 
 # Arguments
 
 -   `k`: element number in global map
+-   `EtoV`: element to vertex map
 -   `N`: polynomial order along first axis within element
 -   `M`: polynomial order along second axis within element
 -   `vmap`: array of vertices
--   `EtoV`: element to vertex map
 
-# Return Values: x
+# Return Values:
 
-    return index and vertices
+-   `Ω`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
 
 """
-struct rectangle{T, S, U, V, W}
-    index::T
-    vertices::S
 
-    xmin::U
-    xmax::U
-    ymin::U
-    ymax::U
+function rectangle(k, EtoV, N, M, vmap)
+    Ω = element2D(k, EtoV)
 
-    rˣ::V
-    rʸ::V
-    sˣ::V
-    sʸ::V
+    r = jacobiGL(0, 0, N)
+    s = jacobiGL(0, 0, M)
 
-    xorder::T
-    yorder::T
+    (Ω.Dʳ, Ω.Dˢ) = dmatricesSQ(r, s)
+    Ω.lift = liftSQ(r, s)
 
-    Dʳ::W
-    Dˢ::W
-    lift::W
-
-    function rectangle(k, N, M, vmap, EtoV)
-        index = k
-        vertices = view(EtoV, k, :)
-
-        xmin = vmap[vertices[1]][1]
-        ymin = vmap[vertices[1]][2]
-        xmax = vmap[vertices[end]][1]
-        ymax = vmap[vertices[end]][2]
-
-        rˣ = 2 / (xmax - xmin)
-        rʸ = 0
-        sˣ = 0
-        sʸ = 2 / (ymax - ymin)
-
-        xorder = N
-        yorder = M
-
-        Dʳ,Dˢ = dmatricesSQ(N, M)
-        lift = liftSQ(N, M)
-
-        return new{typeof(index),typeof(vertices),typeof(xmin),typeof(rˣ),typeof(lift)}(index,vertices, xmin,xmax,ymin,ymax,  rˣ,rʸ,sˣ,sʸ, xorder,yorder, Dʳ,Dˢ, lift)
+    Ω.r = []
+    Ω.s = []
+    for i in r
+        for j in s
+            push!(Ω.r, i)
+            push!(Ω.s, j)
+        end
     end
-end
 
-"""
-phys2ideal(x, y, Ωᵏ)
+    xmin = vmap[Ω.vertices[2]][1]
+    ymin = vmap[Ω.vertices[2]][2]
+    xmax = vmap[Ω.vertices[end]][1]
+    ymax = vmap[Ω.vertices[end]][2]
 
-# Description
+    Ω.x = @. (xmax - xmin) * (Ω.r + 1) / 2
+    Ω.y = @. (ymax - ymin) * (Ω.s + 1) / 2
 
-    Converts from physical rectangle Ωᵏ to ideal [-1,1]⨂[-1,1] square for legendre interpolation
+    geometricfactors2D!(Ω)
 
-# Arguments
-
--   `x`: first physical coordinate
--   `y`: second physical coordinate
--   `Ωᵏ`: element to compute in
-
-# Return Values
-
--   `r`: first ideal coordinate
--   `s`: second ideal coordinate
-
-# Example
-
-"""
-function phys2ideal(x, y, Ωᵏ)
-    r = Ωᵏ.rˣ * (x - Ωᵏ.xmin) - 1
-    s = Ωᵏ.sʸ * (y - Ωᵏ.ymin) - 1
-
-    return r,s
-end
-
-"""
-ideal2phys(r, s, Ωᵏ)
-
-# Description
-
-    Converts from ideal [-1,1]⨂[-1,1] square to physical rectangle Ωᵏ
-
-# Arguments
-
--   `r`: first ideal coordinate
--   `s`: second ideal coordinate
--   `Ωᵏ`: element to compute in
-
-# Return Values
-
--   `x`: first physical coordinate
--   `y`: second physical coordinate
-
-# Example
-
-"""
-function ideal2phys(r, s, Ωᵏ)
-    x = (r + 1) / Ωᵏ.rˣ + Ωᵏ.xmin
-    y = (s + 1) / Ωᵏ.sʸ + Ωᵏ.ymin
-
-    return x,y
+    return Ω
 end
 
 """
@@ -196,10 +71,10 @@ vandermondeSQ(N, M)
 # Example
 
 """
-function vandermondeSQ(N, M)
-    # get GL nodes in each dimnesion
-    r = jacobiGL(0, 0, N)
-    s = jacobiGL(0, 0, M)
+function vandermondeSQ(r, s)
+    # get order of GL points
+    N = length(r) - 1
+    M = length(s) - 1
 
     # construct 1D vandermonde matrices
     Vʳ = vandermonde(r, 0, 0, N)
@@ -234,10 +109,10 @@ dmatricesSQ(N, M)
 # Example
 
 """
-function dmatricesSQ(N, M)
-    # get GL nodes in each dimnesion
-    r = jacobiGL(0, 0, N)
-    s = jacobiGL(0, 0, M)
+function dmatricesSQ(r, s)
+    # get order of GL points
+    N = length(r) - 1
+    M = length(s) - 1
 
     # construct 1D vandermonde matrices
     Dʳ = dmatrix(r, 0, 0, N)
@@ -274,12 +149,12 @@ dvandermondeSQ(N, M)
 # Example
 
 """
-function dvandermondeSQ(N, M)
+function dvandermondeSQ(r, s)
     # get 2D vandermonde matrix
-    V = vandermondeSQ(N, M)
+    V = vandermondeSQ(r, s)
 
     # get differentiation matrices
-    Dʳ,Dˢ = dmatricesSQ(N, M)
+    Dʳ,Dˢ = dmatricesSQ(r, s)
 
     # calculate using definitions
     Vʳ = Dʳ * V
@@ -307,13 +182,13 @@ liftSQ(N, M)
 # Example
 
 """
-function liftSQ(N,M)
+function liftSQ(r,s)
     # get 2D vandermonde matrix
-    V = vandermondeSQ(N,M)
+    V = vandermondeSQ(r,s)
 
     # number of GL points in each dimension
-    n = N+1
-    m = M+1
+    n = length(r)
+    m = length(s)
 
     # empty matrix
     ℰ = spzeros(n*m, 2*(n+m))
@@ -329,8 +204,8 @@ function liftSQ(N,M)
 
     # fill matrix for bounds on boundaries
     # += syntax used for debugging, easily shows if multiple statements assign to the same entry
-    for i in 1:N+1
-        for j in 1:M+1
+    for i in 1:n
+        for j in 1:m
             k += 1
 
             # check if on rmin
@@ -346,13 +221,13 @@ function liftSQ(N,M)
             end
 
             # check if on rmax
-            if i == N+1
+            if i == n
                 ℰ[k, rh] += 1
                 rh += 1
             end
 
             # check if on smax
-            if j == M+1
+            if j == m
                 ℰ[k, sh] += 1
                 sh += 1
             end

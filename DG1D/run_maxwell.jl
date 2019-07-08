@@ -2,8 +2,6 @@ include("dg1D.jl")
 include("dg_maxwell.jl")
 
 using Plots
-using BenchmarkTools
-using DifferentialEquations
 
 # set number of DG elements and polynomial order
 K = 2^4 # number of elements
@@ -16,7 +14,7 @@ println((n+1) * K)
 L    = 2
 xmin = -1.0
 xmax = xmin + L
-𝒢 = mesh(K, n, xmin, xmax)
+𝒢 = Mesh(K, n, xmin, xmax)
 x = 𝒢.x
 
 # set material parameters

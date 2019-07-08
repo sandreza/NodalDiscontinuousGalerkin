@@ -68,7 +68,7 @@ struct Element2D{N, S, T, U, V} <: AbstractElement2D
         sˣ = @. - yʳ / J
         sʸ = @.   xʳ / J
 
-        return new{N,typeof(index),typeof(vertices),typeof(r),typeof(lift)}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
+        return new{N,typeof(index),typeof(vertices),typeof(r),typeof(lift)}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
     end
 end
 

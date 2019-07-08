@@ -55,9 +55,14 @@ end
 """
 nodes2D(n)
 
-Description:
+# Description
 
-    Returns the interpolation nodes for the 2D GL points
+- Returns the interpolation nodes for the 2D GL points
+
+# Return: x, y
+
+- `x`: x-coordinate of GL points
+- `y`: y-coordinate of GL points
 
 """
 function nodes2D(n)
@@ -99,7 +104,7 @@ end
 
 
 """
-xytors(n)
+xytors(x,y)
 
 # Description
 
@@ -272,7 +277,7 @@ function dvandermonde2D(n,r,s)
 end
 
 """
-dmatrices(n,r,s)
+dmatrices2D(n,r,s)
 
 # Description
 
@@ -291,8 +296,8 @@ dmatrices(n,r,s)
 - `∂s`: partial derivative
 
 """
-function dmatrices(n, r, s, V)
-     Vr, Vs = dvandermonde(n,r,s)
+function dmatrices2D(n, r, s, V)
+     Vr, Vs = dvandermonde2D(n,r,s)
      ∂r = Vr / V
      ∂s = Vs / V
     return ∂r, ∂s
@@ -354,6 +359,39 @@ function lift_tri(n, fmask, r, s, V)
     return lift
 end
 
+
+"""
+
+geometricfactors2D(x, y, Dr, Ds)
+
+# NEEDS TO BE TESTED
+
+# Description
+
+- Metric elements for local mappings of elements
+
+# Arguments
+
+- `x`:
+- `y`:
+- `Dr`:
+- `Ds`:
+
+# Outputs : xr, xs, yr, ys, J
+
+- `rx`:
+- `sx`:
+- `ry`:
+- `sy`:
+- `J`: jacobian
+
+"""
+function geometricfactors2D(x, y, Dr, Ds)
+    xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
+    J = - xs .* yr + xr .* ys; #determinant
+    rx = ys ./ J; sx = - yr ./ J; ry = - xs ./ J; sy = xr ./ J;
+    return rx, sx, ry, sy, J
+end
 
 """
 normals2D(x, y, Dr, Ds, fmask, nfp, K)
@@ -492,7 +530,7 @@ triangle_connect2D(EToV)
 
 # Description
 
--
+- different connectivity
 
 # Arguments
 
@@ -512,21 +550,21 @@ function triangle_connect2D(EToV)
     K = size(EToV, 1)
     number_nodes = maximum(EToV)
 
-    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]; EToV[:,[3,1]]]
-    fnodes = @. sort(fnodes, dims = 2 )-1
+    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]]; EToV[:,[3,1]];]
+    fnodes = sort(fnodes, dims = 2 ) .- 1
 
     #default element to element and element to faces connectivity
     EToE = ones(K,1) * collect(1:nfaces)'
 
-    id = fnodes[:,1] * number_nodes + fnodes[:,2] +1;
+    id =  @. fnodes[:,1] * number_nodes + fnodes[:,2] + 1;
     spNodeToNode = [id, collect(1:nfaces*K)', EToE[:], EToF[:]]
 
     # check
     sorted = sort(spNodeToNode, dims = 1)
     bool_list = sorted[1:(end-1),1] == sorted[2:end,1]
-    m,n = size(sorted)
+    m, n = size(sorted)
     indlist = collect(1:m)
-    [indices, dummy] = indlist[bool_list]
+    indices, dummy = indlist[bool_list]
 
     #make links reflexive
     matchL = [sorted[indices,:] ; sorted[indices .+ 1 , :]]
@@ -542,7 +580,7 @@ end
 
 """
 
-buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
@@ -568,7 +606,6 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 -   `vmapP`: vertex indices, (used for exterior u values)
 -   `vmapB`: vertex indices, corresponding to boundaries
 -   `mapB`: use to extract vmapB from vmapM
-
 
 """
 function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
@@ -620,7 +657,7 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
             vmapP[idM, f1, k1] = vidP[idP]
             @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
         end
-
+    end
         # reshape arrays
         vmapP = Int.( reshape(vmapP, length(vmapP)) )
         vmapM = Int.( reshape(vmapM, length(vmapM)) )
@@ -630,4 +667,87 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
         vmapB = Int.( vmapM[mapB] )
 
         return vmapM, vmapP, vmapB, mapB
-    end
+end
+
+
+"""
+global_grid(r, s, EToV, VX, VY)
+
+# Description
+
+- Create a global grid from the elements
+
+# Arguments
+
+- `r` : ideal coordinates
+- `s` : ideal coordinates
+- `EToV` : element to vertices
+- `VX` : x-coordinate of vertices
+- `VY` : y-coordinate of vertices
+
+# Return x, y
+
+- `x` : x-coordinates of grid
+- `y` : y-coordinates of grid
+
+"""
+function global_grid(r, s, EToV, VX, VY)
+    #need to transpose so that the matrix multiply works
+    va = EToV[:,1]'
+    vb = EToV[:,2]'
+    vc = EToV[:,3]'
+    # global x and y values constructed from ideal coordinates and grid
+    x =  0.5 * ( - (r+s) * VX[va] + (1 .+ r)*VX[vb] + (1 .+s)*VX[vc])
+    y =  0.5 * ( - (r+s) * VY[va] + (1 .+ r)*VY[vb] + (1 .+s)*VY[vc])
+    return x, y
+end
+
+"""
+create_fmask(r,s)
+
+# Description
+
+- mask to get edge nodes
+
+# Arguments
+
+- `r` : ideal coordinates
+- `s` : ideal coordinates
+
+#Return
+
+-  `fmask`: array of boolean values of edge nodes
+
+"""
+function create_fmask(r, s)
+    fmask1 = findall( abs.( s .+ 1) .< eps(10.0) )'
+    fmask2 = findall( abs.( r .+ s ) .< eps(10.0) )'
+    fmask3 = findall( abs.( r .+ 1) .< eps(10.0) )'
+    fmask = [fmask1; fmask2; fmask3]'
+    return fmask
+end
+
+"""
+find_edge_nodes(fmask, x, y)
+
+# Description
+
+- find the values on the grid that correspond to edges
+
+# Arguments
+
+- `fmask` : mask to extract edge values, use the function create_fmask(r,s)
+-  `x` : x-coordinates of grid
+-  `y` : y-coordinates of grid
+
+# Return
+
+- `edge_x`: x-coordinate of edge values (called Fx in NDG)
+- `edge_y`: y-coorsdinate of edge values (called Fy in NDG)
+
+"""
+function find_edge_nodes(fmask, x, y)
+    edge_x = x[fmask[:],:]
+    edge_y = y[fmask[:],:]
+    return edge_x, edge_y
+end

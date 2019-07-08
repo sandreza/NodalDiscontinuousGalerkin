@@ -1,7 +1,7 @@
 include("element2D.jl")
 
 """
-rectangle(k, N, M, vmap, EtoV)
+rectangle(k, EtoV, N, M, vmap)
 
 # Description
 
@@ -20,12 +20,16 @@ rectangle(k, N, M, vmap, EtoV)
 -   `rect`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
 
 """
-function rectangle(k, EtoV, N, M, vmap)
-    vertices = view(EtoV, k, :)
+function rectangle(index, EtoV, N, M, vmap)
+    vertices = view(EtoV, index, :)
+    nfaces = length(vertices)
 
     # GL points in each dimension
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
+
+    # get normals
+    nˣ,nʸ = normalsSQ(length(a), length(b))
 
     # differentiation and lift matrices through tensor products
     Dʳ,Dˢ = dmatricesSQ(a, b)
@@ -52,7 +56,7 @@ function rectangle(k, EtoV, N, M, vmap)
     y = @. (ymax - ymin) * (s + 1) / 2
 
     # construct element
-    rect = Element2D{4}(k,vertices, r,s, x,y, Dʳ,Dˢ,lift)
+    rect = Element2D{4}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ)
 
     return rect
 end
@@ -243,4 +247,51 @@ function liftSQ(r,s)
     lift = V * (V' * ℰ)
 
     return lift
+end
+
+"""
+normalsSQ(n, m)
+
+# Description
+
+    Return the normals for the 2D ideal square
+
+# Arguments
+
+-   `n`: number of GL points along the first axis
+-   `m`: number of GL points along the second axis
+
+# Return Values
+
+-   `nˣ`: first coordinate of the normal vector
+-   `nʸ`: second coordinate of the normal vector
+
+# Example
+
+"""
+
+function normalsSQ(n, m)
+    # empty vectors of right length
+    nˣ = zeros(n + m + n + m)
+    nʸ = zeros(n + m + n + m)
+
+    # ending index for each face
+    nf1 = m
+    nf2 = m+n
+    nf3 = m+n+m
+    nf4 = m+n+m+n
+
+    # normal is (0, -1) along first face
+    @. nʸ[1:nf1] = ones(m) * -1
+
+    # normal is (-1, 0) along second face
+    @. nˣ[(nf1+1):nf2] = ones(n) * -1
+
+    # normal is (0, 1) along third face
+    @. nʸ[(nf2+1):nf3] = ones(m)
+
+    # normal is (1, 0) along third face
+    @. nˣ[(nf3+1):nf4] = ones(n)
+
+    return nˣ,nʸ
 end

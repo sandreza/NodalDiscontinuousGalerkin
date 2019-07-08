@@ -18,37 +18,38 @@ element2D(k, N, M, vmap, EtoV)
     return index and vertices
 
 """
-struct Element2D{N} <: AbstractElement2D
+struct Element2D{N, S, T, U, V} <: AbstractElement2D
     # identifying features
-    index::Int
-    vertices::Array{Int,1}
+    index::S
+    vertices::T
 
     # ideal coordinates
-    r::Array{Float64,1}
-    s::Array{Float64,1}
+    r::U
+    s::U
 
     # physical coordinates
-    x::Array{Float64,1}
-    y::Array{Float64,1}
+    x::U
+    y::U
 
     # matrices for computation
-    Dʳ::Array{Float64,2}
-    Dˢ::Array{Float64,2}
-    lift::Array{Float64,2}
+    Dʳ::V
+    Dˢ::V
+    lift::V
+    nˣ::V
+    nʸ::V
 
     # geometric factors
-    J::Array{Float64,1}
-    xʳ::Array{Float64,1}
-    xˢ::Array{Float64,1}
-    yʳ::Array{Float64,1}
-    yˢ::Array{Float64,1}
-    rˣ::Array{Float64,1}
-    rʸ::Array{Float64,1}
-    sˣ::Array{Float64,1}
-    sʸ::Array{Float64,1}
+    J::U
+    xʳ::U
+    xˢ::U
+    yʳ::U
+    yˢ::U
+    rˣ::U
+    rʸ::U
+    sˣ::U
+    sʸ::U
 
-    # only index and vertices are well defined for an element of arbitrary shape
-    function Element2D{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift) where N
+    function Element2D{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ) where N
         xʳ = Dʳ * x
         xˢ = Dˢ * x
 
@@ -67,7 +68,7 @@ struct Element2D{N} <: AbstractElement2D
         sˣ = @. - yʳ / J
         sʸ = @.   xʳ / J
 
-        return new{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
+        return new{N,typeof(index),typeof(vertices),typeof(r),typeof(lift)}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
     end
 end
 

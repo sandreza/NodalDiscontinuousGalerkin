@@ -18,62 +18,59 @@ element2D(k, N, M, vmap, EtoV)
     return index and vertices
 
 """
-struct Element2D{N, S, T, U, V} <: AbstractElement2D
+struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     # identifying features
     index::S
     vertices::T
 
-    # ideal coordinates
-    r::U
-    s::U
-
-    # physical coordinates
-    x::U
-    y::U
+    # GL points and normals
+    r::U # ideal coordinates
+    x::U # physical coordinates
+    n̂::U # normal vectors
 
     # matrices for computation
-    Dʳ::V
-    Dˢ::V
-    lift::V
-    nˣ::V
-    nʸ::V
+    D::V
+    lift::W
 
     # geometric factors
-    J::U
-    xʳ::U
-    xˢ::U
-    yʳ::U
-    yˢ::U
-    rˣ::U
-    rʸ::U
-    sˣ::U
-    sʸ::U
+    J::X
+    xʳ::Y
+    rˣ::Y
 
-    function Element2D{N}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ) where N
-        xʳ = Dʳ * x
-        xˢ = Dˢ * x
+    function Element2D(index,vertices, r,x̃, D,lift,n̂)
+        # partial derivatives of x
+        xʳ = Array{Float64,2}[]
+        rˣ = similar(xʳ)
+        J = Float64[]
 
-        # partial derivatives of y
-        yʳ = Dʳ * y
-        yˢ = Dˢ * y
+        # gotta get individual arrays here :(
+        x = similar(J)
+        y = similar(J)
+        for z in x̃
+            push!(x, z[1])
+            push!(y, z[2])
+        end
 
-        # Jacobian
-        J =  @. - xˢ * yʳ + xʳ * yˢ # determinant
+        # compute the derivates component wise
+        xr = D[1] * x
+        xs = D[2] * x
+        yr = D[1] * y
+        ys = D[2] * y
 
-        # partial derivatives of r
-        rˣ = @.   yˢ / J
-        rʸ = @. - xˢ / J
+        # save partials as jacobian matrix, inverse, and determinant
+        for i in 1:length(x̃)
+            𝒥 = [ [xr[i] xs[i]]; [yr[i] ys[i]]]
+            push!(xʳ, 𝒥)
+            push!(rˣ, inv(𝒥))
+            push!(J,  det(𝒥))
+        end
 
-        # partial derivatives of s
-        sˣ = @. - yʳ / J
-        sʸ = @.   xʳ / J
-
-        return new{N,typeof(index),typeof(vertices),typeof(r),typeof(lift)}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ, J, xʳ,xˢ,yʳ,yˢ, rˣ,rʸ,sˣ,sʸ)
+        return new{typeof(index),typeof(vertices),typeof(r),typeof(D),typeof(lift),typeof(J),typeof(xʳ)}(index,vertices, r,x̃,n̂, D,lift, J,xʳ,rˣ)
     end
 end
 
 ### exampleeeee
-# function nfaces(::Element2D{N}) where N
+# function nFaces(::Element2D{N}) where N
 #     return N
 # end
 

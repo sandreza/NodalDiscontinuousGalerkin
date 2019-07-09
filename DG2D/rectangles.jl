@@ -22,28 +22,18 @@ rectangle(k, EtoV, N, M, vmap)
 """
 function rectangle(index, EtoV, N, M, vmap)
     vertices = view(EtoV, index, :)
-    nfaces = length(vertices)
+    nFaces = length(vertices)
 
     # GL points in each dimension
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
 
     # get normals
-    nˣ,nʸ = normalsSQ(length(a), length(b))
+    n̂ = normalsSQ(length(a), length(b))
 
     # differentiation and lift matrices through tensor products
-    Dʳ,Dˢ = dmatricesSQ(a, b)
+    D = dmatricesSQ(a, b)
     lift = liftSQ(a, b)
-
-    # arrays of first,second coordinate of GL tensor product
-    r = []
-    s = []
-    for i in a
-        for j in b
-            push!(r, i)
-            push!(s, j)
-        end
-    end
 
     # get min and max values of physical coordinates
     xmin = vmap[vertices[2]][1]
@@ -51,12 +41,19 @@ function rectangle(index, EtoV, N, M, vmap)
     xmax = vmap[vertices[end]][1]
     ymax = vmap[vertices[end]][2]
 
-    # create physical coordinates of GL points
-    x = @. (xmax - xmin) * (r + 1) / 2
-    y = @. (ymax - ymin) * (s + 1) / 2
+    # arrays of first,second coordinate of GL tensor product
+    # both ideal and physical coordinates are saved
+    r = Tuple{Float64, Float64}[]
+    x = similar(r)
+    for i in a
+        for j in b
+            push!(r, (i,j))
+            push!(x, ((xmax - xmin) * (i + 1) / 2, (ymax - ymin) * (j + 1) / 2))
+        end
+    end
 
     # construct element
-    rect = Element2D{4}(index,vertices, r,s, x,y, Dʳ,Dˢ,lift, nˣ,nʸ)
+    rect = Element2D(index,vertices, r,x, D,lift,n̂)
 
     return rect
 end
@@ -208,11 +205,9 @@ function liftSQ(r,s)
     rh = 1+m+n
     sh = 1+m+n+m
 
-
-
     # fill matrix for bounds on boundaries
     # += syntax used for debugging, easily shows if multiple statements assign to the same entry
-    let k = 0 # element number 
+    let k = 0 # element number
         for i in 1:n
             for j in 1:m
                 k += 1
@@ -273,8 +268,7 @@ normalsSQ(n, m)
 
 function normalsSQ(n, m)
     # empty vectors of right length
-    nˣ = zeros(n + m + n + m)
-    nʸ = zeros(n + m + n + m)
+    n̂ = [(0.0,0.0) for _ in 1:(n+m+n+m)]
 
     # ending index for each face
     nf1 = m
@@ -282,17 +276,18 @@ function normalsSQ(n, m)
     nf3 = m+n+m
     nf4 = m+n+m+n
 
-    # normal is (0, -1) along first face
-    @. nʸ[1:nf1] = ones(m) * -1
+    # set values of normals
+    for i in 1:nf4
+        if     i < nf1+1
+            n̂[i] = (0, -1) # normal is (0, -1) along first face
+        elseif i < nf2+1
+            n̂[i] = (-1, 0) # normal is (-1, 0) along second face
+        elseif i < nf3+1
+            n̂[i] = (0, 1) # normal is (0, 1) along third face
+        else
+            n̂[i] = (1, 0) # normal is (1, 0) along fourth face
+        end
+    end
 
-    # normal is (-1, 0) along second face
-    @. nˣ[(nf1+1):nf2] = ones(n) * -1
-
-    # normal is (0, 1) along third face
-    @. nʸ[(nf2+1):nf3] = ones(m)
-
-    # normal is (1, 0) along third face
-    @. nˣ[(nf3+1):nf4] = ones(n)
-
-    return nˣ,nʸ
+    return n̂
 end

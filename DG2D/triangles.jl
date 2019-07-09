@@ -1,4 +1,4 @@
-include("../utils.jl")
+include("../src/utils.jl")
 
 using SparseArrays
 
@@ -451,73 +451,6 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
     @. nx /= sJ
     @. ny /= sJ
     return nx, ny, sJ
-end
-
-"""
-connect2D(EToV)
-
-# Description
-
--
-
-# Arguments
-
--  `EToV`: element to vertices map
-
-# Output
-
--  `EToE`: element to element map
--  `EToF`: element to face map
-
-# Comments
-
-- The changes from the 1D are minor. nfaces can probably remain generic
-
-"""
-function connect2D(EToV)
-    nfaces = 3 # because ... triangles
-
-    #find number of elements and vertices
-    K = size(EToV, 1)
-    Nv = maximum(EToV)
-
-    # create face to node connectivity matrix
-    total_faces = nfaces * K
-
-    # list of local face to local vertex connections
-    vn = [[1 2]; [2 3]; [1 3] ]
-
-    # build global face to node sparse array
-    SpFToV = spzeros(Int, total_faces, Nv)
-    let sk = 1
-        for k ∈ 1:K
-            for face ∈ 1:nfaces
-                @. SpFToV[sk, EToV[k, vn[face,:] ] ] = 1;
-                sk += 1
-            end
-        end
-    end
-
-    # global face to global face sparse array
-    SpFToF = SpFToV * SpFToV' - 2I #gotta love julia
-
-    #find complete face to face connections
-    faces1, faces2 = findnz(SpFToF .== 2)
-
-    # convert face global number to element and face numbers
-    element1 = @. Int( floor( (faces1 - 1) / nfaces ) + 1 )
-    element2 = @. Int( floor( (faces2 - 1) / nfaces ) + 1 )
-
-    face1 = @. Int( mod( (faces1 - 1) , nfaces ) + 1 )
-    face2 = @. Int( mod( (faces2 - 1) , nfaces ) + 1 )
-
-    # Rearrange into Nelement x Nfaces sized arrays
-    ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.
-    EToE = collect(1:K) * ones(1, nfaces)
-    EToF = ones(K,1) * collect(1:nfaces)'
-    EToE[ind] = copy(element2);
-    EToF[ind] = copy(face2);
-    return EToE, EToF
 end
 
 

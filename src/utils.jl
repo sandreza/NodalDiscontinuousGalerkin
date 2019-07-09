@@ -1,7 +1,45 @@
 
 using Revise
-using SpecialFunctions #for gamma function reasons
-using LinearAlgebra    #for Guass quadrature
+using SpecialFunctions # for gamma function reasons
+using LinearAlgebra    # for Guass quadrature
+
+"""
+unimesh1D(xmin, xmax, K)
+
+# Description
+
+    Generates a uniform 1D mesh
+
+# Arguments
+
+    xmin: smallest value of array
+
+    xmax: largest values of array
+
+    K: number of elements in an array
+
+# Return Values: VX, EtoV
+
+    VX: vertex values | an Array of size K+1
+
+    EtoV: element to node connectivity | a Matrix of size Kx2
+
+# Example
+xmin = -1
+xmax =  1
+K    =  4
+VX, EtoV = unimesh1D(xmin, xmax, K)
+
+"""
+function unimesh1D(xmin, xmax, K)
+    VX = @. collect(0:K) / K * (xmax - xmin) + xmin
+    EtoV = Int.(ones(K, 2))
+    for i = 1:K
+        EtoV[i,1] = Int(i)
+        EtoV[i,2] = Int(i+1)
+    end
+    return VX, EtoV
+end
 
 #code checked against the matlab code
 """

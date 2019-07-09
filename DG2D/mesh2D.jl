@@ -1,5 +1,6 @@
-include("../DG1D/mesh.jl")
+include("../src/utils.jl")
 
+using SparseArrays
 
 """
 meshreader_gambit2D(filename)
@@ -12,13 +13,13 @@ meshreader_gambit2D(filename)
 
 - `filename`: a string that contains the path to the file
 
-# Return : Nv, VX, VY, K, EToV
+# Return : Nv, VX, VY, K, EtoV
 
 - `Nv` :   number of vertices
 - `VX` :   x coordinate of vertex
 - `VY` :   y coordinate of vertex
 - `K`  :   number of elements
-- `EToV` : element to vertex connection
+- `EtoV` : element to vertex connection
 
 """
 function meshreader_gambit2D(filename)
@@ -57,8 +58,8 @@ function meshreader_gambit2D(filename)
         VX[i] = dims[2]
         VY[i] = dims[3]
     end
-    #define EToV matrix
-    EToV = zeros(Int, K, 3)
+    #define EtoV matrix
+    EtoV = zeros(Int, K, 3)
 
     # the lines with data start at lines[11+Nv]
     for k ∈ 1:K
@@ -68,12 +69,12 @@ function meshreader_gambit2D(filename)
         #reinterpret the strings as Ints
         dims = map(x->parse(Int,x), dims)
         #set the elements
-        EToV[k,:] = dims[4:6]
+        EtoV[k,:] = dims[4:6]
     end
 
     #close the file
     close(f)
-    return Nv, VX, VY, K, EToV
+    return Nv, VX, VY, K, EtoV
 end
 
 """
@@ -130,4 +131,74 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     end
 
     return vertices,EtoV
+end
+
+"""
+connect2D(EtoV)
+
+# Description
+
+- Make element-to-element and element-to-face maps for a 2D grid
+
+# Arguments
+
+-   `nfaces`: number of faces on each element (constant across the grid for now)
+-   `EtoV`: element to vertices map
+
+# Output
+
+-   `EtoE`: element to element map
+-   `EtoF`: element to face map
+
+# Comments
+
+- The changes from the 1D are minor. nfaces can probably remain generic
+
+"""
+function connect2D(nfaces::Int, EtoV)
+    #find number of elements and vertices
+    K = size(EtoV, 1)
+    Nv = maximum(EtoV)
+
+    # create face to node connectivity matrix
+    total_faces = nfaces * K
+
+    # list of local face to local vertex connections
+    vn = zeros(Int, nfaces, 2)
+    for i in 1:nfaces
+        j = i % nfaces + 1
+        vn[i, :] = [i,j]
+    end
+
+    # build global face to node sparse array
+    FtoV = spzeros(Int, total_faces, Nv)
+    let sk = 1
+        for k in 1:K
+            for face in 1:nfaces
+                @. FtoV[sk, EtoV[k, vn[face,:] ] ] = 1;
+                sk += 1
+            end
+        end
+    end
+
+    # global face to global face sparse array
+    FtoF = FtoV * FtoV' - 2I #gotta love julia
+
+    #find complete face to face connections
+    faces1, faces2 = findnz(FtoF .== 2)
+
+    # convert face global number to element and face numbers
+    element1 = @. floor(Int, (faces1 - 1) / nfaces ) + 1
+    element2 = @. floor(Int, (faces2 - 1) / nfaces ) + 1
+
+    face1 = @. mod((faces1 - 1) , nfaces ) + 1
+    face2 = @. mod((faces2 - 1) , nfaces ) + 1
+
+    # Rearrange into Nelement x Nfaces sized arrays
+    ind = diag( LinearIndices(ones(Int, K, nfaces))[element1,face1] ) # this line is a terrible idea.
+    EtoE = collect(Int, 1:K) * ones(Int, 1, nfaces)
+    EtoF = ones(Int, K,1) * collect(Int, 1:nfaces)'
+    EtoE[ind] = copy(element2);
+    EtoF[ind] = copy(face2);
+    return EtoE, EtoF
 end

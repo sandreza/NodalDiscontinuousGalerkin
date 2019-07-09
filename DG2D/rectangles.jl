@@ -208,37 +208,38 @@ function liftSQ(r,s)
     rh = 1+m+n
     sh = 1+m+n+m
 
-    # element number
-    k = 0
+
 
     # fill matrix for bounds on boundaries
     # += syntax used for debugging, easily shows if multiple statements assign to the same entry
-    for i in 1:n
-        for j in 1:m
-            k += 1
+    let k = 0 # element number 
+        for i in 1:n
+            for j in 1:m
+                k += 1
 
-            # check if on rmin
-            if i == 1
-                ℰ[k, rl] += 1
-                rl += 1
-            end
+                # check if on rmin
+                if i == 1
+                    ℰ[k, rl] += 1
+                    rl += 1
+                end
 
-            # check if on smax
-            if j == 1
-                ℰ[k, sl] += 1
-                sl += 1
-            end
+                # check if on smax
+                if j == 1
+                    ℰ[k, sl] += 1
+                    sl += 1
+                end
 
-            # check if on rmax
-            if i == n
-                ℰ[k, rh] += 1
-                rh += 1
-            end
+                # check if on rmax
+                if i == n
+                    ℰ[k, rh] += 1
+                    rh += 1
+                end
 
-            # check if on smax
-            if j == m
-                ℰ[k, sh] += 1
-                sh += 1
+                # check if on smax
+                if j == m
+                    ℰ[k, sh] += 1
+                    sh += 1
+                end
             end
         end
     end

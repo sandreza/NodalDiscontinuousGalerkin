@@ -1,4 +1,3 @@
-include("../utils.jl")
 include("mesh.jl")
 
 using Plots

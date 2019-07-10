@@ -1,43 +1,6 @@
+include("../src/utils.jl")
 
 using SparseArrays # for connectivity matrix
-
-"""
-unimesh1D(xmin, xmax, K)
-
-# Description
-
-    Generates a uniform 1D mesh
-
-# Arguments
-
-    xmin: smallest value of array
-
-    xmax: largest values of array
-
-    K: number of elements in an array
-
-# Return Values: VX, EtoV
-
-    VX: vertex values | an Array of size K+1
-
-    EtoV: element to node connectivity | a Matrix of size Kx2
-
-# Example
-xmin = -1
-xmax =  1
-K    =  4
-VX, EtoV = unimesh1D(xmin, xmax, K)
-
-"""
-function unimesh1D(xmin, xmax, K)
-    VX = @. collect(0:K) / K * (xmax - xmin) + xmin
-    EtoV = Int.(ones(K, 2))
-    for i = 1:K
-        EtoV[i,1] = Int(i)
-        EtoV[i,2] = Int(i+1)
-    end
-    return VX, EtoV
-end
 
 """
 gridvalues1D(xmin, xmax, K)
@@ -229,11 +192,11 @@ connect1D(EtoV)
 
 """
 function connect1D(EtoV)
-    nfaces = 2 # for 1d elements
+    nFaces = 2 # for 1d elements
 
     # Find number of elements and vertices
     K = size(EtoV,1)
-    total_faces = nfaces * K
+    total_faces = nFaces * K
     Nv = K+1
 
     # list of local face to local vertex connections
@@ -243,7 +206,7 @@ function connect1D(EtoV)
     FtoV = Int.(spzeros(total_faces, Nv))
     let sk = 1
         for k = 1:K
-            for faces = 1:nfaces
+            for faces = 1:nFaces
                 FtoV[sk, EtoV[k, vn[faces]]] = 1;
                 sk += 1
             end
@@ -259,22 +222,22 @@ function connect1D(EtoV)
     faces1, faces2 = findnz(FtoF .== 1)
 
     # convert global face number to element and face numbers
-    element1 = @. floor(Int, (faces1 - 1) / nfaces) + 1
-    face1    = @. Int( mod( (faces1 - 1),  nfaces) + 1)
-    element2 = @. floor(Int, (faces2 - 1) / nfaces) + 1
-    face2    = @. Int( mod( (faces2 - 1),  nfaces) + 1)
+    element1 = @. floor(Int, (faces1 - 1) / nFaces) + 1
+    face1    = @. Int( mod( (faces1 - 1),  nFaces) + 1)
+    element2 = @. floor(Int, (faces2 - 1) / nFaces) + 1
+    face2    = @. Int( mod( (faces2 - 1),  nFaces) + 1)
 
     # Rearrange into Nelement x Nfaces sized arrays
-    ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.
-    EtoE = collect(1:K) * ones(1, nfaces)
-    EtoF = ones(K, 1) * (collect(1:nfaces)')
+    ind = diag( LinearIndices(ones(K, nFaces))[element1,face1] ) # this line is a terrible idea.
+    EtoE = collect(1:K) * ones(1, nFaces)
+    EtoF = ones(K, 1) * (collect(1:nFaces)')
     EtoE[ind] = copy(element2);
     EtoF[ind] = face2;
     return EtoE, EtoF
 end
 
 """
-buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+buildmaps1D(K, nGL, nFP, nFaces, fmask, EtoE, EtoF, x)
 # Description
 
     connectivity matrices for element to elements and elements to face
@@ -282,9 +245,9 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 # Arguments
 
 -   `K`: number of elements
--   `np`: number of points within an element (polynomial degree + 1)
--   `nfp`: 1
--   `nfaces`: 2
+-   `nGL`: number of points within an element (polynomial degree + 1)
+-   `nFP`: 1
+-   `nFaces`: 2
 -   `fmask`: an element by element mask to extract edge values
 -   `EtoE`: element to element connectivity
 -   `EtoF`: element to face connectivity
@@ -303,9 +266,9 @@ buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 
 K = 3
 n = 3; α = 0; β = 0; xmin = 0; xmax = 2π;
-np = n + 1
-nfp = 1
-nfaces = 2
+nGL = n + 1
+nFP = 1
+nFaces = 2
 
 r = jacobiGL(α, β, n)
 
@@ -314,22 +277,22 @@ EtoE, EtoF = connect1D(EtoV)
 x = gridvalues1D(VX, EtoV, r)
 fx = edgevalues1D(r,x)
 
-vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO = buildmaps1D(K, nGL, nFP, nFaces, fmask, EtoE, EtoF, x)
 """
-function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
+function buildmaps1D(K, nGL, nFP, nFaces, fmask, EtoE, EtoF, x)
     # number volume nodes consecutively
-    nodeids = reshape(collect(1:(K*np)), np, K)
-    vmapM = zeros(nfp, nfaces, K)
-    vmapP = zeros(nfp, nfaces, K)
+    nodeids = reshape(collect(1:(K*nGL)), nGL, K)
+    vmapM = zeros(nFP, nFaces, K)
+    vmapP = zeros(nFP, nFaces, K)
     # find index of face nodes wrt volume node ordering
     for k1 in 1:K
-        for f1 in 1:nfaces
+        for f1 in 1:nFaces
             vmapM[:, f1, k1] = nodeids[fmask[f1], k1]
         end
     end
 
     for k1 = 1:K
-        for f1 = 1:nfaces
+        for f1 = 1:nFaces
             # find neighbor
             k2 = Int.( EtoE[k1, f1])
             f2 = Int.( EtoF[k1, f1])
@@ -363,9 +326,9 @@ function buildmaps1D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x)
 
     # inflow and outflow maps
     mapI = 1
-    mapO = K * nfaces
+    mapO = K * nFaces
     vmapI = 1
-    vmapO = K*np
+    vmapO = K*nGL
     return vmapM, vmapP, vmapB, mapB, mapI, mapO, vmapI, vmapO
 end
 
@@ -399,8 +362,8 @@ struct Mesh{T,S,U,W}
     n::S
 
     # face stuff
-    nfp::S
-    nfaces::S
+    nFP::S
+    nFaces::S
 
     # GL points
     r::U
@@ -453,9 +416,9 @@ struct Mesh{T,S,U,W}
         n = nn
 
         # number of vertices
-        np = n+1
-        nfp = 1
-        nfaces = 2
+        nGL = n+1
+        nFP = 1
+        nFaces = 2
 
         # compute Gauss Lobatto grid
         r = jacobiGL(α, β, n)
@@ -473,7 +436,7 @@ struct Mesh{T,S,U,W}
         fmask1,fmask2 = fmask1D(r)
 
         # build connectibity maps
-        vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, np,nfp,nfaces, fmask1, EtoE,EtoF, x)
+        vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO = buildmaps1D(K, nGL,nFP,nFaces, fmask1, EtoE,EtoF, x)
 
         # build differentiation matrix
         D = dmatrix(r, α, β, n)
@@ -495,6 +458,6 @@ struct Mesh{T,S,U,W}
         # build inverse metric at the surface
         fscale = 1 ./ J[fmask2,:]
 
-        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nfp,nfaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,M,Mi,lift,rx,normals,fscale)
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP)}(K,n, nFP,nFaces, r,x, vmapM,vmapP,vmapB,mapB, mapI,mapO,vmapI,vmapO, D,M,Mi,lift,rx,normals,fscale)
     end
 end

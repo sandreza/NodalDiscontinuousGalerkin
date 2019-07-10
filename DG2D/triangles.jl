@@ -1,5 +1,8 @@
-include("../utils.jl")
+
+include("../src/utils.jl")
 include("mesh2D.jl")
+include("../src/utils.jl")
+
 
 using SparseArrays
 
@@ -26,9 +29,9 @@ a, b = rstoab([-0.5, 0.5], [0.5, -0.5])
 
 """
 function rstoab(r,s)
-    np = length(r);
-    a = zeros(np)
-    for i in 1:np
+    nGL = length(r);
+    a = zeros(nGL)
+    for i in 1:nGL
         if (s[i] ≈ 1)
             a[i] = -1
         else
@@ -73,10 +76,10 @@ function nodes2D(n)
     else
         α = 5/3
     end
-    np = Int((n+1) * (n+2) / 2);
-    L1 = zeros(np)
-    L2 = zeros(np)
-    L3 = zeros(np)
+    nGL = Int((n+1) * (n+2) / 2);
+    L1 = zeros(nGL)
+    L2 = zeros(nGL)
+    L3 = zeros(nGL)
     let sk = 1
         for j ∈ 1:(n+1)
             for m ∈ 1:(n+2-j)
@@ -228,8 +231,8 @@ vandermonde2D(n,r,s)
 
 """
 function vandermonde2D(n,r,s)
-    np = Int((n+1) * (n+2) / 2);
-    V2D = zeros(length(r), np)
+    nGL = Int((n+1) * (n+2) / 2);
+    V2D = zeros(length(r), nGL)
     a,b = rstoab(r,s)
     let sk = 1
         for i ∈ 0:n
@@ -262,9 +265,9 @@ dvandermonde2D(n,r,s)
 
 """
 function dvandermonde2D(n,r,s)
-    np = Int((n+1) * (n+2) / 2);
-    V2Dr = zeros(length(r), np)
-    V2Ds = zeros(length(r), np)
+    nGL = Int((n+1) * (n+2) / 2);
+    V2Dr = zeros(length(r), nGL)
+    V2Ds = zeros(length(r), nGL)
     a,b = rstoab(r,s)
     let sk = 1
         for i ∈ 0:n
@@ -329,31 +332,31 @@ lift_tri(n, fmask, r, s, V)
 
 """
 function lift_tri(n, fmask, r, s, V)
-    np = Int( (n+1) * (n+2) /2 )
-    nfp = n+1
-    nfaces = 3 #it's a triangle
-    ℰ = zeros(np, nfaces*nfp)
+    nGL = Int( (n+1) * (n+2) /2 )
+    nFP = n+1
+    nFaces = 3 #it's a triangle
+    ℰ = zeros(nGL, nFaces*nFP)
 
     #face 1
     edge1_mask = fmask[:,1]
     faceR = r[edge1_mask];
     v = vandermonde(faceR, 0, 0, n)
     mass_edge_1 = inv(v * v')
-    ℰ[edge1_mask, 1:nfp] = mass_edge_1
+    ℰ[edge1_mask, 1:nFP] = mass_edge_1
 
     #face 2
     edge2_mask = fmask[:,2]
     faceR = r[edge2_mask];
     v = vandermonde(faceR, 0, 0, n)
     mass_edge_2 = inv(v * v')
-    ℰ[edge2_mask, (nfp+1):(2*nfp)] = mass_edge_2
+    ℰ[edge2_mask, (nFP+1):(2*nFP)] = mass_edge_2
 
     #face 3
     edge3_mask = fmask[:,3]
     faceS = s[edge3_mask];
     v = vandermonde(faceS, 0, 0, n)
     mass_edge_3 = inv(v * v')
-    ℰ[edge3_mask, (2*nfp+1):(3*nfp)] = mass_edge_3
+    ℰ[edge3_mask, (2*nFP+1):(3*nFP)] = mass_edge_3
 
     #compute lift
     lift = V * (V' * ℰ)
@@ -395,7 +398,7 @@ function geometricfactors2D(x, y, Dr, Ds)
 end
 
 """
-normals2D(x, y, Dr, Ds, fmask, nfp, K)
+normals2D(x, y, Dr, Ds, fmask, nFP, K)
 
 # NOT TESTED
 
@@ -415,7 +418,7 @@ normals2D(x, y, Dr, Ds, fmask, nfp, K)
 
 """
 
-function normals2D(x, y, Dr, Ds, fmask, nfp, K)
+function normals2D(x, y, Dr, Ds, fmask, nFP, K)
     xr = Dr * x; xs = Ds * x; yr = Dr * y; ys = Ds * y;
     J = - xs .* xr + xr .* ys; #determinant
 
@@ -426,11 +429,11 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
     fys = ys[fmask[:],:]
 
     #build normals
-    nx = zeros(3*nfp, K) #3 edges on a triangle
-    ny = zeros(3*nfp, K) #3 edges on a triangle
-    fid1 = collect(         1:nfp     )
-    fid2 = collect(   (nfp+1):(2*nfp) )
-    fid3 = collect( (2*nfp+1):(3*nfp) )
+    nx = zeros(3*nFP, K) #3 edges on a triangle
+    ny = zeros(3*nFP, K) #3 edges on a triangle
+    fid1 = collect(         1:nFP     )
+    fid2 = collect(   (nFP+1):(2*nFP) )
+    fid3 = collect( (2*nFP+1):(3*nFP) )
 
     # face 1
 
@@ -452,73 +455,6 @@ function normals2D(x, y, Dr, Ds, fmask, nfp, K)
     @. nx /= sJ
     @. ny /= sJ
     return nx, ny, sJ
-end
-
-"""
-connect2D(EToV)
-
-# Description
-
--
-
-# Arguments
-
--  `EToV`: element to vertices map
-
-# Output
-
--  `EToE`: element to element map
--  `EToF`: element to face map
-
-# Comments
-
-- The changes from the 1D are minor. nfaces can probably remain generic
-
-"""
-function connect2D(EToV)
-    nfaces = 3 # because ... triangles
-
-    #find number of elements and vertices
-    K = size(EToV, 1)
-    Nv = maximum(EToV)
-
-    # create face to node connectivity matrix
-    total_faces = nfaces * K
-
-    # list of local face to local vertex connections
-    vn = [[1 2]; [2 3]; [1 3] ]
-
-    # build global face to node sparse array
-    SpFToV = spzeros(Int, total_faces, Nv)
-    let sk = 1
-        for k ∈ 1:K
-            for face ∈ 1:nfaces
-                @. SpFToV[sk, EToV[k, vn[face,:] ] ] = 1;
-                sk += 1
-            end
-        end
-    end
-
-    # global face to global face sparse array
-    SpFToF = SpFToV * SpFToV' - 2I #gotta love julia
-
-    #find complete face to face connections
-    faces1, faces2 = findnz(SpFToF .== 2)
-
-    # convert face global number to element and face numbers
-    element1 = @. Int( floor( (faces1 - 1) / nfaces ) + 1 )
-    element2 = @. Int( floor( (faces2 - 1) / nfaces ) + 1 )
-
-    face1 = @. Int( mod( (faces1 - 1) , nfaces ) + 1 )
-    face2 = @. Int( mod( (faces2 - 1) , nfaces ) + 1 )
-
-    # Rearrange into Nelement x Nfaces sized arrays
-    ind = diag( LinearIndices(ones(K, nfaces))[element1,face1] ) # this line is a terrible idea.
-    EToE = collect(1:K) * ones(1, nfaces)
-    EToF = ones(K,1) * collect(1:nfaces)'
-    EToE[ind] = copy(element2);
-    EToF[ind] = copy(face2);
-    return EToE, EToF
 end
 
 
@@ -543,7 +479,7 @@ triangle_connect2D(EToV)
 
 """
 function triangle_connect2D(EToV)
-    nfaces = 3
+    nFaces = 3
     K = size(EToV, 1)
     number_nodes = maximum(EToV)
 
@@ -551,11 +487,11 @@ function triangle_connect2D(EToV)
     fnodes = sort(fnodes, dims = 2 ) .- 1
 
     #default element to element and element to faces connectivity
-    EToE = collect(1:K) * ones(1, nfaces)
-    EToF = ones(K,1) * collect(1:nfaces)'
+    EToE = collect(1:K) * ones(1, nFaces)
+    EToF = ones(K,1) * collect(1:nFaces)'
 
     id =  @. fnodes[:,1] * number_nodes + fnodes[:,2] + 1;
-    spNodeToNode = Int.( [id collect(1:nfaces*K) EToE[:] EToF[:]] )
+    spNodeToNode = Int.( [id collect(1:nFaces*K) EToE[:] EToF[:]] )
 
     # check
     sorted = sortslices(spNodeToNode, dims = 1)

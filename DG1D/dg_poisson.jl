@@ -46,7 +46,7 @@ function dg_poisson!(u̇, u, params, t)
     τ = params[7]   #penalty parameter
 
     # Form field differences at faces
-    diffs = reshape( (u[𝒢.vmapM] - u[𝒢.vmapP]), (𝒢.nfp * 𝒢.nfaces, 𝒢.K ))
+    diffs = reshape( (u[𝒢.vmapM] - u[𝒢.vmapP]), (𝒢.nFP * 𝒢.nFaces, 𝒢.K ))
     #@. ι.flux = 1//2 * diffs * (ε.v * 𝒢.normals - (1 - ε.α) * abs(ε.v * 𝒢.normals))
     @. ι.flux =  diffs / 2
 
@@ -65,7 +65,7 @@ function dg_poisson!(u̇, u, params, t)
     lift = 𝒢.lift * (𝒢.fscale .* 𝒢.normals .* ι.flux )
     @. q -= lift
     # Form field differences at faces for q
-    diffs = reshape( (q[𝒢.vmapM] - q[𝒢.vmapP]), (𝒢.nfp * 𝒢.nfaces, 𝒢.K ))
+    diffs = reshape( (q[𝒢.vmapM] - q[𝒢.vmapP]), (𝒢.nFP * 𝒢.nFaces, 𝒢.K ))
     #@. dq = 1//2 * diffs * (ε.v * 𝒢.normals - (1 - ε.α) * abs(ε.v * 𝒢.normals))
     @. dq = 0 #reset dq
     @. dq = diffs

@@ -1,20 +1,20 @@
 # This file here is mostly for debugging
-
+using Plots
 #n = 10
 #n = 3
-n = 3
+n = 10
 #FileName = "Maxwell025.neu"
 FileName = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 
 
-include("../utils.jl")
+include("../src/utils.jl")
 include("../DG2D/triangles.jl")
 
 filename = filepath*FileName
-test1 = garbage_triangle2(n, filename)
+#test1 = garbage_triangle3(n, filename)
 #open file
-f = open(filepath*FileName)
+f = open(filename)
 #get things line by line, lines[1] is the first line of the file
 lines = readlines(f)
 

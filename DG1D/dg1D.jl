@@ -1,4 +1,3 @@
-include("../utils.jl")
 include("mesh.jl")
 
 using Plots
@@ -31,7 +30,7 @@ struct dg{T}
         # set up the solution
         u    = copy(mesh.x)
         u̇   = copy(mesh.x)
-        flux = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+        flux = zeros(mesh.nFP * mesh.nFaces, mesh.K)
 
         return new{typeof(u)}(u, u̇, flux)
     end

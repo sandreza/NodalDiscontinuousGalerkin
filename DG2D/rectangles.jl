@@ -28,8 +28,11 @@ function rectangle(index, EtoV, N, M, vmap)
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
 
+    n = length(a)
+    m = length(b)
+
     # get normals
-    n̂ = normalsSQ(length(a), length(b))
+    n̂ = normalsSQ(n, m)
 
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
@@ -43,17 +46,24 @@ function rectangle(index, EtoV, N, M, vmap)
 
     # arrays of first,second coordinate of GL tensor product
     # both ideal and physical coordinates are saved
-    r = Tuple{Float64, Float64}[]
-    x = similar(r)
-    for i in a
-        for j in b
-            push!(r, (i,j))
-            push!(x, ((xmax - xmin) * (i + 1) / 2, (ymax - ymin) * (j + 1) / 2))
+    r̃ = zeros(n*m, 2)
+    x̃ = similar(r̃)
+    let k = 0
+        for i in 1:n
+            for j in 1:m
+                k += 1
+
+                r̃[k, :] = [a[i] b[j]]
+
+                x = (xmax - xmin) * (a[i] + 1) / 2 + xmin
+                y = (ymax - ymin) * (b[j] + 1) / 2 + ymin
+                x̃[k, :] = [x y]
+            end
         end
     end
 
     # construct element
-    rect = Element2D(index,vertices, r,x, D,lift,n̂)
+    rect = Element2D(index,vertices, r̃,x̃, D,lift,n̂)
 
     return rect
 end
@@ -197,7 +207,7 @@ function liftSQ(r,s)
     m = length(s)
 
     # empty matrix
-    ℰ = spzeros(n*m, 2*(n+m))
+    ℰ = spzeros(Int, n*m, 2*(n+m))
 
     # starting column number for each face
     rl = 1
@@ -268,7 +278,7 @@ normalsSQ(n, m)
 
 function normalsSQ(n, m)
     # empty vectors of right length
-    n̂ = [(0.0,0.0) for _ in 1:(n+m+n+m)]
+    n̂ = zeros(n+m+n+m, 2)
 
     # ending index for each face
     nf1 = m
@@ -279,13 +289,13 @@ function normalsSQ(n, m)
     # set values of normals
     for i in 1:nf4
         if     i < nf1+1
-            n̂[i] = (0, -1) # normal is (0, -1) along first face
+            n̂[i, :] = [ 0 -1] # normal is (0, -1) along first face
         elseif i < nf2+1
-            n̂[i] = (-1, 0) # normal is (-1, 0) along second face
+            n̂[i, :] = [-1  0] # normal is (-1, 0) along second face
         elseif i < nf3+1
-            n̂[i] = (0, 1) # normal is (0, 1) along third face
+            n̂[i, :] = [ 0  1] # normal is (0, 1) along third face
         else
-            n̂[i] = (1, 0) # normal is (1, 0) along fourth face
+            n̂[i, :] = [ 1  0] # normal is (1, 0) along fourth face
         end
     end
 

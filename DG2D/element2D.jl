@@ -18,7 +18,7 @@ element2D(k, N, M, vmap, EtoV)
     return index and vertices
 
 """
-struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
+struct Element2D{S, T, U, V, W, X} <: AbstractElement2D
     # identifying features
     index::S
     vertices::T
@@ -30,42 +30,35 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
     # matrices for computation
     D::V
-    lift::W
+    lift::U
 
     # geometric factors
-    J::X
-    xʳ::Y
-    rˣ::Y
+    J::W
+    xʳ::X
+    rˣ::X
 
-    function Element2D(index,vertices, r,x̃, D,lift,n̂)
+    function Element2D(index,vertices, r̃,x̃, D,lift,n̂)
         # partial derivatives of x
-        xʳ = Array{Float64,2}[]
-        rˣ = similar(xʳ)
-        J = Float64[]
-
-        # gotta get individual arrays here :(
-        x = similar(J)
-        y = similar(J)
-        for z in x̃
-            push!(x, z[1])
-            push!(y, z[2])
-        end
+        nGL,nDim = size(x̃)
+        x̃ʳ = zeros(nGL, 2, 2)
+        r̃ˣ = similar(x̃ʳ)
+        J = zeros(nGL)
 
         # compute the derivates component wise
-        xr = D[1] * x
-        xs = D[2] * x
-        yr = D[1] * y
-        ys = D[2] * y
+        xʳ = D[1] * x̃[:, 1]
+        xˢ = D[2] * x̃[:, 1]
+        yʳ = D[1] * x̃[:, 2]
+        yˢ = D[2] * x̃[:, 2]
 
         # save partials as jacobian matrix, inverse, and determinant
-        for i in 1:length(x̃)
-            𝒥 = [ [xr[i] xs[i]]; [yr[i] ys[i]]]
-            push!(xʳ, 𝒥)
-            push!(rˣ, inv(𝒥))
-            push!(J,  det(𝒥))
+        for i in 1:nGL
+            𝒥 = [ [xʳ[i] xˢ[i]]; [yʳ[i] yˢ[i]]]
+            x̃ʳ[i, :, :] = 𝒥
+            r̃ˣ[i, :, :] = inv(𝒥)
+            J[i] = det(𝒥)
         end
 
-        return new{typeof(index),typeof(vertices),typeof(r),typeof(D),typeof(lift),typeof(J),typeof(xʳ)}(index,vertices, r,x̃,n̂, D,lift, J,xʳ,rˣ)
+        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,n̂, D,lift, J,x̃ʳ,r̃ˣ)
     end
 end
 

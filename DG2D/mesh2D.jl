@@ -18,8 +18,6 @@ struct Grid2D{S, T, U} <: AbstractGrid2D
     end
 end
 
-
-
 struct Mesh2D{S, T, U, V} <: AbstractMesh2D
     # basic grid of vertices
     grid::S
@@ -29,7 +27,7 @@ struct Mesh2D{S, T, U, V} <: AbstractMesh2D
 
     # GL points
     nodes::U
-
+    
 end
 
 """
@@ -184,9 +182,15 @@ function makenodes2D(𝒢::Grid2D, N::Int)
         end
 
         push!(Ω, Ωᵏ)
+
+        if k == 1
+            nodes = @. Ωᵏ.x
+        else
+            nodes = cat(nodes, Ωᵏ.x; dims=1)
+        end
     end
 
-    return Ω
+    return Ω,nodes
 end
 
 

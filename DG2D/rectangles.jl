@@ -17,7 +17,7 @@ rectangle(k, EtoV, N, M, vmap)
 
 # Return Values:
 
--   `rect`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
+-   `rect`: a properly initiliazed Element2D object
 
 """
 function rectangle(index, EtoV, N, M, vmap)
@@ -62,8 +62,11 @@ function rectangle(index, EtoV, N, M, vmap)
         end
     end
 
+    # build face mask for element
+    fmask = fmaskSQ(r̃[:,1], r̃[:,2])
+
     # construct element
-    rect = Element2D(index,vertices, r̃,x̃, D,lift,n̂)
+    rect = Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
 
     return rect
 end
@@ -198,7 +201,7 @@ liftSQ(N, M)
 # Example
 
 """
-function liftSQ(r,s)
+function liftSQ(r, s)
     # get 2D vandermonde matrix
     V = vandermondeSQ(r,s)
 
@@ -300,4 +303,31 @@ function normalsSQ(n, m)
     end
 
     return n̂
+end
+
+"""
+fmaskSQ(r, s)
+
+# Description
+
+-   Mask of GL nodes on the faces of a square element
+
+# Arguments
+
+-   `r` : first index of real coordinates
+-   `s` : second index of real coordinates
+
+
+#Return
+
+-   `fmask`: matrix of indices of GL points along each face
+
+"""
+function fmaskSQ(r, s)
+    fmask1 = findall( abs.( r .+ 1) .< eps(10.0) )'
+    fmask2 = findall( abs.( s .+ 1) .< eps(10.0) )'
+    fmask3 = findall( abs.( r .- 1) .< eps(10.0) )'
+    fmask4 = findall( abs.( s .- 1) .< eps(10.0) )'
+    fmask = Array([fmask1; fmask2; fmask3; fmask4]')
+    return fmask
 end

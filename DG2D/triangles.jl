@@ -1,8 +1,6 @@
 
 include("../src/utils.jl")
 include("mesh2D.jl")
-include("../src/utils.jl")
-
 
 using SparseArrays
 
@@ -659,7 +657,7 @@ function create_fmask(r, s)
     fmask1 = findall( abs.( s .+ 1) .< eps(10.0) )'
     fmask2 = findall( abs.( r .+ s ) .< eps(10.0) )'
     fmask3 = findall( abs.( r .+ 1) .< eps(10.0) )'
-    fmask = [fmask1; fmask2; fmask3]'
+    fmask = Array([fmask1; fmask2; fmask3]')
     return fmask
 end
 

@@ -2,7 +2,7 @@ include("../src/utils.jl")
 
 abstract type AbstractElement2D end
 """
-element2D(k, N, M, vmap, EtoV)
+Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
 
 # Description
 
@@ -10,15 +10,22 @@ element2D(k, N, M, vmap, EtoV)
 
 # Arguments
 
--   `k`: element number in global map
--   `EtoV`: element to vertex map
+-   `index`: element number in global map
+-   `vertices`: view of vertices this element has
+-   `r̃`: ideal coordinates of GL points
+-   `x̃`: physical coordinates of GL points
+-   `n̂`: normal vectors along the faces
+-   `D`: tuple of derivative matrices
+-   `lift`: lift matrix
+-   `fmask`: matrix of indices of GL points along each face
 
-# Return Values: x
 
-    return index and vertices
+# Return Values:
+
+    return a properly initiliazed Element2D object
 
 """
-struct Element2D{S, T, U, V, W, X} <: AbstractElement2D
+struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     # identifying features
     index::S
     vertices::T
@@ -31,13 +38,14 @@ struct Element2D{S, T, U, V, W, X} <: AbstractElement2D
     # matrices for computation
     D::V
     lift::U
+    fmask::W
 
     # geometric factors
-    J::W
-    xʳ::X
-    rˣ::X
+    J::X
+    xʳ::Y
+    rˣ::Y
 
-    function Element2D(index,vertices, r̃,x̃, D,lift,n̂)
+    function Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
         # partial derivatives of x
         nGL,nDim = size(x̃)
         x̃ʳ = zeros(nGL, 2, 2)
@@ -45,20 +53,20 @@ struct Element2D{S, T, U, V, W, X} <: AbstractElement2D
         J = zeros(nGL)
 
         # compute the derivates component wise
-        xʳ = D[1] * x̃[:, 1]
-        xˢ = D[2] * x̃[:, 1]
-        yʳ = D[1] * x̃[:, 2]
-        yˢ = D[2] * x̃[:, 2]
+        xʳ = D[1] * x̃[:,1]
+        xˢ = D[2] * x̃[:,1]
+        yʳ = D[1] * x̃[:,2]
+        yˢ = D[2] * x̃[:,2]
 
         # save partials as jacobian matrix, inverse, and determinant
         for i in 1:nGL
             𝒥 = [ [xʳ[i] xˢ[i]]; [yʳ[i] yˢ[i]]]
-            x̃ʳ[i, :, :] = 𝒥
-            r̃ˣ[i, :, :] = inv(𝒥)
+            x̃ʳ[i,:,:] = 𝒥
+            r̃ˣ[i,:,:] = inv(𝒥)
             J[i] = det(𝒥)
         end
 
-        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,n̂, D,lift, J,x̃ʳ,r̃ˣ)
+        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(D),typeof(fmask),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,n̂, D,lift,fmask, J,x̃ʳ,r̃ˣ)
     end
 end
 

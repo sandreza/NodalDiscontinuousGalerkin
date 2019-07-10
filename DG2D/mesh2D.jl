@@ -1,6 +1,5 @@
 include("../DG1D/mesh.jl")
 
-
 """
 meshreader_gambit2D(filename)
 
@@ -30,8 +29,8 @@ function meshreader_gambit2D(filename)
     # in the standard .neu format line 7 contains the data for
     # reading the the number of edges and vertices
     # lines[6] contains the data for whats going on
-    println(lines[6])
-    println(lines[7])
+    #println(lines[6])
+    #println(lines[7])
     data = lines[7]
     #split up the blank spaces
     dims = split(data)

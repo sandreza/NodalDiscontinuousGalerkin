@@ -24,8 +24,8 @@ jacobi(x, α, β, n)
 
 """
 function jacobi(x, α, β, n::Int)
-    γ0 = 2^(α + β + 1) / (α + β + 1) * factorial(α) * factorial(β)
-    γ0 /= factorial(α + β)
+    γ0 = 2^(α + β + 1) / (α + β + 1) * gamma(α+1) * gamma(β+1)
+    γ0 /= gamma(α+β+1)
     γ1 = (α + 1) * (β + 1) / (α + β + 3) * γ0
     #create array to return
     PL = zeros(n+1)

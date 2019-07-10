@@ -1,4 +1,5 @@
 include("../utils.jl")
+include("mesh2D.jl")
 
 using SparseArrays
 
@@ -604,7 +605,7 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
+function buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
     # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
     vmapM = zeros(Int, nfp, nfaces, K)
@@ -749,4 +750,132 @@ function find_edge_nodes(fmask, x, y)
     edge_x = x[fmask[:],:]
     edge_y = y[fmask[:],:]
     return edge_x, edge_y
+end
+
+
+struct garbage_triangle3{T, S, U, W, V}
+    # inputs
+    n::S
+    filename::V
+
+    # face stuff
+    nfp::S
+    nfaces::S
+    K::S
+
+    # GL points
+    r::U
+    s::U
+    x::T
+    y::T
+
+    # vertex maps
+    vmapM::W
+    vmapP::W
+    vmapB::W
+    mapB::W
+
+    # structures for computation
+    J::T
+    sJ::T
+    Dʳ::T
+    Dˢ::T
+    Drw::T
+    Dsw::T
+    M::T
+    Mi::T
+    lift::T
+    rx::T
+    ry::T
+    sx::T
+    sy::T
+    nx::T
+    ny::T
+    fscale::T
+
+    function garbage_triangle3(n, filename)
+        Nv, VX, VY, K, EToV = meshreader_gambit2D(filename)
+
+        #get number of points
+        nfp = n+1
+        np = Int( (n+1)*(n+2)/2 )
+        nfaces = 3
+        nodetol = 1e-12
+
+        #compute nodal set
+        x, y = nodes2D(n)
+        r, s = xytors(x,y)
+
+        #build reference elements and matrices
+        V = vandermonde2D(n, r, s)
+        invV = inv(V)
+        Mi = V * V'
+        M = invV' * invV
+        Dʳ, Dˢ = dmatrices2D(n , r, s, V)
+
+        # build global grid
+        x,y = global_grid(r, s, EToV, VX, VY)
+
+        # create fmask
+        fmask = create_fmask(r, s)
+        edge_x, edge_y = find_edge_nodes(fmask, x, y)
+        lift = lift_tri(n, fmask, r, s, V)
+
+        rx, sx, ry, sy, J = geometricfactors2D(x, y, Dʳ, Dˢ)
+
+        nx, ny, sJ = normals2D(x, y, Dʳ, Dˢ, fmask, nfp, K)
+        fscale = sJ ./ J[fmask[:],:]
+
+        #EToE, EToF = connect2D(EToV)
+        EToE, EToF = triangle_connect2D(EToV)
+
+        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+        Vr, Vs = dvandermonde2D(n,r,s)
+        Drw = (V*Vr') / (V*V')
+        Dsw = (V*Vs') / (V*V')
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nfaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
+    end
+end
+
+struct dg_garbage_triangle{T}
+    u::T
+    u̇::T
+    φˣ::T
+    φʸ::T
+    fˣ::T
+    fʸ::T
+    fⁿ::T
+    """
+    dg_triangle(mesh)
+
+    # Description
+
+        initialize dg struct
+
+    # Arguments
+
+    -   `mesh`: a mesh to compute on
+
+    # Return Values:
+
+    -   `u` : the field to be computed
+    -   `u̇`: numerical solutions for the field
+    -   `φˣ`: x-component of flux
+    -   `φʸ`: y-component of flux
+    -   `fˣ`: the numerical flux on face in the x-direction for the computation
+    -   `fʸ`: the numerical flux on face in the y-direction for the computation
+    -   `fⁿ`: the numerical flux on face in the normal direction for the computation
+
+    """
+    function dg_garbage_triangle(mesh)
+        # set up the solution
+        u   = similar(mesh.x)
+        u̇   = similar(mesh.x)
+        φˣ  = similar(mesh.x)
+        φʸ  = similar(mesh.x)
+        fˣ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+        fʸ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+        fⁿ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+        return new{typeof(u)}(u, u̇, φˣ, φʸ, fˣ, fʸ, fⁿ)
+    end
 end

@@ -79,7 +79,6 @@ function meshreader_gambit2D(filename)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
-    vertices = Tuple{Float64,Float64}[]
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces
@@ -106,7 +105,7 @@ function meshreader_gambit2D(filename)
 
     #close the file
     close(f)
-    return Nv, VX, VY, vertices, K, EtoV
+    return Nv, VX, VY, K, EtoV
 end
 
 """

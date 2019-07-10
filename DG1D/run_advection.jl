@@ -1,5 +1,6 @@
 include("dg1D.jl")
 include("dg_advection.jl")
+include("mesh.jl")
 
 using Plots
 using BenchmarkTools
@@ -19,7 +20,7 @@ println((n+1) * K)
 L    = 2π
 xmin = 0.0
 xmax = L
-𝒢 = mesh(K, n, xmin, xmax)
+𝒢 = Mesh(K, n, xmin, xmax)
 x = 𝒢.x
 
 # set external parameters

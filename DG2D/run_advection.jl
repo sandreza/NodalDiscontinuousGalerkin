@@ -1,11 +1,12 @@
 # first define the stream function
-
+include("mesh2D.jl")
+include("dg_advection.jl")
 # choose the polynomial order
 #3 seems to be pretty efficient
 n = 3
 timings = false
 #load file
-FileName = "Maxwell025.neu"
+FileName = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 grid = garbage_triangle3(n, filename)

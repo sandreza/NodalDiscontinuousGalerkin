@@ -1,6 +1,69 @@
 using Plots
 
 """
+partials(rˣ)
+
+# Description
+
+    Convert array of jacobian matrices to four arrays of individual partial derivatives
+
+# Arguments
+
+-   `rˣ`: array of matrices to convert
+
+# Return Values
+
+-   `rˣ`: array of [1,1] entries
+-   `sˣ`: array of [2,1] entries
+-   `rʸ`: array of [1,2] entries
+-   `sʸ`: array of [2,2] entries
+
+"""
+function partials(rˣ)
+    # pull partials out from Jacobian
+    rˣ = rˣ[:,1,1]
+    sˣ = rˣ[:,2,1]
+    rʸ = rˣ[:,1,2]
+    sʸ = rˣ[:,2,2]
+
+    return rˣ,sˣ,rʸ,sʸ
+end
+
+
+"""
+∇!(uˣ, uʸ, u, Ω)
+
+# Description
+
+    Compute gradient of u wrt physical grid
+
+# Arguments
+
+-   `u`: scalar to take gradient of
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `uˣ`: first component of the gradient
+-   `uʸ`: second component of the gradient
+
+"""
+function ∇(u, Ω)
+    # compute partial derivatives on ideal grid
+    uʳ = Ω.D[1] * u
+    uˢ = Ω.D[2] * u
+
+    # pull partials out from Jacobian
+    rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
+
+    # compute partial derivatives on physical grid
+    @. uˣ = rˣ * uʳ + sˣ * uˢ
+    @. uʸ = rʸ * uʳ + sʸ * uˢ
+
+    return uˣ,uʸ
+end
+
+"""
 ∇!(uˣ, uʸ, u, Ω)
 
 # Description
@@ -51,50 +114,19 @@ end
 """
 function ∇⨀(x, y, Ω)
     # compute partial derivatives on ideal grid
-    xʳ = Ω.Dʳ * x
-    xˢ = Ω.Dˢ * x
-    yʳ = Ω.Dʳ * y
-    yˢ = Ω.Dˢ * y
+    xʳ = Ω.D[1] * x
+    xˢ = Ω.D[2] * x
+    yʳ = Ω.D[1] * y
+    yˢ = Ω.D[2] * y
+
+    # pull partials out from Jacobian
+    rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute gradient on physical grid
-    ∇⨀u = @. Ω.rˣ * xʳ + Ω.sˣ * xˢ + Ω.rʸ * yʳ + Ω.sʸ * yˢ
+    ∇⨀u = @. rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
 
     return ∇⨀u
 end
-
-"""
-∇⨂(x, y, Ω)
-
-# Description
-
-    Compute the curl of u=(x,y) wrt physical grid
-
-# Arguments
-
--   `x`: first component of vector u
--   `y`: second component of vector u
--   `Ω`: element to compute in
-
-# Return Values
-
--   `∇⨂u`: the curl of u
-
-"""
-function ∇⨂(x, y, Ω)
-    # compute partial derivatives on ideal grid
-    xʳ = Ω.Dʳ * x
-    xˢ = Ω.Dˢ * x
-    yʳ = Ω.Dʳ * y
-    yˢ = Ω.Dˢ * y
-
-    # compute gradient on physical grid
-    ∇⨂u = @. Ω.rˣ * yʳ + Ω.sˣ * yˢ - Ω.rʸ * xʳ - Ω.sʸ * xˢ
-
-    return ∇⨂u
-end
-
-
-
 
 """
 ∇⨀!(∇⨀u, fx, fy, Ω)
@@ -124,6 +156,41 @@ function ∇⨀!(∇⨀u, x, y, Ω)
     # compute gradient on physical grid
     @. ∇⨀u = Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
     return nothing
+end
+
+
+"""
+∇⨂(x, y, Ω)
+
+# Description
+
+    Compute the curl of u=(x,y) wrt physical grid
+
+# Arguments
+
+-   `x`: first component of vector u
+-   `y`: second component of vector u
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `∇⨂u`: the curl of u
+
+"""
+function ∇⨂(x, y, Ω)
+    # compute partial derivatives on ideal grid
+    xʳ = Ω.D[1] * x
+    xˢ = Ω.D[2] * x
+    yʳ = Ω.D[1] * y
+    yˢ = Ω.D[2] * y
+
+    # pull partials out from Jacobian
+    rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
+
+    # compute gradient on physical grid
+    ∇⨂u = @. rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
+
+    return ∇⨂u
 end
 
 """

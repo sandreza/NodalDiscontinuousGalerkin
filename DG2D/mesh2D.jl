@@ -366,13 +366,14 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     # map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
     # map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
 
-    # find index of face nodes wrt volume node ordering
+    # find index of interior face nodes wrt volume node ordering
     for k in 1:ℳ.K
         for f in 1:ℳ.nFaces
             vmap⁻[:, f, k] = nodeids[_fmask[:, f], k]
         end
     end
 
+    # find indices of exterior face nodes that match interior face nodes
     let one = ones(1, _nFP)
         for k1 in 1:ℳ.K
             for f1 in 1:ℳ.nFaces
@@ -380,12 +381,7 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 k2 = EtoE[k1, f1]
                 f2 = EtoF[k1, f1]
 
-                # reference length of edge
-                v1 = ℳ.EtoV[k1,f1]
-                v2 = ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]
-                refd = @. sqrt((ℳ.vertices[v1][1] - ℳ.vertices[v2][1])^2 + (ℳ.vertices[v1][2] - ℳ.vertices[v2][2])^2)
-
-                # find volume node numbers of left and right nodes
+                # find volume node numbers of interior and exterior nodes
                 vid⁻ = vmap⁻[:, f1, k1]
                 x⁻ = _nodes[:, 1][vid⁻]
                 y⁻ = _nodes[:, 2][vid⁻]
@@ -398,20 +394,29 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 D = zeros(length(x⁻), _nFP)
                 for i in 1:_nFP
                     for j in 1:i
-                        D[i,j] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
+                        D[j,i] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
                     end
                 end
                 D = Symmetric(D)
 
-                mask = @. D < eps(refd)
+                # reference length of edge
+                v1 = ℳ.vertices[ℳ.EtoV[k1,f1]]
+                v2 = ℳ.vertices[ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]]
+                refd = @. sqrt((v1[1] - v2[1])^2 + (v1[2] - v2[2])^2)
 
-                # find linear indices
+                # find indices of GL points on the boundary of the element
+                # i.e. distance between them is less than the reference difference
+                mask = @. sqrt(abs(D)) < eps(refd)
+
+                # convert from matrix mask to linear mask
                 m,n = size(D)
-                d = collect(Int, 1:(m*n))
+                d = collect(Int, 1:(m*n))[mask[:]]
 
-                id⁻ =  @. floor(Int, (d[mask[:]]-1) / m) + 1
-                id⁺ =  @. mod( (d[mask[:]]-1), m) + 1
+                # find IDs of matching interior and exterior GL nodes
+                id⁻ =  @. floor(Int, (d-1)/m) + 1
+                id⁺ =  @. mod(d-1, m) + 1
 
+                # save exterior node that interior node maps to
                 vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
                 # @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end

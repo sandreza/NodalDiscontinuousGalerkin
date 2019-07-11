@@ -324,10 +324,10 @@ fmaskSQ(r, s)
 
 """
 function fmaskSQ(r, s)
-    fmask1 = findall( abs.( r .+ 1) .< eps(10.0) )'
-    fmask2 = findall( abs.( s .+ 1) .< eps(10.0) )'
-    fmask3 = findall( abs.( r .- 1) .< eps(10.0) )'
-    fmask4 = findall( abs.( s .- 1) .< eps(10.0) )'
+    fmask1 = findall( abs.( r .+ 1) .< eps(1.0) )'
+    fmask2 = findall( abs.( s .+ 1) .< eps(1.0) )'
+    fmask3 = findall( abs.( r .- 1) .< eps(1.0) )'
+    fmask4 = findall( abs.( s .- 1) .< eps(1.0) )'
     fmask = Array([fmask1; fmask2; fmask3; fmask4]')
     return fmask
 end

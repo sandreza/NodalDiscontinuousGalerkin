@@ -20,7 +20,7 @@ field = dg_garbage_triangle(grid)
 x = grid.x
 y = grid.y
 #plot the total grid points
-p1 = scatter(grid.x,grid.y,legend=false)
+p1 = scatter(x,y,legend=false)
 # plot boundary of triangles
 scatter!(x[grid.vmapM] , y[grid.vmapM], color = "black", legend = false)
 #plot boundary of domain

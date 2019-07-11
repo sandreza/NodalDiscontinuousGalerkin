@@ -1,3 +1,5 @@
+using Plots
+
 """
 ∇!(uˣ, uʸ, u, Ω)
 
@@ -122,4 +124,38 @@ function ∇⨀!(∇⨀u, x, y, Ω)
     # compute gradient on physical grid
     @. ∇⨀u = Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
     return nothing
+end
+
+"""
+plotgrid2D(𝒢::Grid2D)
+
+# Description
+
+    Plot the GL points, element boundaries, and domain boundaries of a grid
+
+# Arguments
+
+-   `𝒢`: grid to plot
+
+# Return Values
+
+    Displays a plot
+
+"""
+function plotgrid2D(𝒢::Grid2D)
+    # short cuts
+    x = 𝒢.x[:, 1]
+    y = 𝒢.x[:, 2]
+
+    # plot the total grid points
+    grid = scatter(x, y, legend = false)
+
+    # plot boundary of the elements
+    scatter!(x[𝒢.vmap⁻] , y[𝒢.vmap⁻], color = "black", legend = false)
+
+    # plot boundary of domain
+    scatter!(x[𝒢.vmapᴮ] , y[𝒢.vmapᴮ], color = "yellow", legend = false)
+
+    # display
+    display(plot(grid))
 end

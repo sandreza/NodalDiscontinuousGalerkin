@@ -4,32 +4,91 @@ include("../src/utils.jl")
 using SparseArrays
 using LinearAlgebra
 
-abstract type AbstractGrid2D end
-abstract type AbstractMesh2D <: AbstractGrid2D end
+abstract type AbstractMesh2D end
+abstract type AbstractGrid2D <: AbstractMesh2D end
 
-struct Grid2D{S, T, U} <: AbstractGrid2D
+"""
+Mesh2D(K, vertices, EtoV, nFaces)
+
+# Description
+
+    initialize a Mesh2D struct which contains only information about the number of elements, vertices, and the mapping between the two
+
+    No information about GL points is created or stored at this point
+
+# Arguments
+
+-   `K`: number of elements in the grid
+-   `vertices`: array of all the vertices in the grid
+-   `EtoV`: element to vertex mapping
+-   `nFaces`: number of faces of the elements, will be deprecated once connect2D() and buildmaps2D() are flexible enough to handle complex grids
+
+
+# Return Values:
+
+    return a properly initiliazed Mesh2D object
+
+"""
+struct Mesh2D{S, T, U} <: AbstractMesh2D
     K::S
     vertices::T
     EtoV::U
     nFaces::S
 
-    function Grid2D(K, vertices, EtoV, nFaces)
+    function Mesh2D(K, vertices, EtoV, nFaces)
         return new{typeof(K),typeof(vertices),typeof(EtoV)}(K, vertices, EtoV, nFaces)
     end
 end
 
 
+"""
+Grid2D(ℳ::Mesh2D, N::Int) ℳ
 
-struct Mesh2D{S, T, U, V} <: AbstractMesh2D
+# Description
+
+    initialize a Grid2D object with fully constructed elements, GL points, and maps between them. Can be used to perform a computation
+
+# Arguments
+
+-   `ℳ`: a Mesh2D object to fill in with GL points
+-   `N`: polynomial order along each face, is the same for each face and each element for now
+
+# Return Values:
+
+    return a properly initiliazed Grid2D object
+
+"""
+struct Grid2D{S, T, U, V} <: AbstractGrid2D
     # basic grid of vertices
-    grid::S
+    ℳ::S
 
     # elements
-    elements::T
+    Ω::T
 
     # GL points
-    nodes::U
+    r::U # ideal coordinates
+    x::U # physical coordinates
 
+    # maps maps maps
+    vmap⁻::V
+    vmap⁺::V
+    vmapᴮ::V
+    mapᴮ::V
+
+    function Grid2D(ℳ::Mesh2D, N::Int)
+        # get elements and GL nodes
+        Ω,r̃,x̃ = makenodes2D(ℳ, N)
+        nGL = length(Ω[1].r[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
+
+        # make a facemask
+        fmask = Ω[1].fmask # same as with nGL, should eventually be done on an element by element basis
+        nFP,nFaces = size(fmask)
+
+        # build the boundary maps
+        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFP, nGL, fmask, x̃)
+
+        return new{typeof(ℳ),typeof(Ω),typeof(r̃),typeof(vmap⁻)}(ℳ, Ω, r̃,x̃, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
+    end
 end
 
 """
@@ -52,9 +111,9 @@ meshreader_gambit2D(filename)
 - `EtoV` : element to vertex connection
 
 """
-function meshreader_gambit2D(filename)
+function meshreader_gambit2D(_filename)
     #open file
-    f = open(filename)
+    f = open(_filename)
     #get things line by line, lines[1] is the first line of the file
     lines = readlines(f)
 
@@ -124,10 +183,9 @@ rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 -   `K`: number of divisions in first dimension
 -   `L`: number of divisions in second dimension
 
-# Return Values: VX, EtoV
+# Return Values:
 
--   `VX`: vertex values | an Array of size K+1
--   `EtoV`: element to node connectivity | a Matrix of size Kx2
+-   `ℳ`: a Mesh2D object with vertices as specified
 
 # Example
 
@@ -161,160 +219,212 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
         end
     end
 
-    grid = Grid2D(j, vertices, EtoV, 4)
+    ℳ = Mesh2D(j, vertices, EtoV, 4)
 
-    return grid
+    return ℳ
 end
 
 
 """
-makenodes2D()
-"""
-function makenodes2D(𝒢::Grid2D, N::Int)
-    Ω = Element2D[]
-    for k in 1:𝒢.K
-        # check number of faces, maybe eventually do on an element by element basis
-        if 𝒢.nFaces == 3
-            # build a triangle
-            return
-        elseif 𝒢.nFaces == 4
-            Ωᵏ = rectangle(k, 𝒢.EtoV, N, N, 𝒢.vertices)
-        else
-            return
-        end
-
-        push!(Ω, Ωᵏ)
-    end
-
-    return Ω
-end
-
-
-"""
-buildmaps2D(EtoV)
+makenodes2D(ℳ::Mesh2D, N::Int)
 
 # Description
 
-- Make element-to-element and element-to-face maps for a 2D grid
+    construct the elements and GL points for a 2D mesh
 
 # Arguments
 
--   `𝒢`: a 2D grid object
--   `x,y`: physical coordinates of all the GL points for the mesh
--
+-   `ℳ`: a Mesh2D object to fill in with GL points
+-   `N`: polynomial order along each face, is the same for each element for now
 
-# Output
+# Return Values:
 
-# Comments
-
-- The changes from the 1D are minor. nFaces can probably remain generic
+-   `Ω`: array of all the elements in the grid
+-   `r`: ideal coordinates of GL points
+-   `x`: physical coordinates of GL points
 
 """
-function buildmaps2D(𝒢::Grid2D, nFP::Int, nodes, fmask)
-    # create face to node connectivity matrix
-    total_faces = 𝒢.nFaces * 𝒢.K
+function makenodes2D(ℳ::Mesh2D, N::Int)
+    Ω = Element2D[]
+    r = Float64[]
+    x = Float64[]
+    for k in 1:ℳ.K
+        # check number of faces, maybe eventually do on an element by element basis
+        if ℳ.nFaces == 3
+            # build a triangle, needs to be implemented
+            return
+        elseif ℳ.nFaces == 4
+            # build a rectangle
+            Ωᵏ = rectangle(k, ℳ.EtoV, N, N, ℳ.vertices)
+        else
+            # we will never use any other polygon ???
+            return
+        end
+
+        # fill in arrays
+        push!(Ω, Ωᵏ)
+        r = cat(r, Ωᵏ.r; dims=1)
+        x = cat(x, Ωᵏ.x; dims=1)
+    end
+
+    return Ω,r,x
+end
+
+"""
+connect2D(EToV)
+
+# Description
+
+    Build connectivity maps for an arbitrary Mesh2D
+    (currently assumes all elements have same number of faces)
+
+# Arguments
+
+-   `ℳ`: a Mesh2D object for which to create the maps
+
+# Return Values
+
+-   `EToE`: element to element map
+-   `EToF`: element to face map
+
+"""
+function connect2D(ℳ::Mesh2D)
+    total_faces = ℳ.nFaces * ℳ.K
 
     # list of local face to local vertex connections
-    vn = zeros(Int, 𝒢.nFaces, 2)
-    for i in 1:𝒢.nFaces
-        j = i % 𝒢.nFaces + 1
-        vn[i, :] = [i,j]
+    vn = zeros(Int, ℳ.nFaces, 2)
+    for i in 1:ℳ.nFaces
+        j = i % ℳ.nFaces + 1
+        vn[i,:] = [i,j]
     end
 
     # build global face to node sparse array
-    FtoV = spzeros(Int, total_faces, maximum(𝒢.EtoV))
+    FtoV = spzeros(Int, total_faces, maximum(ℳ.EtoV))
     let sk = 1
-        for k in 1:𝒢.K
-            for face in 1:𝒢.nFaces
-                @. FtoV[sk, 𝒢.EtoV[k, vn[face,:] ] ] = 1;
+        for k in 1:ℳ.K
+            for face in 1:ℳ.nFaces
+                @. FtoV[sk, ℳ.EtoV[k, vn[face,:] ] ] = 1;
                 sk += 1
             end
         end
     end
 
     # global face to global face sparse array
-    FtoF = FtoV * FtoV' - 2I #gotta love julia
+    FtoF = FtoV * FtoV' - 2I # gotta love julia
 
     #find complete face to face connections
     faces1, faces2 = findnz(FtoF .== 2)
 
     # convert face global number to element and face numbers
-    element1 = @. floor(Int, (faces1 - 1) / 𝒢.nFaces ) + 1
-    element2 = @. floor(Int, (faces2 - 1) / 𝒢.nFaces ) + 1
+    element1 = @. floor(Int, (faces1 - 1) / ℳ.nFaces ) + 1
+    element2 = @. floor(Int, (faces2 - 1) / ℳ.nFaces ) + 1
 
-    face1 = @. mod((faces1 - 1) , nFaces ) + 1
-    face2 = @. mod((faces2 - 1) , nFaces ) + 1
+    face1 = @. mod((faces1 - 1) , ℳ.nFaces ) + 1
+    face2 = @. mod((faces2 - 1) , ℳ.nFaces ) + 1
 
     # Rearrange into Nelement x Nfaces sized arrays
-    ind = diag( LinearIndices(ones(Int, 𝒢.K, 𝒢.nFaces))[element1,face1] ) # this line is a terrible idea.
-    EtoE = collect(Int, 1:𝒢.K) * ones(Int, 1, 𝒢.nFaces)
-    EtoF = ones(Int, 𝒢.K, 1) * collect(Int, 1:𝒢.nFaces)'
+    ind = diag( LinearIndices(ones(Int, ℳ.K, ℳ.nFaces))[element1,face1] ) # this line is a terrible idea.
+    EtoE = collect(Int, 1:ℳ.K) * ones(Int, 1, ℳ.nFaces)
+    EtoF = ones(Int, ℳ.K, 1) * collect(Int, 1:ℳ.nFaces)'
     EtoE[ind] = copy(element2)
     EtoF[ind] = copy(face2)
-    ### end connect2D from book
 
-    ### start buildmaps2D from book
+    return EtoE,EtoF
+end
+
+"""
+buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
+
+# Description
+
+    Build connectivity matrices for computing fluxes
+
+# Arguments
+
+-   `ℳ`: a Mesh2D object to compute the maps for
+-   `_nFP`: number of points along each face, currently fixed for each face and element
+-   `_nGL`: number of GL points in an element, currently fixed
+-   `_fmask`: matrix of indices of GL points along each face, currently fixed for each element
+-   `_nodes`: the complete list of physical GL points on the grid
+
+# Return Values
+
+-   `vmap⁻`: vertex indices, (used for interior u values)
+-   `vmap⁺`: vertex indices, (used for exterior u values)
+-   `vmapᴮ`: vertex indices, corresponding to boundaries
+-   `mapᴮ`: use to extract vmapᴮ from vmap⁻
+
+"""
+function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
+    # create face to node connectivity matrix
+    EtoE,EtoF = connect2D(ℳ)
+
     # number volume nodes consecutively
-    nodeids = reshape( collect(Int, 1:(𝒢.K * length(nodes))), length(nodes), 𝒢.K)
-    vmapM = zeros(Int, nFP, 𝒢.nFaces, 𝒢.K)
-    vmapP = zeros(Int, nFP, 𝒢.nFaces, 𝒢.K)
-    mapM  = collect(Int, 1:(nFP * 𝒢.nFaces * 𝒢.K))'
-    mapP  = copy(reshape(mapM, nFP, 𝒢.nFaces, 𝒢.K))
+    nodeids = reshape( collect(Int, 1:(ℳ.K * _nGL)), _nGL, ℳ.K)
+    vmap⁻ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
+    vmap⁺ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
+    map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
+    map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
 
     # find index of face nodes wrt volume node ordering
-    for k in 1:𝒢.K
-        for f in 1:𝒢.nFaces
-            vmapM[:, f, k] = nodeids[fmask[:, f], k]
+    for k in 1:ℳ.K
+        for f in 1:ℳ.nFaces
+            vmap⁻[:, f, k] = nodeids[_fmask[:, f], k]
         end
     end
 
-    let one = ones(1, nFP)
-        for k1 in 1:𝒢.K
-            for f1 in 1:𝒢.nFaces
+    let one = ones(1, _nFP)
+        for k1 in 1:ℳ.K
+            for f1 in 1:ℳ.nFaces
                 # find neighbor
                 k2 = EtoE[k1, f1]
                 f2 = EtoF[k1, f1]
 
                 # reference length of edge
-                v1 = 𝒢.EtoV[k1,f1]
-                v2 = 𝒢.EtoV[k1, 1 + mod(f1, 𝒢.nFaces)]
-                refd = @. sqrt((𝒢.vertices[v1][1] - 𝒢.vertices[v2][1])^2 + (𝒢.vertices[v1][2] - 𝒢.vertices[v2][2])^2)
+                v1 = ℳ.EtoV[k1,f1]
+                v2 = ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]
+                refd = @. sqrt((ℳ.vertices[v1][1] - ℳ.vertices[v2][1])^2 + (ℳ.vertices[v1][2] - ℳ.vertices[v2][2])^2)
 
                 # find volume node numbers of left and right nodes
-                vidM = vmapM[:, f1, k1]
-                x⁻ = nodes[vidM]
+                vid⁻ = vmap⁻[:, f1, k1]
+                x⁻ = _nodes[:, 1][vid⁻]
+                y⁻ = _nodes[:, 2][vid⁻]
 
-                vidP = vmapM[:, f2, k2]
-                x⁺ = nodes[vidP]
+                vid⁺ = vmap⁻[:, f2, k2]
+                x⁺ = _nodes[:, 1][vid⁺]
+                y⁺ = _nodes[:, 2][vid⁺]
 
                 # create distance matrix
-                D = Symmetric(zeros(length(x⁻), nFP))
-                for i in 1:nFP
+                D = zeros(length(x⁻), _nFP)
+                for i in 1:_nFP
                     for j in 1:i
-                        D[i,j] = (x⁻[i][1] - x⁺[j][1])^2 + (x⁻[i][2] - x⁺[j][2])^2
+                        D[i,j] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
                     end
                 end
+                D = Symmetric(D)
 
                 mask = @. D < eps(refd)
 
                 # find linear indices
                 m,n = size(D)
                 d = collect(Int, 1:(m*n))
-                idM =  @. floor(Int, (d[mask[:]]-1) / m) + 1
-                idP =  @. mod( (d[mask[:]]-1), m) + 1
-                vmapP[idM, f1, k1] = vidP[idP]
-                @. mapP[idM, f1, k1] = idP + (f2-1) * nFP + (k2-1) * 𝒢.nFaces * nFP
+
+                id⁻ =  @. floor(Int, (d[mask[:]]-1) / m) + 1
+                id⁺ =  @. mod( (d[mask[:]]-1), m) + 1
+
+                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
+                @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end
         end
     end
 
     # reshape arrays
-    vmapP = reshape(vmapP, length(vmapP))
-    vmapM = reshape(vmapM, length(vmapM))
+    vmap⁺ = reshape(vmap⁺, length(vmap⁺))
+    vmap⁻ = reshape(vmap⁻, length(vmap⁻))
 
     # Create list of boundary nodes
-    mapB = collect(Int, 1:length(vmapP))[vmapP .== vmapM]
-    vmapB = vmapM[mapB]
+    mapᴮ = collect(Int, 1:length(vmap⁺))[vmap⁺ .== vmap⁻]
+    vmapᴮ = vmap⁻[mapᴮ]
 
-    return vmapM, vmapP, vmapB, mapB
+    return vmap⁻, vmap⁺, vmapᴮ, mapᴮ
 end

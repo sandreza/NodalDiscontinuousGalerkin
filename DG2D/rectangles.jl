@@ -17,7 +17,7 @@ rectangle(k, EtoV, N, M, vmap)
 
 # Return Values:
 
--   `rect`: a rectangular element object initialized with proper index, vertices, grid points, and geometric factors
+-   `rect`: a properly initiliazed Element2D object
 
 """
 function rectangle(index, EtoV, N, M, vmap)
@@ -28,8 +28,11 @@ function rectangle(index, EtoV, N, M, vmap)
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
 
+    n = length(a)
+    m = length(b)
+
     # get normals
-    n̂ = normalsSQ(length(a), length(b))
+    n̂ = normalsSQ(n, m)
 
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
@@ -43,17 +46,27 @@ function rectangle(index, EtoV, N, M, vmap)
 
     # arrays of first,second coordinate of GL tensor product
     # both ideal and physical coordinates are saved
-    r = Tuple{Float64, Float64}[]
-    x = similar(r)
-    for i in a
-        for j in b
-            push!(r, (i,j))
-            push!(x, ((xmax - xmin) * (i + 1) / 2, (ymax - ymin) * (j + 1) / 2))
+    r̃ = zeros(n*m, 2)
+    x̃ = similar(r̃)
+    let k = 0
+        for i in 1:n
+            for j in 1:m
+                k += 1
+
+                r̃[k, :] = [a[i] b[j]]
+
+                x = (xmax - xmin) * (a[i] + 1) / 2 + xmin
+                y = (ymax - ymin) * (b[j] + 1) / 2 + ymin
+                x̃[k, :] = [x y]
+            end
         end
     end
 
+    # build face mask for element
+    fmask = fmaskSQ(r̃[:,1], r̃[:,2])
+
     # construct element
-    rect = Element2D(index,vertices, r,x, D,lift,n̂)
+    rect = Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
 
     return rect
 end
@@ -188,7 +201,7 @@ liftSQ(N, M)
 # Example
 
 """
-function liftSQ(r,s)
+function liftSQ(r, s)
     # get 2D vandermonde matrix
     V = vandermondeSQ(r,s)
 
@@ -197,7 +210,7 @@ function liftSQ(r,s)
     m = length(s)
 
     # empty matrix
-    ℰ = spzeros(n*m, 2*(n+m))
+    ℰ = spzeros(Int, n*m, 2*(n+m))
 
     # starting column number for each face
     rl = 1
@@ -268,7 +281,7 @@ normalsSQ(n, m)
 
 function normalsSQ(n, m)
     # empty vectors of right length
-    n̂ = [(0.0,0.0) for _ in 1:(n+m+n+m)]
+    n̂ = zeros(n+m+n+m, 2)
 
     # ending index for each face
     nf1 = m
@@ -279,15 +292,42 @@ function normalsSQ(n, m)
     # set values of normals
     for i in 1:nf4
         if     i < nf1+1
-            n̂[i] = (0, -1) # normal is (0, -1) along first face
+            n̂[i, :] = [ 0 -1] # normal is (0, -1) along first face
         elseif i < nf2+1
-            n̂[i] = (-1, 0) # normal is (-1, 0) along second face
+            n̂[i, :] = [-1  0] # normal is (-1, 0) along second face
         elseif i < nf3+1
-            n̂[i] = (0, 1) # normal is (0, 1) along third face
+            n̂[i, :] = [ 0  1] # normal is (0, 1) along third face
         else
-            n̂[i] = (1, 0) # normal is (1, 0) along fourth face
+            n̂[i, :] = [ 1  0] # normal is (1, 0) along fourth face
         end
     end
 
     return n̂
+end
+
+"""
+fmaskSQ(r, s)
+
+# Description
+
+-   Mask of GL nodes on the faces of a square element
+
+# Arguments
+
+-   `r` : first index of real coordinates
+-   `s` : second index of real coordinates
+
+
+#Return
+
+-   `fmask`: matrix of indices of GL points along each face
+
+"""
+function fmaskSQ(r, s)
+    fmask1 = findall( abs.( r .+ 1) .< eps(10.0) )'
+    fmask2 = findall( abs.( s .+ 1) .< eps(10.0) )'
+    fmask3 = findall( abs.( r .- 1) .< eps(10.0) )'
+    fmask4 = findall( abs.( s .- 1) .< eps(10.0) )'
+    fmask = Array([fmask1; fmask2; fmask3; fmask4]')
+    return fmask
 end

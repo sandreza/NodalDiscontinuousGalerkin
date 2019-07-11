@@ -25,7 +25,6 @@ v = @. sqrt( 1 / (ϵ * μ))
 vmax = maximum(v)
 
 # determine timestep
-v = 1
 Δx  = minimum(x[2,:] - x[1,:])
 CFL = 1.0
 dt  = CFL * Δx / vmax

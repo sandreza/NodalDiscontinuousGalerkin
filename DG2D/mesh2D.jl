@@ -1,5 +1,6 @@
 include("../src/utils.jl")
-
+include("element2D.jl")
+include("rectangles.jl")
 
 using SparseArrays
 using LinearAlgebra

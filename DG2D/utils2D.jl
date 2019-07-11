@@ -143,12 +143,20 @@ plotgrid2D(𝒢::Grid2D)
 
 """
 function plotgrid2D(𝒢::Grid2D)
-    # short cuts
+    # whole grid plotting
     x = 𝒢.x[:, 1]
     y = 𝒢.x[:, 2]
 
-    # plot the total grid points
+    # initial grid (mainly for the to make for loop simpler)
     grid = scatter(x, y, legend = false)
+
+    # plot GL points elementwise
+    for Ω in 𝒢.Ω
+        r = Ω.x[:, 1]
+        s = Ω.x[:, 2]
+
+        scatter!(r, s, legend = false)
+    end
 
     # plot boundary of the elements
     scatter!(x[𝒢.vmap⁻] , y[𝒢.vmap⁻], color = "black", legend = false)

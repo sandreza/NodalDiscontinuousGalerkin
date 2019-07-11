@@ -192,27 +192,26 @@ rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 """
 function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     # 1D arrays
-    vx,mapx = unimesh1D(xmin, xmax, K)
-    vy,mapy = unimesh1D(ymin, ymax, L)
+    vˣ,mapˣ = unimesh1D(xmin, xmax, K)
+    vʸ,mapʸ = unimesh1D(ymin, ymax, L)
 
     # construct array of vertices
     vertices = Tuple{Float64,Float64}[]
-    for x in vx
-        for y in vy
+    for x in vˣ
+        for y in vʸ
             push!(vertices, (x,y))
         end
     end
-    # v = reshape(v, K+1, L+1)
 
     # construct element to vertex map
     EtoV = Int.(ones(K*L, 4))
     j = 0
-    for l in 1:L
-        for k in 1:K
+    for k in 1:K
+        for l in 1:L
             j += 1
 
-            EtoV[j,2] = Int(k + (L+1) * (l-1))
-            EtoV[j,3] = Int(k + (L+1) * l)
+            EtoV[j,2] = Int(l + (L+1) * (k-1))
+            EtoV[j,3] = Int(l + (L+1) * k)
 
             EtoV[j,1] = Int(EtoV[j,2] + 1)
             EtoV[j,4] = Int(EtoV[j,3] + 1)
@@ -363,8 +362,9 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     nodeids = reshape( collect(Int, 1:(ℳ.K * _nGL)), _nGL, ℳ.K)
     vmap⁻ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
     vmap⁺ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
-    map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
-    map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
+    # not actually used ???
+    # map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
+    # map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
 
     # find index of face nodes wrt volume node ordering
     for k in 1:ℳ.K
@@ -413,7 +413,7 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 id⁺ =  @. mod( (d[mask[:]]-1), m) + 1
 
                 vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
-                @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
+                # @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end
         end
     end

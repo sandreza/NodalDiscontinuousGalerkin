@@ -138,6 +138,7 @@ function meshreader_gambit2D(_filename)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
+    vertices = []
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces

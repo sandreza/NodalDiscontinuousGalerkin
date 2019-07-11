@@ -123,3 +123,42 @@ function ∇⨀!(∇⨀u, x, y, Ω)
     @. ∇⨀u = Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
     return nothing
 end
+
+
+"""
+make_periodic2D(Ω)
+
+# Description
+
+- Takes a rectangular grid and modifies vmapP so that the domain becomes periodic
+
+# Arguments
+
+- `Ω` : the mesh struct
+
+# Return : nothing
+
+
+"""
+function make_periodic2D(Ω)
+    boundary_index = findall(grid.vmapM - grid.vmapP .≈ 0.0)
+    ax = minimum(grid.x)
+    bx = maximum(grid.x)
+    ay = minimum(grid.y)
+    by = maximum(grid.y)
+    leftface_index   =  findall(grid.x[:] .== ax)
+    rightface_index  =  findall(grid.x[:] .== bx)
+    bottomface_index =  findall(grid.y[:] .== ay)
+    topface_index    =  findall(grid.y[:] .== by)
+
+    for j in boundary_index
+        global_index = grid.vmapM[j]
+        x = grid.x[j]
+        y = grid.y[j]
+        if j in leftface_index
+            findall(grid.y[rightface] .== y)
+        end
+    end
+
+
+end

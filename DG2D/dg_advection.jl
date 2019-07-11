@@ -31,6 +31,7 @@ function dg_central_2D!(u̇, u, params, t)
     @. u̇ *= -1.0
     lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ) #inefficient part
     @. u̇ += lift
+        # now hack in zeroness on boundary
     return nothing
 end
 
@@ -108,6 +109,9 @@ function dg_upwind_2D!(u̇, u, params, t)
     ujump = reshape( abs.(ε.v1[𝒢.vmapM] .* 𝒢.nx[:] + ε.v2[𝒢.vmapM] .* 𝒢.ny[:]) .* (u[𝒢.vmapM] - u[𝒢.vmapP]), size(ι.fˣ) )
     @. ι.fⁿ = ι.fˣ * 𝒢.nx + ι.fʸ * 𝒢.ny - 0.5 * ujump
 
+    # sponge layer
+    @. ι.fⁿ[𝒢.mapB]  =  -10*(u[𝒢.vmapB] - 0.0)
+
 
 
     # rhs of the semi-discrete PDE, ∂ᵗu = -∂ˣ(v1*u) - ∂ʸ(v2*u)
@@ -116,5 +120,9 @@ function dg_upwind_2D!(u̇, u, params, t)
     @. u̇ *= -1.0
     lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ) #inefficient part
     @. u̇ += lift
+    #=
+    @. u[𝒢.vmapB] = 0.0
+    @. u̇[𝒢.vmapB] = 0.0
+    =#
     return nothing
 end

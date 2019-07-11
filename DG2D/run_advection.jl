@@ -1,9 +1,13 @@
 # first define the stream function
 include("mesh2D.jl")
 include("dg_advection.jl")
+include("triangles.jl")
+using Plots
+using BenchmarkTools
+using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 1
+n = 7
 timings = false
 gradients_check = false
 solve_ode = true
@@ -19,8 +23,12 @@ field = dg_garbage_triangle(grid)
 #for convenience
 x = grid.x
 y = grid.y
+
+#
+leftface = findall( x[:] .== -1)
+rightface = findall( x[:] .== 1)
 #plot the total grid points
-p1 = scatter(grid.x,grid.y,legend=false)
+p1 = scatter(grid.x, grid.y, legend=false)
 # plot boundary of triangles
 scatter!(x[grid.vmapM] , y[grid.vmapM], color = "black", legend = false)
 #plot boundary of domain
@@ -39,8 +47,8 @@ u0(x, y, μ) = exp(-μ * x^2 - μ * (y+0.5)^2) * cos(π/2 * x) * cos(π/2 * y)
 #simpler
 #=
 ψ(x, y, γ)  = y^2 + x
-u1(x, y, γ) =  2 * y
-u2(x, y, γ) = -1
+u1(x, y, γ) =  -0.1
+u2(x, y, γ) = 0.1
 =#
 #u0(x, y, μ) = sin(x)*cos(y) + x
 #u0(x, y, μ) =  1.0
@@ -55,6 +63,11 @@ u⁰ = [u0(x[i,j],y[i,j],μ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 v¹ = [u1(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 v² = [u2(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 
+v¹ = [u1(x[i],y[i],γ) for i in 1:length(x)]
+v² = [u2(x[i],y[i],γ) for i in 1:length(x)]
+v¹ = reshape(v¹, size(x))
+v² = reshape(v², size(x))
+
 flux1 = v¹ .* u⁰
 flux2 = v² .* u⁰
 
@@ -68,23 +81,24 @@ struct velocity_field{T}
     end
 end
 
+external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 #define params
-tspan = (0.0, 8.0)
+tspan = (0.0, 40.0)
 ι = field
 ε = external
 𝒢 = grid
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-rhs! = dg_central_2D!
-dt =  0.5 * (grid.r[2] - grid.r[1]) / grid.K / maximum([1, maximum(v¹)])
+rhs! = dg_upwind_2D!
+dt =  1.0 * (grid.r[2] - grid.r[1]) / grid.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
 # find numerical velocity field
 ∇!(ι.φˣ, ι.φʸ, ψᵏ, 𝒢)
 w¹ = copy(ι.φʸ)
 w² = -copy(ι.φˣ)
-external = velocity_field(v¹, v²) #use numerical instead of exact derivative
+
 
 
 
@@ -225,12 +239,13 @@ display(plot(p1))
 ###
 gr()
 endtime = length(sol.t)
-steps = Int( floor(endtime / 80))
-
+steps = Int( floor(endtime / 320))
+camera_top = 90 #this is a very hacky way to get a 2D contour plot
+camera_side = 0
 @gif for i in 1:steps:endtime
-    println(i)
+    println(i/endtime)
     u = copy(sol.u[i])
-    p1 = surface(x[:],y[:],u[:], camera = (15,60))
+    p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims = (0,1))
     plot(p1)
 end
 ###
@@ -238,8 +253,8 @@ end
 ###
 gr()
 
-u = copy(sol.u[1])
-p1 = surface(x[:],y[:],u[:], camera = (15,60))
+u = copy(sol.u[3])
+p1 = surface(x[:],y[:],u[:], camera = (0,90))
 plot(p1)
 
 ###

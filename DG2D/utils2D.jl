@@ -1,3 +1,33 @@
+"""
+∇!(uˣ, uʸ, u, Ω)
+
+# Description
+
+    Compute gradient of u wrt physical grid
+
+# Arguments
+
+-   `uˣ`: first component of the gradient, overwitten
+-   `uʸ`: second component of the gradient, overwritten
+-   `u`: scalar to take gradient of
+-   `Ω`: element to compute in
+
+# Return Values
+
+
+
+"""
+function ∇!(uˣ, uʸ, u, Ω)
+    # compute partial derivatives on ideal grid
+    uʳ = Ω.Dʳ * u
+    uˢ = Ω.Dˢ * u
+
+    # compute partial derivatives on physical grid
+    @. uˣ =  Ω.rx * uʳ + Ω.sx * uˢ
+    @. uʸ =  Ω.ry * uʳ + Ω.sy * uˢ
+
+    return nothing
+end
 
 """
 ∇⨀(x, y, Ω)

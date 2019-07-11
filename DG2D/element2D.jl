@@ -74,35 +74,7 @@ end
 #     return N
 # end
 
-"""
-∇(u, Ω)
 
-# Description
-
-    Compute gradient of u wrt physical grid
-
-# Arguments
-
--   `u`: scalar to take gradient of
--   `Ω`: element to compute in
-
-# Return Values
-
--   `uˣ`: first component of the gradient
--   `uʸ`: second component of the gradient
-
-"""
-function ∇(u, Ω)
-    # compute partial derivatives on ideal grid
-    uʳ = Ω.Dʳ * u
-    uˢ = Ω.Dˢ * u
-
-    # compute partial derivatives on physical grid
-    uˣ = @. Ω.rˣ * uʳ + Ω.sˣ * uˢ
-    uʸ = @. Ω.rʸ * uʳ + Ω.sʸ * uˢ
-
-    return uˣ,uʸ
-end
 
 
 """

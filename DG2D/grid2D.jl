@@ -59,7 +59,7 @@ Grid2D(ℳ::Mesh2D, N::Int) ℳ
     return a properly initiliazed Grid2D object
 
 """
-struct Grid2D{S, T, U, V} <: AbstractGrid2D
+struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     # basic grid of vertices
     ℳ::S
 
@@ -67,28 +67,30 @@ struct Grid2D{S, T, U, V} <: AbstractGrid2D
     Ω::T
 
     # GL points
-    r::U # ideal coordinates
-    x::U # physical coordinates
+    nGL::U # number of points
+    x::V # physical coordinates
 
     # maps maps maps
-    vmap⁻::V
-    vmap⁺::V
-    vmapᴮ::V
-    mapᴮ::V
+    vmap⁻::W
+    vmap⁺::W
+    vmapᴮ::W
+    mapᴮ::W
 
     function Grid2D(ℳ::Mesh2D, N::Int)
         # get elements and GL nodes
-        Ω,r̃,x̃ = makenodes2D(ℳ, N)
-        nGL = length(Ω[1].r[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
+        Ω,x̃ = makenodes2D(ℳ, N)
+        nGL = length(x̃[:,1])
+
 
         # make a facemask
-        fmask = Ω[1].fmask # same as with nGL, should eventually be done on an element by element basis
+        fmask = Ω[1].fmask # same as with nGLᵏ, should eventually be done on an element by element basis
         nFP,nFaces = size(fmask)
+        nGLᵏ = length(Ω[1].x[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
 
         # build the boundary maps
-        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFP, nGL, fmask, x̃)
+        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFP, nGLᵏ, fmask, x̃)
 
-        return new{typeof(ℳ),typeof(Ω),typeof(r̃),typeof(vmap⁻)}(ℳ, Ω, r̃,x̃, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
+        return new{typeof(ℳ),typeof(Ω),typeof(nGL),typeof(x̃),typeof(vmap⁻)}(ℳ, Ω, nGL,x̃, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
     end
 end
 
@@ -240,13 +242,11 @@ makenodes2D(ℳ::Mesh2D, N::Int)
 # Return Values:
 
 -   `Ω`: array of all the elements in the grid
--   `r`: ideal coordinates of GL points
 -   `x`: physical coordinates of GL points
 
 """
 function makenodes2D(ℳ::Mesh2D, N::Int)
     Ω = Element2D[]
-    r = Float64[]
     x = Float64[]
     for k in 1:ℳ.K
         # check number of faces, maybe eventually do on an element by element basis
@@ -263,11 +263,10 @@ function makenodes2D(ℳ::Mesh2D, N::Int)
 
         # fill in arrays
         push!(Ω, Ωᵏ)
-        r = cat(r, Ωᵏ.r; dims=1)
         x = cat(x, Ωᵏ.x; dims=1)
     end
 
-    return Ω,r,x
+    return Ω,x
 end
 
 """

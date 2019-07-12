@@ -441,35 +441,35 @@ rk_solver!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function rk_solver!(rhs!, u̇, u, params, tspan, dt)
+function rk_solver!(rhs!, fields, params, stoptime, dt)
     # Runge-Kutta residual storage
-    nsol = length(u)
-    res = Float64[]
-    for iRes in 1:nsol
-        push!(res, zeros(size(u[iRes])))
-    end
+    nFields = length(fields)
 
     # store solutions at all times
-    Nsteps = ceil(Int, tspan[end] / dt)
-    sol = Any[]
+    Nsteps = ceil(Int, stoptime / dt)
+    solutions = Any[]
 
     # time step loop
     for tstep in 1:Nsteps
         for iRK in 1:5
             # get numerical solution
-            rhs!(u̇, u, params, dt)
+            rhs!(fields, params)
 
             # update solutions
-            for iRes in 1:nsol
-                res[iRes] = rk4a[iRK] * res[iRes] + dt * u̇[iRes]
-                u[iRes] = u[iRes] + rk4b[iRK] * res[iRes]
+            for field in fields
+                field.r = rk4a[iRK] * field.r + field.u̇ * dt
+                field.u = rk4b[iRK] * field.r + field.u
                 # seems to differ from matlab code during this step ???
             end
         end
 
-        uᵗ = similar(u)
-        @. uᵗ = u
-        push!(sol, uᵗ)
+        sol = Any[]
+        for field in fields
+            uᵗ = similar(field.u)
+            @. uᵗ = field.u
+            push!(sol, uᵗ)
+        end
+        push!(solutions, sol)
 
         if (tstep % 10000) == 0
             println( string(tstep, " / ", Nsteps))

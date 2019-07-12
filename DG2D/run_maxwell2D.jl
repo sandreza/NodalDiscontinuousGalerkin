@@ -1,4 +1,4 @@
-include("mesh2D.jl")
+include("grid2D.jl")
 include("dg_maxwell2D.jl")
 
 using Plots
@@ -27,15 +27,22 @@ vmax = 1 # no material here
 CFL = 1.0
 dt  = CFL * Δx / vmax
 
+# make field objects
+Eᶻ = Field2D(𝒢)
+Hˣ = Field2D(𝒢)
+Hʸ = Field2D(𝒢)
+
 # initialize conditions
 n = m = 1
-Eᶻ = @. sin(m*π*x) * sin(n*π*y)
-Hˣ = zeros(length(x))
-Hʸ = zeros(length(x))
+@. Eᶻ.u = sin(m*π*x) * sin(n*π*y)
+@. Hˣ.u = 0.0
+@. Hʸ.u = 0.0
 
 # solve equations
-tspan = (0.0, 10)
-params = (𝒢, Hˣ, Hʸ, Eᶻ)
+stoptime = 10
+fields = (Hˣ, Hʸ, Eᶻ)
+α = 1 # determine upwind or central flux
+params = (𝒢, α)
 rhs! = dg_maxwell2D!
 
-sol = rk_solver!(dg_maxwell2D!, u̇, u, params, tspan, dt)
+sol = rk_solver!(dg_maxwell2D!, fields, params, stoptime, dt)

@@ -1,7 +1,7 @@
-include("dg2D.jl")
+include("field2D.jl")
 
 """
-dg_maxwell!(u̇, u, params, t)
+dg_maxwell!(u̇, u, params)
 
 # Description
 
@@ -12,49 +12,77 @@ dg_maxwell!(u̇, u, params, t)
 -   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
 -   `u  = (E , H )`: container for starting field values
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
--   `t`: time to evaluate at
 
 """
-function dg_maxwell2D!(u̇, u, params, t)
+function dg_maxwell2D!(fields, params)
     # unpack params
-    𝒢  = params[1] # grid parameters
-    Hˣ = params[2] # internal parameters for E
-    Hʸ = params[3] # internal parameters for H
-    Eᶻ = params[4] # external parameters
+    𝒢 = params[1] # grid parameters
+    α = params[2]
+
+    # unpack fields
+    Hˣ = fields[1]
+    Hʸ = fields[2]
+    Eᶻ = fields[3]
 
     # define field differences at faces
-    dHˣ = similar(Hˣ.flux)
-    @. dHˣ[:] = Hˣ.u[𝒢.vmap⁻] - Hˣ.u[𝒢.vmap⁺]
-    dHʸ = similar(Hʸ.flux)
-    @. dHʸ[:] = Hʸ.u[𝒢.vmap⁻] - Hʸ.u[𝒢.vmap⁺]
-    dEᶻ = similar(Eᶻ.flux)
-    @. dEᶻ[:] = Eᶻ.u[𝒢.vmap⁻] - Eᶻ.u[𝒢.vmap⁺]
+    # need to make Δu same length as other arrays
+    # each vmap is half the size of the whole array
+    @. Hˣ.Δu = Hˣ.u[𝒢.vmap⁻] - Hˣ.u[𝒢.vmap⁺]
+    @. Hʸ.Δu = Hʸ.u[𝒢.vmap⁻] - Hʸ.u[𝒢.vmap⁺]
+    @. Eᶻ.Δu = Eᶻ.u[𝒢.vmap⁻] - Eᶻ.u[𝒢.vmap⁺]
 
     # impose reflective BC
-    dHˣ[𝒢.mapᴮ] = @. 0
-    dHʸ[𝒢.mapᴮ] = @. 0
-    dEᶻ[𝒢.mapᴮ] = 2*Eᶻ.u[𝒢.vmapᴮ]
+    @. Hˣ.Δu[𝒢.mapᴮ] = 0
+    @. Hʸ.Δu[𝒢.mapᴮ] = 0
+    @. Eᶻ.Δu[𝒢.mapᴮ] = 2 * Eᶻ.u[𝒢.vmapᴮ]
 
     # perform calculations over elements
-    for Ω in 𝒢.Ω
-        # evaluate upwind fluxes
-        α = 1
-        n̂ˣ = Ω.n̂[:,1]
-        n̂ʸ = Ω.n̂[:,2]
-        n̂⨂dH = n̂ˣ * dHˣ + n̂ʸ * dHʸ
-        @. Hˣ.flux =  n̂ʸ * dEᶻ + α * (n̂ˣ * n̂⨂dH - dHˣ)
-        @. Hʸ.flux = -n̂ˣ * dEᶻ + α * (n̂ʸ * n̂⨂dH - dHʸ)
-        @. Eᶻ.flux = -n̂ˣ * dHʸ + n̂ʸ * dHˣ - α * dEᶻ
+    let nGL = 0
+        for k in 𝒢.ℳ.K
+            # get element and number of GL points
+            Ωᵏ = 𝒢.Ω[k]
+            nGLᵏ = (nGL+1):(nGL+length(Ωᵏ.x[:,1]))
+            nGL += length(Ωᵏ.x[:,1])
 
-        # local derivatives of the fields
-        dˣEᶻ,dʸEᶻ = ∇(Eᶻ, Ω)
-        ∇⨂H = ∇⨂(Hˣ, Hʸ, Ω)
+            # get views of computation elements
+            uHˣ = view(Hˣ.u, nGLᵏ)
+            uHʸ = view(Hʸ.u, nGLᵏ)
+            uEᶻ = view(Eᶻ.u, nGLᵏ)
 
-        # compute RHS of PDE's
-        Hˣ.u̇ += -dʸEᶻ + 1//2 * Ω.lift * (Ω.volume .* Hˣ.flux)
-        Hʸ.u̇ +=  dˣEᶻ + 1//2 * Ω.lift * (Ω.volume .* Hʸ.flux)
-        Eᶻ.u̇ +=  ∇⨂H + 1//2 * Ω.lift * (Ω.volume .* Eᶻ.flux)
+            u̇Hˣ = view(Hˣ.u̇, nGLᵏ)
+            u̇Hʸ = view(Hʸ.u̇, nGLᵏ)
+            u̇Eᶻ = view(Eᶻ.u̇, nGLᵏ)
+
+            ΔHˣ = view(Hˣ.Δu, nGLᵏ)
+            ΔHʸ = view(Hʸ.Δu, nGLᵏ)
+            ΔEᶻ = view(Eᶻ.Δu, nGLᵏ)
+
+            ∇Hˣ = view(Hˣ.∇u, nGLᵏ)
+            ∇Hʸ = view(Hʸ.∇u, nGLᵏ)
+            ∇Eᶻ = view(Eᶻ.∇u, nGLᵏ)
+
+            fHˣ = view(Hˣ.f, nGLᵏ)
+            fHʸ = view(Hʸ.f, nGLᵏ)
+            fEᶻ = view(Eᶻ.f, nGLᵏ)
+
+            # evaluate upwind fluxes
+            n̂ˣ = Ωᵏ.n̂[:,1]
+            n̂ʸ = Ωᵏ.n̂[:,2]
+            n̂⨂ΔH = @. n̂ˣ * ΔHˣ + n̂ʸ * ΔHʸ
+            @. fHˣ =  n̂ʸ * ΔEᶻ + α * (n̂ˣ * n̂⨂ΔH - ΔHˣ)
+            @. fHʸ = -n̂ˣ * ΔEᶻ + α * (n̂ʸ * n̂⨂ΔH - ΔHʸ)
+            @. fEᶻ = -n̂ˣ * ΔHʸ + n̂ʸ * ΔHˣ - α * ΔEᶻ
+
+            # local derivatives of the fields
+            ∇Hʸ,-∇Hˣ = ∇(uEᶻ, Ωᵏ)
+            ∇Eᶻ = ∇⨂(uHˣ, uHʸ, Ωᵏ)
+
+            # compute RHS of PDE's
+            @. u̇Hˣ += ∇Hˣ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHˣ)
+            @. u̇Hʸ += ∇Hʸ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHʸ)
+            @. u̇Eᶻ += ∇Eᶻ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fEᶻ)
+        end
     end
-    
+
     return nothing
 end

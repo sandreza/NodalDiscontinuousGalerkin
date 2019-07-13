@@ -17,39 +17,41 @@ upwind_check = false
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
-grid = garbage_triangle3(n, filename)
-field = dg_garbage_triangle(grid)
+mesh = periodic_triangle(n, filename)
+field = dg_garbage_triangle(mesh)
 
 #for convenience
-x = grid.x
-y = grid.y
+x = mesh.x
+y = mesh.y
 
 #
 leftface = findall( x[:] .== -1)
 rightface = findall( x[:] .== 1)
-#plot the total grid points
-p1 = scatter(grid.x, grid.y, legend=false)
+#plot the total mesh points
+p1 = scatter(mesh.x, mesh.y, legend=false)
 # plot boundary of triangles
-scatter!(x[grid.vmapM] , y[grid.vmapM], color = "black", legend = false)
+scatter!(x[mesh.vmapM] , y[mesh.vmapM], color = "black", legend = false)
 #plot boundary of domain
-scatter!(x[grid.vmapB] , y[grid.vmapB], color = "yellow", legend = false)
+scatter!(x[mesh.vmapB] , y[mesh.vmapB], color = "yellow", legend = false)
 display(plot(p1))
 
 println("We have")
-println(length(grid.x))
+println(length(mesh.x))
 println("degrees of freedom")
+offsetx = 0.0
+offsety = 0.0
 #define stream function and components of velocity
 ψ(x, y, γ) = exp(γ*(y-1)^2 ) * cos(π/2 * x) * cos(π/2 * y)
 u1(x, y, γ) =  cos(π/2 * y) * cos(π/2 * x) * γ * 2 * (y-1) * exp(γ*(y-1)^2 )  - π / 2 * sin(π/2 * y) * exp(γ*(y-1)^2 ) * cos(π/2 * x)
 u2(x, y, γ) = π / 2 * sin(π/2 * x) * exp(γ*(y-1)^2 ) * cos(π/2 * y)
-u0(x, y, μ) = exp(-μ * x^2 - μ * (y+0.5)^2) * cos(π/2 * x) * cos(π/2 * y)
+u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * cos(π/2 * y)
 
 #simpler
-#=
+
 ψ(x, y, γ)  = y^2 + x
-u1(x, y, γ) =  -0.1
-u2(x, y, γ) = 0.1
-=#
+u1(x, y, γ) =  1.0
+u2(x, y, γ) = 1.0
+
 #u0(x, y, μ) = sin(x)*cos(y) + x
 #u0(x, y, μ) =  1.0
 
@@ -84,14 +86,14 @@ end
 external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 #define params
-tspan = (0.0, 40.0)
+tspan = (0.0, 4.0)
 ι = field
 ε = external
-𝒢 = grid
+𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
 rhs! = dg_upwind_2D!
-dt =  1.0 * (grid.r[2] - grid.r[1]) / grid.K / maximum([1, maximum(v¹)])
+dt =  1.0 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
 # find numerical velocity field
@@ -102,7 +104,7 @@ w² = -copy(ι.φˣ)
 
 
 
-params = (grid, field, external)
+params = (mesh, field, external)
 
 @. field.u = u⁰
 u = field.u
@@ -239,22 +241,30 @@ display(plot(p1))
 ###
 gr()
 endtime = length(sol.t)
-steps = Int( floor(endtime / 320))
+steps = Int( floor(endtime / 40))
 camera_top = 90 #this is a very hacky way to get a 2D contour plot
 camera_side = 0
-@gif for i in 1:steps:endtime
+for i in 1:steps:endtime
     println(i/endtime)
     u = copy(sol.u[i])
     p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims = (0,1))
-    plot(p1)
+    display(plot(p1))
 end
+println("The error for nice velocity is")
+println(norm(sol.u[1]-sol.u[end]))
 ###
 
 ###
 gr()
-
-u = copy(sol.u[3])
-p1 = surface(x[:],y[:],u[:], camera = (0,90))
+camera_top = 90 #this is a very hacky way to get a 2D contour plot
+camera_side = 0
+u = copy(sol.u[800])
+p1 = surface(x[:,1],y[:,1],u[:,1], camera = (camera_side,camera_top))
+for i in 2:mesh.K
+    surface!(x[:,i],y[:,i],u[:,i], camera = (camera_side,camera_top) )
+end
 plot(p1)
+
+#colors, default is :inferno,
 
 ###

@@ -1,15 +1,22 @@
 # This file here is mostly for debugging
+#=
+Some general comments:
+
+EToV matrix : element to vertex matrix, each row corresponds to an element, each column, j,  corresponds to the vertex (VX[j], VY[j])
+=#
 using Plots
 #n = 10
 #n = 3
-n = 10
+n = 5
+periodic = false
 #FileName = "Maxwell025.neu"
-FileName = "Maxwell2.neu"
+FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 
 
 include("../src/utils.jl")
 include("../DG2D/triangles.jl")
+
 
 filename = filepath*FileName
 #test1 = garbage_triangle3(n, filename)
@@ -65,6 +72,74 @@ end
 #close the file
 close(f)
 
+if periodic
+
+    ax = minimum(VX)
+    bx = maximum(VX)
+    ay = minimum(VY)
+    by = maximum(VY)
+    xperiod = bx - ax
+    yperiod = by - ay
+    # build periodic index converter
+    conv = collect(1:length(VX))
+    #build association map to create EToVp (periodic version)
+    minindx = findall( VX .≈ ax )
+    minindy = findall( VY .≈ ay )
+    maxindx = findall( VX .≈ bx )
+    maxindy = findall( VY .≈ by )
+
+    bool_corner1 = @. (VX==bx) & (VY==by)
+    corner1 = findall(  bool_corner1 )
+
+    bool_corner2 = @. (VX==ax) & (VY==by)
+    corner2 = findall(  bool_corner2 )
+
+    bool_corner3 = @. (VX==bx) & (VY==ay)
+    corner3 = findall(  bool_corner3 )
+
+    bool_corner4 = @. (VX==ax) & (VY==ay)
+    corner4 = findall(  bool_corner4 )
+
+    bool_corners = @. ((VX==ax)|(VX==bx)) & ((VY==ay)|(VY==by))
+    corners = findall(bool_corners)
+
+    # potentially safer
+    corner1 = findall(  bool_corner1 )
+    corner2 = findall(  bool_corner2 )
+    corner3 = findall(  bool_corner3 )
+    corner4 = findall(  bool_corner4 )
+
+    minindt = [minindx; minindy]
+    maxindt = [maxindx; maxindy]
+
+    # relabel indices
+    for i in 1:length(minindt)
+        ii = minindt[i]
+        for j in 1:length(maxindt)
+            jj = maxindt[j]
+            xtrue = (VX[jj]-VX[ii])%xperiod ≈ 0
+            ytrue = (VY[jj]-VY[ii])%yperiod ≈ 0
+            if xtrue && ytrue
+                conv[ii] = jj
+            end
+        end
+    end
+    # make sure there is only one corner
+    for i in 1:length(VX)
+        if conv[i] in corners
+            conv[i] = corners[1]
+        end
+    end
+
+    EToVp = copy(EToV)
+    for i in 1:length(EToVp)
+        EToVp[i] = conv[ EToVp[i] ] # convert to appropriate vertex
+    end
+    scatter(VX,VY)
+    scatter!(VX[conv],VY[conv],legend=false)
+
+end
+
 p1 = scatter(VX, VY, legend=false)
 display(p1)
 
@@ -104,10 +179,15 @@ rx, sx, ry, sy, J = geometricfactors2D(x, y, Dr, Ds)
 nx, ny, sJ = normals2D(x, y, Dr, Ds, fmask, nfp, K)
 Fscale = sJ ./ J[fmask[:],:]
 
-#EToE, EToF = connect2D(EToV)
+EToE, EToF = connect2D(EToV)
+
+EToEp, EToFp = connect2D(EToVp) #periodic map
+
 EToE, EToF = triangle_connect2D(EToV)
 
 vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+vmapMp, vmapPp, vmapBp, mapBp = build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToEp, EToFp, EToVp, x, y, VX, VY)
+
 Vr, Vs = dvandermonde2D(n,r,s)
 Drw = (V*Vr') / (V*V')
 Dsw = (V*Vs') / (V*V')
@@ -117,3 +197,7 @@ Dsw = (V*Vs') / (V*V')
 p1 = scatter(VX, VY, legend=false)
 p2 = scatter(x, y, legend=false)
 display(plot(p1,p2))
+
+
+scatter(x[vmapMp[1:4]],y[vmapMp[1:4]])
+scatter!(x[vmapPp[1:4]],y[vmapPp[1:4]])

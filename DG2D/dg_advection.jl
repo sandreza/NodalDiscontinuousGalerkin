@@ -15,9 +15,10 @@ function dg_central_2D!(u̇, u, params, t)
     # now for the boundary conditions
     # neumann boundary conditions (reflecting)
     #@. ι.fⁿ[𝒢.mapB] = 2*u[𝒢.vmapB]
+    #=
     @. ι.fˣ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
     @. ι.fʸ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
-
+    =#
     # Form field differences at faces, computing central flux
     @. ι.fˣ[:] = (ι.φˣ[𝒢.vmapM] - ι.φˣ[𝒢.vmapP])/2
     @. ι.fʸ[:] = (ι.φʸ[𝒢.vmapM] - ι.φʸ[𝒢.vmapP])/2
@@ -63,9 +64,10 @@ function dg_rusonov_2D!(u̇, u, params, t)
     # now for the boundary conditions
     # neumann boundary conditions (reflecting)
     #@. ι.fⁿ[𝒢.mapB] = 2*u[𝒢.vmapB]
+    #=
     @. ι.fˣ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
     @. ι.fʸ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
-
+    =#
     # Form field differences at faces, computing central flux
     @. ι.fˣ[:] = (ι.φˣ[𝒢.vmapM] - ι.φˣ[𝒢.vmapP])/2 - max_nvel[:] * (v1faceM[:] - v1faceP[:])/2
     @. ι.fʸ[:] = (ι.φʸ[𝒢.vmapM] - ι.φʸ[𝒢.vmapP])/2 - max_nvel[:] * (v2faceM[:] - v2faceP[:])/2
@@ -97,8 +99,10 @@ function dg_upwind_2D!(u̇, u, params, t)
     # now for the boundary conditions
     # neumann boundary conditions (reflecting)
     #@. ι.fⁿ[𝒢.mapB] = 2*u[𝒢.vmapB]
+    #=
     @. ι.fˣ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
     @. ι.fʸ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
+    =#
 
     # Form field differences at faces, computing central flux
     #vmapM is the interior node
@@ -109,10 +113,12 @@ function dg_upwind_2D!(u̇, u, params, t)
     ujump = reshape( abs.(ε.v1[𝒢.vmapM] .* 𝒢.nx[:] + ε.v2[𝒢.vmapM] .* 𝒢.ny[:]) .* (u[𝒢.vmapM] - u[𝒢.vmapP]), size(ι.fˣ) )
     @. ι.fⁿ = ι.fˣ * 𝒢.nx + ι.fʸ * 𝒢.ny - 0.5 * ujump
 
-    # sponge layer
+    # set the inflow / outflow to be zero
+    #=
+    uin = 0.0
     @. ι.fⁿ[𝒢.mapB]  =  -10*(u[𝒢.vmapB] - 0.0)
 
-
+    =#
 
     # rhs of the semi-discrete PDE, ∂ᵗu = -∂ˣ(v1*u) - ∂ʸ(v2*u)
     # compute divergence

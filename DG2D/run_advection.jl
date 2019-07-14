@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 1
+n = 15
 timings = false
 gradients_check = false
 solve_ode = true
@@ -15,7 +15,8 @@ euler = false
 upwind_check = false
 plot_solution = true
 #load file
-FileName = "Maxwell1.neu"
+#(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
+FileName = "Maxwell05.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = periodic_triangle(n, filename)
@@ -183,6 +184,9 @@ println(norm(sol.u[end])^2)
 println("The relative loss in energy is ")
 println( (norm(sol.u[1])^2-norm(sol.u[end])^2)/ norm(sol.u[1])^2)
 println("---------")
+println("The error for nice velocity is")
+println(norm(sol.u[1]-sol.u[end]))
+println("-------")
 #euler time-stepping for debugging
 
 

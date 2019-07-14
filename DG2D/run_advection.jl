@@ -7,14 +7,15 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 7
+n = 1
 timings = false
 gradients_check = false
 solve_ode = true
 euler = false
 upwind_check = false
+plot_solution = true
 #load file
-FileName = "Maxwell025.neu"
+FileName = "Maxwell1.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = periodic_triangle(n, filename)
@@ -39,7 +40,7 @@ println("We have")
 println(length(mesh.x))
 println("degrees of freedom")
 offsetx = 0.0
-offsety = 0.0
+offsety = 0.5
 #define stream function and components of velocity
 ψ(x, y, γ) = exp(γ*(y-1)^2 ) * cos(π/2 * x) * cos(π/2 * y)
 u1(x, y, γ) =  cos(π/2 * y) * cos(π/2 * x) * γ * 2 * (y-1) * exp(γ*(y-1)^2 )  - π / 2 * sin(π/2 * y) * exp(γ*(y-1)^2 ) * cos(π/2 * x)
@@ -48,7 +49,7 @@ u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * c
 
 #simpler
 
-ψ(x, y, γ)  = y^2 + x
+ψ(x, y, γ)  = x+y
 u1(x, y, γ) =  1.0
 u2(x, y, γ) = 1.0
 
@@ -92,7 +93,8 @@ tspan = (0.0, 4.0)
 𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-rhs! = dg_upwind_2D!
+#rhs! = dg_upwind_2D!
+rhs! = dg_upwind_sym_2D!
 dt =  1.0 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
@@ -119,6 +121,8 @@ if timings
     @btime ∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢);
     println("lift")
     @btime lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ);
+    println("symmetrized upwind ")
+    @btime dg_upwind_sym_2D!(u̇, u, params, 0)
 end
 
 if gradients_check
@@ -171,6 +175,14 @@ if solve_ode
     sol  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 end
 
+println("----------")
+println("The energy at the beginning is")
+println(norm(sol.u[1])^2)
+println("The energy at the end is")
+println(norm(sol.u[end])^2)
+println("The relative loss in energy is ")
+println( (norm(sol.u[1])^2-norm(sol.u[end])^2)/ norm(sol.u[1])^2)
+println("---------")
 #euler time-stepping for debugging
 
 
@@ -229,6 +241,23 @@ end
 
 # [ max(x[i,j], y[i,j]) for i in 1:length(x[:,1]), j in 1:length(y[1,:]) ]
 
+if plot_solution
+    gr()
+    endtime = length(sol.t)
+    steps = Int( floor(endtime / 40))
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    println("The error for nice velocity is")
+    println(norm(sol.u[1]-sol.u[end]))
+end
+
 
 ###
  p1 = scatter(x[:,1],y[:,1])
@@ -238,21 +267,7 @@ end
 display(plot(p1))
 ###
 
-###
-gr()
-endtime = length(sol.t)
-steps = Int( floor(endtime / 40))
-camera_top = 90 #this is a very hacky way to get a 2D contour plot
-camera_side = 0
-for i in 1:steps:endtime
-    println(i/endtime)
-    u = copy(sol.u[i])
-    p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims = (0,1))
-    display(plot(p1))
-end
-println("The error for nice velocity is")
-println(norm(sol.u[1]-sol.u[end]))
-###
+
 
 ###
 gr()

@@ -126,9 +126,55 @@ function dg_upwind_2D!(u̇, u, params, t)
     @. u̇ *= -1.0
     lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ) #inefficient part
     @. u̇ += lift
+
+    return nothing
+end
+
+
+
+function dg_upwind_sym_2D!(u̇, u, params, t)
+    # unpack params
+    𝒢 = params[1] # grid parameters
+    ι = params[2] # internal parameters
+    ε = params[3] # external parameters
+
+    # calculate fluxes
+    @. ι.φˣ = ε.v1 * u
+    @. ι.φʸ = ε.v2 * u
+
+    # now for the boundary conditions
+    # neumann boundary conditions (reflecting)
+    #@. ι.fⁿ[𝒢.mapB] = 2*u[𝒢.vmapB]
     #=
-    @. u[𝒢.vmapB] = 0.0
-    @. u̇[𝒢.vmapB] = 0.0
+    @. ι.fˣ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
+    @. ι.fʸ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
     =#
+
+    # Form field differences at faces, computing central flux
+    #vmapM is the interior node
+    #vmapP is the flux from the neighbor
+    @. ι.fˣ[:] = (ι.φˣ[𝒢.vmapM] - ι.φˣ[𝒢.vmapP])/2
+    @. ι.fʸ[:] = (ι.φʸ[𝒢.vmapM] - ι.φʸ[𝒢.vmapP])/2
+    #now for the normal component along the faces, with upwind
+    ujump = reshape( abs.(ε.v1[𝒢.vmapM] .* 𝒢.nx[:] + ε.v2[𝒢.vmapM] .* 𝒢.ny[:]) .* (u[𝒢.vmapM] - u[𝒢.vmapP]), size(ι.fˣ) )
+    @. ι.fⁿ = ι.fˣ * 𝒢.nx + ι.fʸ * 𝒢.ny - 0.5 * ujump
+
+    # set the inflow / outflow to be zero
+    #=
+    uin = 0.0
+    @. ι.fⁿ[𝒢.mapB]  =  -10*(u[𝒢.vmapB] - 0.0)
+
+    =#
+
+    # rhs of the semi-discrete PDE, ∂ᵗu = -∂ˣ(v1*u) - ∂ʸ(v2*u)
+    # compute divergence
+    ∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢)
+    @. u̇ *= -1.0 / 2.0
+    #compute advection
+    ∇!(ι.φˣ, ι.φʸ, u, 𝒢)
+    @. u̇ -= ( ε.v1 * ι.φˣ + ε.v2 * ι.φʸ )/2.0
+    lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ) #inefficient part
+    @. u̇ += lift
+
     return nothing
 end

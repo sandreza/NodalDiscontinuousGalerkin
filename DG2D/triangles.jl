@@ -457,7 +457,7 @@ end
 
 
 """
-triangle_connect2D(EToV)
+triangle_connect2D(EtoV)
 
 # Description
 
@@ -465,34 +465,34 @@ triangle_connect2D(EToV)
 
 # Arguments
 
--  `EToV`: element to vertices map
+-  `EtoV`: element to vertices map
 
 # Output
 
--  `EToE`: element to element map
--  `EToF`: element to face map
+-  `EtoE`: element to element map
+-  `EtoF`: element to face map
 
 # Comments
 
 
 """
-function triangle_connect2D(EToV)
+function triangle_connect2D(EtoV)
     nFaces = 3
-    K = size(EToV, 1)
-    number_nodes = maximum(EToV)
+    K = size(EtoV, 1)
+    number_nodes = maximum(EtoV)
 
     #first  k-rows correspond to face 1
     #second k-rows correspond to face 2
     #third  k-rows correspond to face 3
-    fnodes = [EToV[:,[1,2]]; EToV[:,[2,3]]; EToV[:,[3,1]];]
+    fnodes = [EtoV[:,[1,2]]; EtoV[:,[2,3]]; EtoV[:,[3,1]];]
     fnodes = sort(fnodes, dims = 2 ) .- 1
 
     #default element to element and element to faces connectivity
-    EToE = Int.( collect(1:K) * ones(1, nFaces) )
-    EToF = Int.( ones(K,1) * collect(1:nFaces)' )
+    EtoE = Int.( collect(1:K) * ones(1, nFaces) )
+    EtoF = Int.( ones(K,1) * collect(1:nFaces)' )
 
     id =  @. fnodes[:,1] * number_nodes + fnodes[:,2] + 1;
-    spNodeToNode = Int.( [id collect(1:nFaces*K) EToE[:] EToF[:]] )
+    spNodeToNode = Int.( [id collect(1:nFaces*K) EtoE[:] EtoF[:]] )
 
     # check
     sorted = sortslices(spNodeToNode, dims = 1)
@@ -503,12 +503,12 @@ function triangle_connect2D(EToV)
     matchR = [sorted[indices .+ 1,:] ; sorted[indices , :]]
 
     # insert matches
-    @. EToE[matchL[:,2]] = matchR[:,3]
-    @. EToF[matchL[:,2]] = matchR[:,4]
-    EToE = Int.(EToE)
-    EToF = Int.(EToF)
+    @. EtoE[matchL[:,2]] = matchR[:,3]
+    @. EtoF[matchL[:,2]] = matchR[:,4]
+    EtoE = Int.(EtoE)
+    EtoF = Int.(EtoF)
 
-    return EToE, EToF
+    return EtoE, EtoF
 end
 
 
@@ -526,8 +526,8 @@ connect2D(EtoV)
 
 # Return Values
 
--   `EToE`: element to element map
--   `EToF`: element to face map
+-   `EtoE`: element to element map
+-   `EtoF`: element to face map
 
 """
 function connect2D(EtoV)
@@ -560,6 +560,7 @@ function connect2D(EtoV)
         end
     end
 
+    # the code below is just a way to say that we have vertices matching
 
     # global face to global face sparse array
     FtoF = FtoV * FtoV' - 2I # gotta love julia
@@ -593,17 +594,145 @@ function connect2D(EtoV)
     # each row is an element
     # each column is a face
     # the entries in a column j link the face of an element i
-    # to the face of the element EToE[i,j]
+    # to the face of the element EtoE[i,j]
     EtoF[ind] = copy(face2)
 
-    return EtoE,EtoF
+    return EtoE, EtoF
+end
+
+
+"""
+connect_periodic_2D(VX, VY, EtoV)
+
+# Description
+
+-    Build connectivity maps for an arbitrary Mesh2D
+-    (currently assumes all elements have same number of faces)
+-    for periodicity, its easy to mody for only one side periodic
+
+# Arguments
+
+-   `EtoV`: element to vertex map
+
+# Return Values
+
+-   `EtoE`: element to element map
+-   `EtoF`: element to face map
+
+"""
+function connect_periodic_2D(VX, VY, EtoV)
+    ax = minimum(VX)
+    bx = maximum(VX)
+    ay = minimum(VY)
+    by = maximum(VY)
+    xperiod = bx - ax
+    yperiod = by - ay
+    # build periodic index converter
+    conv = collect(1:length(VX))
+    #build association map to create EtoVp (periodic version)
+    minindx = findall( VX .≈ ax )
+    minindy = findall( VY .≈ ay )
+    maxindx = findall( VX .≈ bx )
+    maxindy = findall( VY .≈ by )
+
+    leftface = sortslices([VY[minindx] minindx], dims = 1)
+    rightface = sortslices([VY[maxindx] maxindx], dims = 1)
+    bottomface = sortslices([VX[minindy] minindy], dims = 1)
+    topface = sortslices([VX[maxindy] maxindy], dims = 1)
+
+    nFaces = 3
+    K = size(EtoV, 1)
+
+    total_faces = nFaces * K
+
+    # list of local face to local vertex connections
+    # face convention implied here
+    # face 1 is associated with vn[1,2]
+    # face 2 is associated with vn[2,3]
+    # ...
+    # face nfaces is associated with vn[nfaces, 1]
+    vn = zeros(Int, nFaces, 2)
+    for i in 1:nFaces
+        j = i % nFaces + 1
+        vn[i,:] = [i,j]
+    end
+
+    # build global face to node sparse array
+    # this is done by placing two vertices at each face row
+    FtoV = spzeros(Int, total_faces, maximum(EtoV))
+    let sk = 1
+        for k in 1:K
+            for face in 1:nFaces
+                @. FtoV[sk, EtoV[k, vn[face,:] ] ] = 1;
+                sk += 1
+            end
+        end
+    end
+
+    for i in 1:(nfaces*K)
+        for k in 1:(length(leftface[:,2])-1)
+            vecL = Int.(leftface[k:k+1 , 2])
+            vecR = Int.(rightface[k:k+1, 2])
+            # identify left face with right face
+            if sum(FtoV[i, vecL])==2
+                @. FtoV[i, vecL] = 0
+                @. FtoV[i,vecR] = 1
+                dropzeros!(FtoV)
+            end
+            vecB = Int.(bottomface[k:k+1 , 2])
+            vecT = Int.(topface[k:k+1, 2])
+            # identify top face with bottom face
+            if sum(FtoV[i, vecB])==2
+                @. FtoV[i, vecB] = 0
+                @. FtoV[i,vecT] = 1
+                dropzeros!(FtoV)
+            end
+        end
+    end
+
+    # global face to global face sparse array
+    FtoF = FtoV * FtoV' - 2I # gotta love julia
+
+    #find complete face to face connections
+    #this just says that if two vertices match then its the same face
+    faces1, faces2 = findnz(FtoF .== 2)
+
+    # convert face global number to element and face numbers
+    element1 = @. floor(Int, (faces1 - 1) / nFaces ) + 1
+    element2 = @. floor(Int, (faces2 - 1) / nFaces ) + 1
+
+    face1 = @. mod((faces1 - 1) , nFaces ) + 1
+    face2 = @. mod((faces2 - 1) , nFaces ) + 1
+
+    # Rearrange into Nelement x Nfaces sized arrays
+    #ind = diag( LinearIndices(ones(Int, K, nFaces))[element1,face1] ) # this line is a terrible idea.
+
+    # fixed version, just needed to convert to linear indices : /
+    ind = element1 + (face1 .- 1) .* K
+
+    #note that a convection has been assumed for the faces here
+    EtoE = collect(Int, 1:K) * ones(Int, 1, nFaces)
+    EtoF = ones(Int, K, 1) * collect(Int, 1:nFaces)'
+
+
+
+    # each row is an element,
+    # each index in the row is the neighbor index
+    EtoE[ind] = copy(element2)
+    # each row is an element
+    # each column is a face
+    # the entries in a column j link the face of an element i
+    # to the face of the element EtoE[i,j]
+    EtoF[ind] = copy(face2)
+
+    return EtoE, EtoF
 end
 
 
 
 """
 
-buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
+buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
@@ -616,8 +745,8 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 -   `nfp`: 1
 -   `nfaces`: 2
 -   `fmask`: an element by element mask to extract edge values
--   `EToE`: element to element connectivity
--   `EToF`: element to face connectivity
+-   `EtoE`: element to element connectivity
+-   `EtoF`: element to face connectivity
 -   `x`: Guass Lobatto points along x-direction
 -   `y`: Guass Lobatto points along y-direction
 -   `VX`: vertex stuff
@@ -631,7 +760,7 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
     # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
     vmapM = zeros(Int, nfp, nfaces, K)
@@ -649,12 +778,12 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
     for k1 = 1:K
         for f1 = 1:nfaces
             # find neighbor
-            k2 = EToE[k1, f1]
-            f2 = EToF[k1, f1]
+            k2 = EtoE[k1, f1]
+            f2 = EtoF[k1, f1]
 
             # reference length of edge
-            v1 = EToV[k1,f1]
-            v2 = EToV[k1, 1 + mod(f1,nfaces)]
+            v1 = EtoV[k1,f1]
+            v2 = EtoV[k1, 1 + mod(f1,nfaces)]
             refd = @. sqrt( (VX[v1] - VX[v2])^2  + (VY[v1] - VY[v2])^2       )
 
             # find volume node numbers of left and right nodes
@@ -697,11 +826,11 @@ end
 
 """
 
-buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
+build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
-- connectivity matrices for element to elements and elements to face
+- connectivity matrices for element to elements and elements to face. assumes periodic
 
 # Arguments
 
@@ -710,8 +839,8 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 -   `nfp`: 1
 -   `nfaces`: 2
 -   `fmask`: an element by element mask to extract edge values
--   `EToE`: element to element connectivity
--   `EToF`: element to face connectivity
+-   `EtoE`: element to element connectivity
+-   `EtoF`: element to face connectivity
 -   `x`: Guass Lobatto points along x-direction
 -   `y`: Guass Lobatto points along y-direction
 -   `VX`: vertex stuff
@@ -725,7 +854,8 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+
     xperiod = maximum(x)-minimum(x)
     yperiod = maximum(y)-minimum(y)
     # number volume nodes consecutively
@@ -745,18 +875,20 @@ function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y
     for k1 = 1:K
         for f1 = 1:nfaces
             # find neighbor
-            k2 = EToE[k1, f1]
-            f2 = EToF[k1, f1]
+            k2 = EtoE[k1, f1]
+            f2 = EtoF[k1, f1]
 
             # reference length of edge
-            v1 = EToV[k1,f1]
-            v2 = EToV[k1, 1 + mod(f1,nfaces)]
-            refd = @. sqrt( (VX[v1] - VX[v2])^2  + (VY[v1] - VY[v2])^2       )
+            v1 = EtoV[k1,f1]
+            v2 = EtoV[k1, 1 + mod(f1,nfaces)]
+            refd = @. sqrt( ( (VX[v1] - VX[v2]))^2  + ( (VY[v1] - VY[v2]))^2       )
 
             # find volume node numbers of left and right nodes
+            # size is number of face points
             vidM = vmapM[:, f1, k1]
             vidP = vmapM[:, f2, k2]
 
+            # get the elements on the face
             x1 = x[vidM]; y1 = y[vidM]
             x2 = x[vidP]; y2 = y[vidP]
 
@@ -765,14 +897,21 @@ function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y
             y1 = y1 * one1
             x2 = x2 * one1
             y2 = y2 * one1
+            #the above is just a convenient way to do all pairwise
+            #calculations in terms of matrices
 
             # compute distance matrix
-            D = @. ( (x1 - x2')%xperiod )^2 + ( (y1 - y2')%yperiod )^2
-            mask = @. D < eps(refd)
+            D = @. ( x1 - x2')^2 + ( y1 - y2' )^2
+            #to handle periodic boundary conditions
+            Dpx = @. ( abs(x1 - x2') - xperiod )^2 + ( abs(y1 - y2') )^2
+            Dpy = @. ( abs(x1 - x2') )^2 + ( abs(y1 - y2') - yperiod )^2
+            mask = @. ( D < eps(refd) ) | ( Dpx < eps(refd) )  | ( Dpy < eps(refd) )
 
             #find linear indices
             m,n = size(D)
             d = collect(1:(m*n))
+
+            #should be of size nfp
             idM =  @. Int( floor( (d[mask[:]]-1) / m) + 1 )
             idP =  @. Int( mod( (d[mask[:]]-1) , m) + 1 )
             vmapP[idM, f1, k1] = vidP[idP]
@@ -792,8 +931,38 @@ function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y
 end
 
 
+#=
+for debugging
+EtoE = EtoEp
+EtoF = EtoFp
+vmapP = vmapPp
+# use after loop has been run
+findall(vmapP .== 0)
+one1 = ones(1, nfp)
+# the last two indices are f1 and k1 respecitively
+# inside the loop
+f1 = 1
+k1 = 1
+scatter(x1,y1)
+scatter!(x2,y2, legend = false)
+# check idP dimension, should be nfp
+=#
+
+#= could also do the mask
+mask2 = zeros(Bool,nfp,nfp)
+for i in 1:nfp
+    for j in 1:nfp
+        mask2[i,j] =  ( ( (x1[i] - x2[j])%xperiod )^2 + ( (y1[i] - y2[j])%yperiod )^2 ) < eps(refd)
+    end
+end
+#should give the number length(mask) if all true
+sum(mask .== mask2)
+=#
+
+
+
 """
-global_grid(r, s, EToV, VX, VY)
+global_grid(r, s, EtoV, VX, VY)
 
 # Description
 
@@ -803,7 +972,7 @@ global_grid(r, s, EToV, VX, VY)
 
 - `r` : ideal coordinates
 - `s` : ideal coordinates
-- `EToV` : element to vertices
+- `EtoV` : element to vertices
 - `VX` : x-coordinate of vertices
 - `VY` : y-coordinate of vertices
 
@@ -813,11 +982,11 @@ global_grid(r, s, EToV, VX, VY)
 - `y` : y-coordinates of grid
 
 """
-function global_grid(r, s, EToV, VX, VY)
+function global_grid(r, s, EtoV, VX, VY)
     #need to transpose so that the matrix multiply works
-    va = EToV[:,1]'
-    vb = EToV[:,2]'
-    vc = EToV[:,3]'
+    va = EtoV[:,1]'
+    vb = EtoV[:,2]'
+    vc = EtoV[:,3]'
     # global x and y values constructed from ideal coordinates and grid
     x =  0.5 * ( - (r+s) * VX[va] + (1 .+ r)*VX[vb] + (1 .+s)*VX[vc])
     y =  0.5 * ( - (r+s) * VY[va] + (1 .+ r)*VY[vb] + (1 .+s)*VY[vc])
@@ -916,7 +1085,7 @@ struct garbage_triangle3{T, S, U, W, V}
     fscale::T
 
     function garbage_triangle3(n, filename)
-        Nv, VX, VY, K, EToV = meshreader_gambit2D(filename)
+        Nv, VX, VY, K, EtoV = meshreader_gambit2D(filename)
 
         #get number of points
         nfp = n+1
@@ -936,7 +1105,7 @@ struct garbage_triangle3{T, S, U, W, V}
         Dʳ, Dˢ = dmatrices2D(n , r, s, V)
 
         # build global grid
-        x,y = global_grid(r, s, EToV, VX, VY)
+        x,y = global_grid(r, s, EtoV, VX, VY)
 
         # create fmask
         fmask = create_fmask(r, s)
@@ -948,10 +1117,10 @@ struct garbage_triangle3{T, S, U, W, V}
         nx, ny, sJ = normals2D(x, y, Dʳ, Dˢ, fmask, nfp, K)
         fscale = sJ ./ J[fmask[:],:]
 
-        #EToE, EToF = connect2D(EToV)
-        EToE, EToF = triangle_connect2D(EToV)
+        #EtoE, EtoF = connect2D(EtoV)
+        EtoE, EtoF = triangle_connect2D(EtoV)
 
-        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
         Vr, Vs = dvandermonde2D(n,r,s)
         Drw = (V*Vr') / (V*V')
         Dsw = (V*Vs') / (V*V')
@@ -1001,8 +1170,8 @@ struct periodic_triangle{T, S, U, W, V}
     fscale::T
 
     function periodic_triangle(n, filename)
-        Nv, VX, VY, K, EToV = meshreader_gambit2D(filename)
-        EToVp = make_periodic_2D(VX,VY, EToV)
+        Nv, VX, VY, K, EtoV = meshreader_gambit2D(filename)
+
         #get number of points
         nfp = n+1
         np = Int( (n+1)*(n+2)/2 )
@@ -1021,7 +1190,7 @@ struct periodic_triangle{T, S, U, W, V}
         Dʳ, Dˢ = dmatrices2D(n , r, s, V)
 
         # build global grid
-        x,y = global_grid(r, s, EToV, VX, VY)
+        x,y = global_grid(r, s, EtoV, VX, VY)
 
         # create fmask
         fmask = create_fmask(r, s)
@@ -1033,10 +1202,10 @@ struct periodic_triangle{T, S, U, W, V}
         nx, ny, sJ = normals2D(x, y, Dʳ, Dˢ, fmask, nfp, K)
         fscale = sJ ./ J[fmask[:],:]
 
-        #EToE, EToF = connect2D(EToV)
-        EToE, EToF = triangle_connect2D(EToVp)
+        EtoE, EtoF = connect_periodic_2D(VX, VY, EtoV)
+        #EtoE, EtoF = triangle_connect2D(EtoVp)
 
-        vmapM, vmapP, vmapB, mapB = build_periodic_maps2D(K, np, nfp, nfaces, fmask, EToE, EToF, EToV, x, y, VX, VY)
+        vmapM, vmapP, vmapB, mapB = build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
         Vr, Vs = dvandermonde2D(n,r,s)
         Drw = (V*Vr') / (V*V')
         Dsw = (V*Vs') / (V*V')
@@ -1088,24 +1257,24 @@ struct dg_garbage_triangle{T}
 end
 
 """
-make_periodic(VX,VY, EToV)
+make_periodic(VX,VY, EtoV)
 
 # Description
 
-- makes a grid periodic. note that this won't work with any grid. In particular the domain must be recangular and the vertices must exist on both sides
+- makes a grid periodic. note that this won't work with any grid. In particular the domain must be recangular and the vertices must exist on both sides. Does not work for small grids (with small number of elements)
 
 # Inputs
 
 -   `VX`: x-coordinate of vertices
 -   `VY`: y-coordinate of vertices
--   `EToV`: element to vertex connection
+-   `EtoV`: element to vertex connection
 
 # Outputs
 
--   `EToVp`: periodic element to vertex connections
+-   `EtoVp`: periodic element to vertex connections
 
 """
-function make_periodic_2D(VX,VY, EToV)
+function make_periodic_2D(VX,VY, EtoV)
     ax = minimum(VX)
     bx = maximum(VX)
     ay = minimum(VY)
@@ -1114,7 +1283,7 @@ function make_periodic_2D(VX,VY, EToV)
     yperiod = by - ay
     # build periodic index converter
     conv = collect(1:length(VX))
-    #build association map to create EToVp (periodic version)
+    #build association map to create EtoVp (periodic version)
     minindx = findall( VX .≈ ax )
     minindy = findall( VY .≈ ay )
     maxindx = findall( VX .≈ bx )
@@ -1144,7 +1313,6 @@ function make_periodic_2D(VX,VY, EToV)
     minindt = [minindx; minindy]
     maxindt = [maxindx; maxindy]
 
-    # relabel indices
     for i in 1:length(minindt)
         ii = minindt[i]
         for j in 1:length(maxindt)
@@ -1156,16 +1324,17 @@ function make_periodic_2D(VX,VY, EToV)
             end
         end
     end
+
     # make sure there is only one corner
+
     for i in 1:length(VX)
         if conv[i] in corners
             conv[i] = corners[1]
         end
     end
-
-    EToVp = copy(EToV)
-    for i in 1:length(EToVp)
-        EToVp[i] = conv[ EToVp[i] ] # convert to appropriate vertex
+    EtoVp = copy(EtoV)
+    for i in 1:length(EtoVp)
+        EtoVp[i] = conv[ EtoVp[i] ] # convert to appropriate vertex
     end
-    return EToVp
+    return EtoVp
 end

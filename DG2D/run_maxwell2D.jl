@@ -42,6 +42,7 @@ n = m = 1
 
 # solve equations
 stoptime = 1
+Nsteps = ceil(Int, stoptime / dt)
 fields = (Hˣ, Hʸ, Eᶻ)
 α = 0 # determine upwind or central flux
 params = (𝒢, α)
@@ -52,15 +53,14 @@ display(Hˣ.u̇)
 display(Hʸ.u̇)
 display(Eᶻ.u̇)
 
-solutions = rk_solver!(dg_maxwell2D!, fields, params, stoptime, dt)
+solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, Nsteps)
 
 gr()
-endtime = length(solutions[1])
-# steps = Int(endtime)
+step = floor(Int, Nsteps / 50)
 
 fieldNames = [ "H^{x}", "H^{y}", "E^{z}"]
 
-@animate for t in 1:endtime
+@animate for t in 1:step:Nsteps
     plots = []
     for (i, sol) in enumerate(solutions)
         ploti = surface(x[:],y[:],sol[t][:], title = fieldNames[i], camera = (15,60))

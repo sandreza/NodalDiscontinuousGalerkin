@@ -441,16 +441,13 @@ rk_solver!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function rk_solver!(rhs!, fields, params, stoptime, dt)
+function rk_solver!(rhs!, fields, params, dt, Nsteps)
     # Runge-Kutta residual storage
     nFields = length(fields)
     solutions = []
     for i in 1:nFields
         push!(solutions, [])
     end
-
-    # store solutions at all times
-    Nsteps = ceil(Int, stoptime / dt)
 
     # time step loop
     for tstep in 1:Nsteps

@@ -1,6 +1,6 @@
 include("../src/utils.jl")
-include("element2D.jl")
 include("rectangles.jl")
+include("triangles.jl")
 
 using SparseArrays
 using LinearAlgebra
@@ -139,6 +139,7 @@ function meshreader_gambit2D(_filename)
     #first get node coordinates
     VX = ones(Nv)
     VY = ones(Nv)
+    vertices = Tuple{Float64,Float64}[]
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
@@ -166,9 +167,13 @@ function meshreader_gambit2D(_filename)
         EtoV[k,:] = dims[4:6]
     end
 
-    #close the file
+    # close the file
     close(f)
-    return Nv, VX, VY, K, EtoV
+
+    # make mesh object
+    ℳ = Mesh2D(K, vertices, EtoV, 3)
+
+    return ℳ
 end
 
 """
@@ -251,12 +256,14 @@ function makenodes2D(ℳ::Mesh2D, N::Int)
     x = Float64[]
     for k in 1:ℳ.K
         # check number of faces, maybe eventually do on an element by element basis
-        if ℳ.nFaces == 3
-            # build a triangle, needs to be implemented
-            return
-        elseif ℳ.nFaces == 4
+        vertices = view(ℳ.EtoV, k, :)
+        nFaces = length(vertices)
+        if nFaces == 3
+            # build a triangle
+            Ωᵏ = triangle(k, vertices, N, ℳ.vertices)
+        elseif nFaces == 4
             # build a rectangle
-            Ωᵏ = rectangle(k, ℳ.EtoV, N, N, ℳ.vertices)
+            Ωᵏ = rectangle(k, vertices, N, N, ℳ.vertices)
         else
             # we will never use any other polygon ???
             return

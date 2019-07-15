@@ -10,20 +10,17 @@ rectangle(k, EtoV, N, M, vmap)
 # Arguments
 
 -   `k`: element number in global map
--   `EtoV`: element to vertex map
+-   `vertices`: local vertex indices
 -   `N`: polynomial order along first axis within element
 -   `M`: polynomial order along second axis within element
--   `vmap`: array of vertices
+-   `vmap`: physical coordinates of global vertices
 
 # Return Values:
 
 -   `rect`: a properly initiliazed Element2D object
 
 """
-function rectangle(index, EtoV, N, M, vmap)
-    vertices = view(EtoV, index, :)
-    nFaces = length(vertices)
-
+function rectangle(index, vertices, N, M, vmap)
     # GL points in each dimension
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
@@ -53,11 +50,11 @@ function rectangle(index, EtoV, N, M, vmap)
             for j in 1:m
                 k += 1
 
-                r̃[k, :] = [a[i] b[j]]
+                r̃[k,:] = [a[i] b[j]]
 
                 x = (xmax - xmin) * (a[i] + 1) / 2 + xmin
                 y = (ymax - ymin) * (b[j] + 1) / 2 + ymin
-                x̃[k, :] = [x y]
+                x̃[k,:] = [x y]
             end
         end
     end
@@ -66,7 +63,7 @@ function rectangle(index, EtoV, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # construct element
-    rect = Element2D(index,vertices, r̃,x̃, fmask,n̂,Jˢ, D,lift)
+    rect = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
 
     return rect
 end

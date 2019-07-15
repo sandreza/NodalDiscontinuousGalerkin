@@ -31,7 +31,6 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     vertices::T
 
     # GL points and normals
-    r::U # ideal coordinates
     x::U # physical coordinates
     nGL::S # number of points
 
@@ -50,7 +49,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     rˣ::Y
     volume::X
 
-    function Element2D(index,vertices, r̃,x̃, fmask,n̂,Jˢ, D,lift)
+    function Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
         # number of points on the boundary
         nFPᵏ,nFaces = size(fmask)
         nBP = nFPᵏ * nFaces
@@ -77,8 +76,8 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
         # volume of element
         volume = @. Jˢ / J[fmask][:]
-
-        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(fmask),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,nGL,  fmask,nBP,n̂, D,lift, J,x̃ʳ,r̃ˣ,volume)
+        
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(fmask),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, x̃,nGL, fmask,nBP,n̂, D,lift, J,x̃ʳ,r̃ˣ,volume)
     end
 end
 

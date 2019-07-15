@@ -59,9 +59,9 @@ function dg_maxwell2D!(fields, params)
             ∇Hʸ = view(Hʸ.∇u, nGLᵏ)
             ∇Eᶻ = view(Eᶻ.∇u, nGLᵏ)
 
-            ΔHˣ = Array(view(Hˣ.Δu, nBPᵏ))
-            ΔHʸ = Array(view(Hʸ.Δu, nBPᵏ))
-            ΔEᶻ = Array(view(Eᶻ.Δu, nBPᵏ))
+            ΔHˣ = view(Hˣ.Δu, nBPᵏ)
+            ΔHʸ = view(Hʸ.Δu, nBPᵏ)
+            ΔEᶻ = view(Eᶻ.Δu, nBPᵏ)
 
             fHˣ = view(Hˣ.f, nBPᵏ)
             fHʸ = view(Hʸ.f, nBPᵏ)
@@ -79,13 +79,17 @@ function dg_maxwell2D!(fields, params)
             @. fEᶻ = -1 * n̂ˣ * ΔHʸ + n̂ʸ * ΔHˣ + (-1 * α * ΔEᶻ)
 
             # local derivatives of the fields
-            ∇Hʸ,-∇Hˣ = ∇(uEᶻ, Ωᵏ)
-            ∇Eᶻ = ∇⨂(uHˣ, uHʸ, Ωᵏ)
+            ∇!(∇Hʸ, ∇Hˣ, uEᶻ, Ωᵏ)
+            ∇⨂!(∇Eᶻ, uHˣ, uHʸ, Ωᵏ)
 
             # compute RHS of PDE's
-            u̇Hˣ += ∇Hˣ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHˣ)
-            u̇Hʸ += ∇Hʸ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHʸ)
-            u̇Eᶻ += ∇Eᶻ + 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fEᶻ)
+            liftHˣ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHˣ)
+            liftHʸ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHʸ)
+            liftEᶻ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fEᶻ)
+
+            @. u̇Hˣ = -∇Hˣ + liftHˣ
+            @. u̇Hʸ =  ∇Hʸ + liftHʸ
+            @. u̇Eᶻ =  ∇Eᶻ + liftEᶻ
         end
     end
 

@@ -444,10 +444,13 @@ rk_solver!(u̇, u, params, t)
 function rk_solver!(rhs!, fields, params, stoptime, dt)
     # Runge-Kutta residual storage
     nFields = length(fields)
+    solutions = []
+    for i in 1:nFields
+        push!(solutions, [])
+    end
 
     # store solutions at all times
     Nsteps = ceil(Int, stoptime / dt)
-    solutions = Any[]
 
     # time step loop
     for tstep in 1:Nsteps
@@ -463,13 +466,11 @@ function rk_solver!(rhs!, fields, params, stoptime, dt)
             end
         end
 
-        sol = Any[]
-        for field in fields
+        for (i,field) in enumerate(fields)
             uᵗ = similar(field.u)
             @. uᵗ = field.u
-            push!(sol, uᵗ)
+            push!(solutions[i], uᵗ)
         end
-        push!(solutions, sol)
 
         if (tstep % 10000) == 0
             println( string(tstep, " / ", Nsteps))

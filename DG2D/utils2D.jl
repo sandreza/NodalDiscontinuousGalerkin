@@ -1,7 +1,7 @@
 using Plots
 
 """
-partials(rˣ)
+partials(r̃ˣ)
 
 # Description
 
@@ -9,7 +9,7 @@ partials(rˣ)
 
 # Arguments
 
--   `rˣ`: array of matrices to convert
+-   `r̃ˣ`: array of matrices to convert
 
 # Return Values
 
@@ -39,16 +39,15 @@ end
 
 # Arguments
 
+-   `uˣ`: where to store first component of the gradient
+-   `uʸ`: where to store second component of the gradient
 -   `u`: scalar to take gradient of
 -   `Ω`: element to compute in
 
 # Return Values
 
--   `uˣ`: first component of the gradient
--   `uʸ`: second component of the gradient
-
 """
-function ∇(u, Ω)
+function ∇!(uˣ,uʸ, u, Ω)
     # compute partial derivatives on ideal grid
     uʳ = Ω.D[1] * u
     uˢ = Ω.D[2] * u
@@ -60,64 +59,32 @@ function ∇(u, Ω)
     uˣ = @. rˣ * uʳ + sˣ * uˢ
     uʸ = @. rʸ * uʳ + sʸ * uˢ
 
-    return uˣ,uʸ
-end
-
-"""
-∇!(uˣ, uʸ, u, Ω)
-
-# Description
-
-    Compute gradient of u wrt physical grid
-
-# Arguments
-
--   `uˣ`: first component of the gradient, overwitten
--   `uʸ`: second component of the gradient, overwritten
--   `u`: scalar to take gradient of
--   `Ω`: element to compute in
-
-# Return Values
-
-
-
-"""
-function ∇!(uˣ, uʸ, u, Ω)
-    # compute partial derivatives on ideal grid
-    uʳ = Ω.Dʳ * u
-    uˢ = Ω.Dˢ * u
-
-    # compute partial derivatives on physical grid
-    @. uˣ =  Ω.rx * uʳ + Ω.sx * uˢ
-    @. uʸ =  Ω.ry * uʳ + Ω.sy * uˢ
-
     return nothing
 end
 
 """
-∇⨀(x, y, Ω)
+∇⨀!(∇⨀u, uˣ, uʸ, Ω)
 
 # Description
 
-    Compute the divergence of u=(x,y) wrt physical grid
+    Compute the divergence of u=(uˣ,uʸ) wrt physical grid
 
 # Arguments
 
--   `x`: first component of vector u
--   `y`: second component of vector u
+-   `∇⨀u`: place to store the divergence of u
+-   `uˣ`: first component of vector u
+-   `uʸ`: second component of vector u
 -   `Ω`: element to compute in
 
 # Return Values
 
--   `∇⨀u`: the divergence of u
-
 """
-function ∇⨀(x, y, Ω)
+function ∇⨀!(∇⨀u, uˣ, uʸ, Ω)
     # compute partial derivatives on ideal grid
-    xʳ = Ω.D[1] * x
-    xˢ = Ω.D[2] * x
-    yʳ = Ω.D[1] * y
-    yˢ = Ω.D[2] * y
+    xʳ = Ω.D[1] * uˣ
+    xˢ = Ω.D[2] * uˣ
+    yʳ = Ω.D[1] * uʸ
+    yˢ = Ω.D[2] * uʸ
 
     # pull partials out from Jacobian
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
@@ -125,64 +92,33 @@ function ∇⨀(x, y, Ω)
     # compute gradient on physical grid
     ∇⨀u = @. rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
 
-    return ∇⨀u
-end
-
-"""
-∇⨀!(∇⨀u, fx, fy, Ω)
-
-# Description
-
-    Compute the divergence of u=(fx,fy) wrt physical grid
-
-# Arguments
--   `∇⨀u`: allocated memory for result
--   `x`: first component of vector u
--   `y`: second component of vector u
--   `Ω`: element to compute in
-
-# Return Values
-
--   `∇⨀u`: the divergence of u
-
-"""
-function ∇⨀!(∇⨀u, x, y, Ω)
-    # compute partial derivatives on ideal grid
-    xʳ = Ω.Dʳ * x
-    xˢ = Ω.Dˢ * x
-    yʳ = Ω.Dʳ * y
-    yˢ = Ω.Dˢ * y
-
-    # compute gradient on physical grid
-    @. ∇⨀u = Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
     return nothing
 end
 
 
 """
-∇⨂(x, y, Ω)
+∇⨂!(∇⨂u, uˣ, uʸ, Ω)
 
 # Description
 
-    Compute the curl of u=(x,y) wrt physical grid
+    Compute the curl of u=(uˣ,uʸ) wrt physical grid
 
 # Arguments
 
--   `x`: first component of vector u
--   `y`: second component of vector u
+-   `∇⨂u`: place to store the curl of u
+-   `uˣ`: first component of vector u
+-   `uʸ`: second component of vector u
 -   `Ω`: element to compute in
 
 # Return Values
 
--   `∇⨂u`: the curl of u
-
 """
-function ∇⨂(x, y, Ω)
+function ∇⨂!(∇⨂u, uˣ, uʸ, Ω)
     # compute partial derivatives on ideal grid
-    xʳ = Ω.D[1] * x
-    xˢ = Ω.D[2] * x
-    yʳ = Ω.D[1] * y
-    yˢ = Ω.D[2] * y
+    xʳ = Ω.D[1] * uˣ
+    xˢ = Ω.D[2] * uˣ
+    yʳ = Ω.D[1] * uʸ
+    yˢ = Ω.D[2] * uʸ
 
     # pull partials out from Jacobian
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
@@ -190,7 +126,7 @@ function ∇⨂(x, y, Ω)
     # compute gradient on physical grid
     ∇⨂u = @. rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
 
-    return ∇⨂u
+    return nothing
 end
 
 """

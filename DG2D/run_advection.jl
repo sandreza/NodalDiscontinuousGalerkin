@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 15
+n = 5
 timings = false
 gradients_check = false
 solve_ode = true
@@ -16,7 +16,7 @@ upwind_check = false
 plot_solution = true
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
-FileName = "Maxwell05.neu"
+FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = periodic_triangle(n, filename)
@@ -41,7 +41,7 @@ println("We have")
 println(length(mesh.x))
 println("degrees of freedom")
 offsetx = 0.0
-offsety = 0.5
+offsety = -0.5
 #define stream function and components of velocity
 ψ(x, y, γ) = exp(γ*(y-1)^2 ) * cos(π/2 * x) * cos(π/2 * y)
 u1(x, y, γ) =  cos(π/2 * y) * cos(π/2 * x) * γ * 2 * (y-1) * exp(γ*(y-1)^2 )  - π / 2 * sin(π/2 * y) * exp(γ*(y-1)^2 ) * cos(π/2 * x)
@@ -52,7 +52,7 @@ u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * c
 
 ψ(x, y, γ)  = x+y
 u1(x, y, γ) =  1.0
-u2(x, y, γ) = 1.0
+u2(x, y, γ) = 0.0
 
 #u0(x, y, μ) = sin(x)*cos(y) + x
 #u0(x, y, μ) =  1.0
@@ -60,7 +60,7 @@ u2(x, y, γ) = 1.0
 
 
 #define initial conditions and velocity field
-γ = -0.0
+γ = -2.0
 μ = 10.0
 u⁰ = [u0(x[i,j],y[i,j],μ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 ψᵏ = [ψ(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
@@ -94,8 +94,8 @@ tspan = (0.0, 4.0)
 𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-#rhs! = dg_upwind_2D!
-rhs! = dg_upwind_sym_2D!
+rhs! = dg_upwind_2D!
+#rhs! = dg_upwind_sym_2D!
 dt =  1.0 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)

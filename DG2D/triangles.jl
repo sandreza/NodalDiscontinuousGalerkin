@@ -635,6 +635,7 @@ function connect_periodic_2D(VX, VY, EtoV)
     maxindx = findall( VX .≈ bx )
     maxindy = findall( VY .≈ by )
 
+    #match up appropriate vertices, does not generalize to 3D
     leftface = sortslices([VY[minindx] minindx], dims = 1)
     rightface = sortslices([VY[maxindx] maxindx], dims = 1)
     bottomface = sortslices([VX[minindy] minindy], dims = 1)
@@ -669,12 +670,13 @@ function connect_periodic_2D(VX, VY, EtoV)
         end
     end
 
+    # now make correction for periodic case
     for i in 1:(nfaces*K)
         for k in 1:(length(leftface[:,2])-1)
             vecL = Int.(leftface[k:k+1 , 2])
             vecR = Int.(rightface[k:k+1, 2])
             # identify left face with right face
-            if sum(FtoV[i, vecL])==2
+            if sum(FtoV[i, vecL])== 2
                 @. FtoV[i, vecL] = 0
                 @. FtoV[i,vecR] = 1
                 dropzeros!(FtoV)

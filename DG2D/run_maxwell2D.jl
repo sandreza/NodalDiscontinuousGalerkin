@@ -4,9 +4,9 @@ include("dg_maxwell2D.jl")
 using Plots
 
 # set number of DG elements and poly order
-K = 2^2
-L = 2^3
-N = 2^3-1
+K = 2^1
+L = 2^1
+N = 2^1-1
 dof = (N+1) * K * L
 
 println("The degrees of freedom are $dof")
@@ -20,6 +20,8 @@ xmax = ymax = 1.0
 𝒢 = Grid2D(ℳ, N)
 x = 𝒢.x[:,1]
 y = 𝒢.x[:,2]
+
+# plotgrid2D(𝒢)
 
 # determine timestep
 vmax = 1 # no material here
@@ -41,7 +43,7 @@ n = m = 1
 # solve equations
 stoptime = 10
 fields = (Hˣ, Hʸ, Eᶻ)
-α = 1 # determine upwind or central flux
+α = 0 # determine upwind or central flux
 params = (𝒢, α)
 rhs! = dg_maxwell2D!
 

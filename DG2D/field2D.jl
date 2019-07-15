@@ -32,11 +32,11 @@ struct Field2D{T} <: AbstractField2D
         # set up the solution
         u  = zeros(𝒢.nGL)
         u̇  = zeros(𝒢.nGL)
-        Δu = zeros(𝒢.nGL)
         ∇u = zeros(𝒢.nGL)
-        f  = zeros(𝒢.nGL)
+        Δu = zeros(𝒢.nBP)
+        f  = zeros(𝒢.nBP)
         r  = zeros(𝒢.nGL)
 
-        return new{typeof(u)}(u, u̇, Δu, ∇u, f)
+        return new{typeof(u)}(u, u̇, Δu, ∇u, f, r)
     end
 end

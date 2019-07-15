@@ -67,8 +67,9 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     Ω::T
 
     # GL points
-    nGL::U # number of points
-    x::V # physical coordinates
+    x::U # physical coordinates
+    nGL::V # number of points
+    nBP::V # number of points on the boundary
 
     # maps maps maps
     vmap⁻::W
@@ -81,16 +82,16 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
         Ω,x̃ = makenodes2D(ℳ, N)
         nGL = length(x̃[:,1])
 
-
         # make a facemask
         fmask = Ω[1].fmask # same as with nGLᵏ, should eventually be done on an element by element basis
-        nFP,nFaces = size(fmask)
+        nFPᵏ,nFaces = size(fmask)
+        nBP = Ω[1].nBP * ℳ.K
         nGLᵏ = length(Ω[1].x[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
 
         # build the boundary maps
-        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFP, nGLᵏ, fmask, x̃)
+        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFPᵏ, nGLᵏ, fmask, x̃)
 
-        return new{typeof(ℳ),typeof(Ω),typeof(nGL),typeof(x̃),typeof(vmap⁻)}(ℳ, Ω, nGL,x̃, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
+        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(vmap⁻)}(ℳ,Ω, x̃,nGL,nBP, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
     end
 end
 
@@ -363,8 +364,8 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     vmap⁻ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
     vmap⁺ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
     # not actually used ???
-    # map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
-    # map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
+    map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
+    map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
 
     # find index of interior face nodes wrt volume node ordering
     for k in 1:ℳ.K
@@ -418,7 +419,7 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
 
                 # save exterior node that interior node maps to
                 vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
-                # @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
+                @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end
         end
     end
@@ -428,7 +429,7 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     vmap⁻ = reshape(vmap⁻, length(vmap⁻))
 
     # Create list of boundary nodes
-    mapᴮ = collect(Int, 1:length(vmap⁺))[vmap⁺ .== vmap⁻]
+    mapᴮ = map⁺[vmap⁺ .== vmap⁻]
     vmapᴮ = vmap⁻[mapᴮ]
 
     return vmap⁻, vmap⁺, vmapᴮ, mapᴮ

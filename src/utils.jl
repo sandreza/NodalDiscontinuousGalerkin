@@ -457,8 +457,8 @@ function rk_solver!(rhs!, fields, params, stoptime, dt)
 
             # update solutions
             for field in fields
-                field.r = rk4a[iRK] * field.r + field.u̇ * dt
-                field.u = rk4b[iRK] * field.r + field.u
+                @. field.r = rk4a[iRK] * field.r + field.u̇ * dt
+                @. field.u = rk4b[iRK] * field.r + field.u
                 # seems to differ from matlab code during this step ???
             end
         end
@@ -476,7 +476,7 @@ function rk_solver!(rhs!, fields, params, stoptime, dt)
         end
     end
 
-    return sol
+    return solutions
 end
 
 """

@@ -32,7 +32,7 @@ function rectangle(index, EtoV, N, M, vmap)
     m = length(b)
 
     # get normals
-    n̂ = normalsSQ(n, m)
+    n̂,Jˢ = normalsSQ(n, m)
 
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
@@ -66,7 +66,7 @@ function rectangle(index, EtoV, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # construct element
-    rect = Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
+    rect = Element2D(index,vertices, r̃,x̃, fmask,n̂,Jˢ, D,lift)
 
     return rect
 end
@@ -281,7 +281,8 @@ normalsSQ(n, m)
 
 function normalsSQ(n, m)
     # empty vectors of right length
-    n̂ = zeros(n+m+n+m, 2)
+    n̂  = zeros(n+m+n+m, 2)
+    Jˢ = ones(n+m+n+m) # squares don't need to worry about this
 
     # ending index for each face
     nf1 = m
@@ -302,7 +303,7 @@ function normalsSQ(n, m)
         end
     end
 
-    return n̂
+    return n̂,Jˢ
 end
 
 """

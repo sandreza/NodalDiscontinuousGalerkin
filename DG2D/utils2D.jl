@@ -19,12 +19,12 @@ partials(rˣ)
 -   `sʸ`: array of [2,2] entries
 
 """
-function partials(rˣ)
+function partials(r̃ˣ)
     # pull partials out from Jacobian
-    rˣ = rˣ[:,1,1]
-    sˣ = rˣ[:,2,1]
-    rʸ = rˣ[:,1,2]
-    sʸ = rˣ[:,2,2]
+    rˣ = r̃ˣ[:,1,1]
+    sˣ = r̃ˣ[:,2,1]
+    rʸ = r̃ˣ[:,1,2]
+    sʸ = r̃ˣ[:,2,2]
 
     return rˣ,sˣ,rʸ,sʸ
 end
@@ -57,8 +57,8 @@ function ∇(u, Ω)
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute partial derivatives on physical grid
-    @. uˣ = rˣ * uʳ + sˣ * uˢ
-    @. uʸ = rʸ * uʳ + sʸ * uˢ
+    uˣ = @. rˣ * uʳ + sˣ * uˢ
+    uʸ = @. rʸ * uʳ + sʸ * uˢ
 
     return uˣ,uʸ
 end

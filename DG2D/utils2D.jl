@@ -162,10 +162,10 @@ function plotgrid2D(𝒢::Grid2D)
     end
 
     # plot boundary of the elements
-    scatter!(x[𝒢.vmap⁻] , y[𝒢.vmap⁻], color = "black", legend = false)
+    scatter!(x[𝒢.nodes⁻] , y[𝒢.nodes⁻], color = "black", legend = false)
 
     # plot boundary of domain
-    scatter!(x[𝒢.vmapᴮ] , y[𝒢.vmapᴮ], color = "yellow", legend = false)
+    scatter!(x[𝒢.nodesᴮ] , y[𝒢.nodesᴮ], color = "yellow", legend = false)
 
     # display
     display(plot(grid))

@@ -26,16 +26,14 @@ function dg_maxwell2D!(fields, params)
     Eᶻ = fields[3]
 
     # define field differences at faces
-    # need to make Δu same length as other arrays
-    # each vmap is half the size of the whole array
-    @. Hˣ.Δu = Hˣ.u[𝒢.vmap⁻] - Hˣ.u[𝒢.vmap⁺]
-    @. Hʸ.Δu = Hʸ.u[𝒢.vmap⁻] - Hʸ.u[𝒢.vmap⁺]
-    @. Eᶻ.Δu = Eᶻ.u[𝒢.vmap⁻] - Eᶻ.u[𝒢.vmap⁺]
+    @. Hˣ.Δu = Hˣ.u[𝒢.nodes⁻] - Hˣ.u[𝒢.nodes⁺]
+    @. Hʸ.Δu = Hʸ.u[𝒢.nodes⁻] - Hʸ.u[𝒢.nodes⁺]
+    @. Eᶻ.Δu = Eᶻ.u[𝒢.nodes⁻] - Eᶻ.u[𝒢.nodes⁺]
 
     # impose reflective BC
     @. Hˣ.Δu[𝒢.mapᴮ] = 0
     @. Hʸ.Δu[𝒢.mapᴮ] = 0
-    @. Eᶻ.Δu[𝒢.mapᴮ] = 2 * Eᶻ.u[𝒢.vmapᴮ]
+    @. Eᶻ.Δu[𝒢.mapᴮ] = 2 * Eᶻ.u[𝒢.nodesᴮ]
 
     # perform calculations over elements
     let nGL = nBP = 0

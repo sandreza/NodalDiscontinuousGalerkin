@@ -72,26 +72,22 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     nBP::V # number of points on the boundary
 
     # maps maps maps
-    vmap⁻::W
-    vmap⁺::W
-    vmapᴮ::W
+    nodes⁻::W
+    nodes⁺::W
+    nodesᴮ::W
     mapᴮ::W
 
     function Grid2D(ℳ::Mesh2D, N::Int)
         # get elements and GL nodes
         Ω,x̃ = makenodes2D(ℳ, N)
-        nGL = length(x̃[:,1])
-
+        nGL,_ = size(x̃)
         # make a facemask
-        fmask = Ω[1].fmask # same as with nGLᵏ, should eventually be done on an element by element basis
-        nFPᵏ,nFaces = size(fmask)
-        nBP = Ω[1].nBP * ℳ.K
-        nGLᵏ = length(Ω[1].x[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
 
         # build the boundary maps
-        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFPᵏ, nGLᵏ, fmask, x̃)
+        nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL)
+        nBP = length(nodes⁻)
 
-        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(vmap⁻)}(ℳ,Ω, x̃,nGL,nBP, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
+        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(nodes⁻)}(ℳ,Ω, x̃,nGL,nBP, nodes⁻,nodes⁺,nodesᴮ,mapᴮ)
     end
 end
 
@@ -391,10 +387,11 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
 
                 # find volume node numbers of interior and exterior nodes
                 vid⁻ = vmap⁻[:, f1, k1]
+                vid⁺ = vmap⁻[:, f2, k2]
+
                 x⁻ = _nodes[:, 1][vid⁻]
                 y⁻ = _nodes[:, 2][vid⁻]
 
-                vid⁺ = vmap⁻[:, f2, k2]
                 x⁺ = _nodes[:, 1][vid⁺]
                 y⁺ = _nodes[:, 2][vid⁺]
 
@@ -425,7 +422,7 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 id⁺ =  @. mod(d-1, m) + 1
 
                 # save exterior node that interior node maps to
-                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
+                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺] # vid⁺ is a view of vmap⁻
                 @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end
         end
@@ -440,4 +437,110 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     vmapᴮ = vmap⁻[mapᴮ]
 
     return vmap⁻, vmap⁺, vmapᴮ, mapᴮ
+end
+
+function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int)
+    # create face to node connectivity matrix
+    EtoE,EtoF = connect2D(ℳ)
+
+    # find indices of interior face nodes
+    vmap⁻ = []
+    nodes = collect(Int, 1:nGL)
+    let nGLᵏ = 0
+        for k in 1:ℳ.K
+            # get element
+            Ωᵏ = Ω[k]
+            push!(vmap⁻, [])
+            nFaces = length(Ωᵏ.vertices)
+
+            # get number of GL points in element k
+            xᵏ = (nGLᵏ + 1):(nGLᵏ + Ωᵏ.nGL)
+            nGLᵏ += Ωᵏ.nGL
+
+            # extract indices of GL points in element k
+            nodesᵏ = nodes[xᵏ]
+
+            for f in 1:nFaces
+                # get GL points on face f
+                maskᶠ = Ωᵏ.fmask[:, f]
+
+                # save global indices of GL on face f
+                push!(vmap⁻[k], nodesᵏ[maskᶠ])
+            end
+        end
+    end
+
+    # find indices of exterior nodes
+    vmap⁺ = []
+    for k in 1:ℳ.K
+        # get element
+        Ωᵏ = Ω[k]
+        push!(vmap⁺, [])
+        nFaces = length(Ωᵏ.vertices)
+
+        for f⁻ in 1:nFaces
+            # find neighbor and matching face
+            j  = EtoE[k, f⁻]
+            f⁺ = EtoF[k, f⁻]
+
+            # get neighbor
+            Ωʲ = Ω[j]
+
+            # get indices of GL points on the faces
+            mask⁻ = Ωᵏ.fmask[:, f⁻]
+            mask⁺ = Ωʲ.fmask[:, f⁺]
+
+            # get coordinates of GL points on the faces
+            x⁻ = Ωᵏ.x[mask⁻, :]
+            x⁺ = Ωʲ.x[mask⁺, :]
+
+            nFP,_ = size(x⁻)
+            # create distance matrix
+            D = zeros(nFP, nFP)
+            for i in 1:nFP
+                for j in 1:i
+                    D[j,i] = (x⁻[i, 1] - x⁺[j, 1])^2 + (x⁻[i, 2] - x⁺[j, 2])^2
+                end
+            end
+            D = Symmetric(D)
+
+            # reference length of edge
+            v1 = ℳ.vertices[ℳ.EtoV[k,f⁻]]
+            v2 = ℳ.vertices[ℳ.EtoV[k, 1 + mod(f⁻, nFaces)]]
+            refd = sqrt((v1[1] - v2[1])^2 + (v1[2] - v2[2])^2)
+
+            # find indices of GL points on the boundary of the element
+            # i.e. distance between them is less than the reference difference
+            mask = @. sqrt(abs(D)) < eps(refd)
+
+            # convert from matrix mask to linear mask
+            m,n = size(D)
+            d = collect(Int, 1:(m*n))[mask[:]]
+
+            # find IDs of matching interior and exterior GL nodes
+            id⁻ =  @. floor(Int, (d-1)/m) + 1
+            id⁺ =  @. mod(d-1, m) + 1
+
+            # save exterior node that interior node maps to
+            push!(vmap⁺[k], vmap⁻[j][f⁺][id⁺])
+        end
+    end
+
+    # flatten lists of interior and exterior nodes
+    nodes⁻ = Int64[]
+    nodes⁺ = Int64[]
+    for k in 1:ℳ.K
+        for f in 1:length(Ω[k].vertices)
+            nodes⁻ = cat(nodes⁻, vmap⁻[k][f], dims=1)
+            nodes⁺ = cat(nodes⁺, vmap⁺[k][f], dims=1)
+        end
+    end
+
+    # Create list of boundary nodes
+    map⁻ = collect(Int, 1:length(nodes⁻))
+    mapᴮ = map⁻[nodes⁺ .== nodes⁻]
+    nodesᴮ = nodes⁻[mapᴮ]
+
+    return nodes⁻, nodes⁺, nodesᴮ, mapᴮ
+
 end

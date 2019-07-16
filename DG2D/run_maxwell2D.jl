@@ -17,15 +17,15 @@ filename = filepath * filename
 
 # set number of DG elements and poly order
 N = 2
-dof = (N+1)^2 * length(ℳ.EtoV[:,1])
-
-println("The degrees of freedom are $dof")
 
 # make grid
 𝒢 = Grid2D(ℳ, N)
 x = 𝒢.x[:,1]
 y = 𝒢.x[:,2]
 plotgrid2D(𝒢)
+
+dof = 𝒢.nGL
+println("The degrees of freedom are $dof")
 
 # determine timestep
 vmax = 10 # no material here

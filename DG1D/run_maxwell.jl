@@ -36,20 +36,18 @@ H = dg(𝒢)
 @. H.u = 0*x
 
 # solve equations
-tspan  = (0.0, 10)
-params = (𝒢, E, H, ext)
+tmax = 10.0
+Nsteps = ceil(Int, tmax / dt)
+params = (𝒢, ext)
 rhs! = dg_maxwell!
 
-u = [E.u, H.u]
-u̇ = [E.u̇, H.u̇]
+fields = (E, H)
 
 # dg_maxwell!(u̇, u, params, 0)
 
-# prob = ODEProblem(rhs!, u, tspan, params);
-# sol  = solve(prob, Tsit5(), dt=dt, adaptive = false);
-sol = rk_solver!(dg_maxwell!, u̇, u, params, tspan, dt)
+sol = rk_solver!(dg_maxwell!, fields, params, dt, Nsteps)
 
-nt = length(sol)
+nt = Nsteps
 num = 100
 step = floor(Int, nt/num)
 num = floor(Int, nt/step)
@@ -57,9 +55,9 @@ indices = step * collect(1:num)
 pushfirst!(indices, 1)
 push!(indices, nt)
 
-for i in indices
-   plt = plot(x, sol[i][1], xlims=(xmin,xmax), ylims = (-1.1,1.1), color = "yellow",  leg = false)
-   plot!(     x, sol[i][2], xlims=(xmin,xmax), ylims = (-1.1,1.1), color = "blue", leg = false)
+@animate for i in indices
+   plt = plot(x, sol[1][i], xlims=(xmin,xmax), ylims = (-1.1,1.1), color = "yellow",  leg = false)
+   plot!(     x, sol[2][i], xlims=(xmin,xmax), ylims = (-1.1,1.1), color = "blue", leg = false)
    display(plt)
-   sleep(0.05)
+   # sleep(0.05)
 end

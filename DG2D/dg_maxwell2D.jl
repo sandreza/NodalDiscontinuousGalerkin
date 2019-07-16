@@ -42,9 +42,10 @@ function dg_maxwell2D!(fields, params)
         for k in 𝒢.ℳ.K
             # get element and number of GL points
             Ωᵏ = 𝒢.Ω[k]
-            nGLᵏ = (nGL + 1):(nGL + length(Ωᵏ.x[:,1]))
+            nGLᵏ = (nGL + 1):(nGL + Ωᵏ.nGL)
             nBPᵏ = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += length(Ωᵏ.x[:,1])
+            nGL += Ωᵏ.nGL
+            nBP += Ωᵏ.nBP
 
             # get views of computation elements
             uHˣ = view(Hˣ.u, nGLᵏ)

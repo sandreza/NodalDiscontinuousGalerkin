@@ -7,13 +7,14 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 5
+n = 1
 timings = false
 gradients_check = false
-solve_ode = true
+solve_ode = false
 euler = false
 upwind_check = false
-plot_solution = true
+plot_solution = false
+forward_and_backwards = true
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
 FileName = "Maxwell025.neu"
@@ -49,18 +50,18 @@ u2(x, y, γ) = π / 2 * sin(π/2 * x) * exp(γ*(y-1)^2 ) * cos(π/2 * y)
 u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * cos(π/2 * y)
 
 #simpler
-
+#=
 ψ(x, y, γ)  = x+y
 u1(x, y, γ) =  1.0
 u2(x, y, γ) = 0.0
-
+=#
 #u0(x, y, μ) = sin(x)*cos(y) + x
 #u0(x, y, μ) =  1.0
 
 
 
 #define initial conditions and velocity field
-γ = -2.0
+γ = -0.0
 μ = 10.0
 u⁰ = [u0(x[i,j],y[i,j],μ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 ψᵏ = [ψ(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
@@ -94,9 +95,11 @@ tspan = (0.0, 4.0)
 𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-rhs! = dg_upwind_2D!
-#rhs! = dg_upwind_sym_2D!
-dt =  1.0 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
+#rhs! = dg_upwind_2D!
+
+# to reduce aliasing errors
+rhs! = dg_upwind_sym_2D!
+dt =  0.5 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
 # find numerical velocity field
@@ -262,6 +265,41 @@ if plot_solution
     println(norm(sol.u[1]-sol.u[end]))
 end
 
+if forward_and_backwards
+    prob = ODEProblem(rhs!, u, tspan, params);
+    sol_f  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+    println("done with forwards")
+    params = (mesh, field, external)
+    @. external.v1 *= -1
+    @. external.v2 *= -1
+    u = copy(sol_f.u[end])
+    prob = ODEProblem(rhs!, u, tspan, params);
+    sol_b  = solve(prob, RK4(), dt=dt, adaptive = false);
+    println("done with backwards")
+
+    #now plot
+    gr()
+    endtime = length(sol_f.t)
+    steps = Int( floor(endtime / 40))
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol_f.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol_b.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    println("the relative error is")
+    println(norm(sol_f.u[1]-sol_b.u[end])/norm(sol_f.u[1]))
+end
 
 ###
  p1 = scatter(x[:,1],y[:,1])

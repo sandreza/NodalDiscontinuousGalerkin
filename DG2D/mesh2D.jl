@@ -169,6 +169,115 @@ function meshreader_gambit2D(_filename)
 end
 
 """
+meshreader_gambit_bc_2D(filename)
+
+# Description
+
+- Reads the .neu files from NDG, includes bc data
+
+# Arguments
+
+- `filename`: a string that contains the path to the file
+
+# Return : Nv, VX, VY, K, EtoV
+
+- `Nv` :   number of vertices
+- `VX` :   x coordinate of vertex
+- `VY` :   y coordinate of vertex
+- `K`  :   number of elements
+- `EtoV` : element to vertex connection
+- `bctype`: matrix that contains which vertices for boundary data
+- `bc_name`: for knowing what the indices actually mean
+
+# more detail
+if bctype[element_number, vertex] = index
+then it is a bc_name[index] bundary condition
+
+"""
+function meshreader_gambit_bc_2D(_filename)
+    #open file
+    f = open(_filename)
+    #get things line by line, lines[1] is the first line of the file
+    lines = readlines(f)
+
+    # in the standard .neu format line 7 contains the data for
+    # reading the the number of edges and vertices
+    # lines[6] contains the data for whats going on
+    #println(lines[6])
+    #println(lines[7])
+    data = lines[7]
+    #split up the blank spaces
+    dims = split(data)
+    #reinterpret the strings as integers
+    dims = map(x->parse(Int,x), dims)
+
+    #Now we can extract Nv and K
+    Nv = dims[1]
+    K  = dims[2]
+
+    #first get node coordinates
+    VX = ones(Nv)
+    VY = ones(Nv)
+
+    # the lines with data start at lines[10]
+    # the lines end with lines[10+Nv]
+    vertices = []
+    for i ∈ 1:Nv
+        data = lines[9+i]
+        #split up the blank spaces
+        dims = split(data)
+        #reinterpret the strings as floats
+        dims = map(x->parse(Float64,x), dims)
+        VX[i] = dims[2]
+        VY[i] = dims[3]
+        push!(vertices, (dims[2], dims[3]))
+    end
+    #define EtoV matrix
+    EtoV = zeros(Int, K, 3)
+
+    # the lines with data start at lines[11+Nv]
+    for k ∈ 1:K
+        data = lines[11+Nv+k]
+        #split up the blank spaces
+        dims = split(data)
+        #reinterpret the strings as Ints
+        dims = map(x->parse(Int,x), dims)
+        #set the elements
+        EtoV[k,:] = dims[4:6]
+    end
+
+    #first find the line numbers
+    bc_name = ["In", "Out", "Wall", "Cyl"] #not exhaustive
+    bc_line = []
+    bc_label = []
+    for j in 1:length(lines)
+        for bc_type ∈ bc_name
+            if  occursin(bc_type, lines[j])
+                push!(bc_line, j)
+                push!(bc_label, bc_type)
+            end
+        end
+    end
+
+    #then find the data for the line numbers
+    bctype = zeros(Int, size(EtoV))
+    for j in bc_line
+        bc_type_index = findall(j .== bc_line)
+        for i in 1:(length(lines)-j)
+            if occursin("ENDOFSECTION", lines[j+i])
+                break
+            end
+            bcs = split(lines[j+i])
+            bcs = map(x->parse(Int,x), bcs)
+            bctype[bcs[1], bcs[3]] = bc_type_index[1]
+        end
+    end
+
+    close(f)
+    return Nv, VX, VY, K, EtoV, bctype, bc_name
+end
+
+"""
 rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 # Description

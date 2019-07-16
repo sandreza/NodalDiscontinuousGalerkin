@@ -671,12 +671,14 @@ function connect_periodic_2D(VX, VY, EtoV)
     end
 
     # now make correction for periodic case
+    # should only need to loop over elements on boundary
+
     for i in 1:(nfaces*K)
         for k in 1:(length(leftface[:,2])-1)
             vecL = Int.(leftface[k:k+1 , 2])
             vecR = Int.(rightface[k:k+1, 2])
             # identify left face with right face
-            if sum(FtoV[i, vecL])== 2
+            if sum(FtoV[i, vecL]) == 2
                 @. FtoV[i, vecL] = 0
                 @. FtoV[i,vecR] = 1
                 dropzeros!(FtoV)
@@ -1040,10 +1042,50 @@ find_edge_nodes(fmask, x, y)
 
 """
 function find_edge_nodes(fmask, x, y)
-    edge_x = x[fmask[:],:]
-    edge_y = y[fmask[:],:]
+    edge_x = x[fmask[:], :]
+    edge_y = y[fmask[:], :]
     return edge_x, edge_y
 end
+
+"""
+build_bc_maps(mesh, bctype, bc_label)
+
+# Description
+
+- find the indices corresponding to boundary data
+
+# Arguments
+
+- `mesh` : mesh struct
+-  `bctype` : matrix corresponding to boundary conditions (sime size as EToV)
+-  `y` : y-coordinates of grid
+
+# Return
+
+- `mapT`: inflow and outflow maps
+- `vmapT`: inflow and outlfow global indices
+- `newbc_label`: labels for indices
+
+# Example
+
+- the array mapT[index] corresponds to boundary condition type newbc_label[i]
+
+"""
+function build_bc_maps(mesh, bctype, bc_label)
+    bct = bctype'
+    bnodes = ones(mesh.nfp) *  bct[:]'
+    btotal_ind = setdiff(union(bctype)[:],[0])
+    newbc_label = bc_label[btotal_ind]
+    mapT = []
+    vmapT = []
+    for j in btotal_ind
+        bc = findall(bnodes[:] .== j)
+        push!(mapT,bc)
+        push!(vmapT, mesh.vmapM[bc])
+    end
+    return mapT, vmapT, newbc_label
+end
+
 
 
 struct garbage_triangle3{T, S, U, W, V}
@@ -1339,4 +1381,22 @@ function make_periodic_2D(VX,VY, EtoV)
         EtoVp[i] = conv[ EtoVp[i] ] # convert to appropriate vertex
     end
     return EtoVp
+end
+
+
+"""
+plot_mesh
+
+# Description
+
+- plots the mesh
+
+"""
+function plot_mesh(mesh)
+    p1 = scatter(mesh.x, mesh.y, legend=false)
+    # plot boundary of triangles
+    scatter!(mesh.x[mesh.vmapM] , mesh.y[mesh.vmapM], color = "black", legend = false)
+    #plot boundary of domain
+    scatter!(mesh.x[mesh.vmapB] , mesh.y[mesh.vmapB], color = "yellow", legend = false)
+    display(plot(p1))
 end

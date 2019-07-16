@@ -7,10 +7,11 @@ EtoV matrix : element to vertex matrix, each row corresponds to an element, each
 using Plots
 #n = 10
 #n = 3
-n = 3
+n = 5
 periodic = false
 #FileName = "Maxwell025.neu"
 FileName = "Maxwell2.neu"
+FileName = "pvortex1A025.neu"
 filepath = "./DG2D/grids/"
 
 
@@ -178,7 +179,7 @@ invV = inv(V)
 mass_matrix = invV' * invV
 Dr, Ds = dmatrices2D(n , r, s, V)
 
-x,y = global_grid(r, s, EtoV, VX, VY)
+x, y = global_grid(r, s, EtoV, VX, VY)
 
 fmask = create_fmask(r, s)
 edge_x, edge_y = find_edge_nodes(fmask, x, y)
@@ -230,7 +231,14 @@ ind1 = 1 + (j-1)*nfp
 ind2 = j * nfp
 scatter!(x[vmapB[ind1:ind2]],y[vmapB[ind1:ind2]])
 =#
-
+p1 = scatter(mesh.x, mesh.y, legend=false)
+# plot boundary of triangles
+scatter!(mesh.x[mesh.vmapM] , mesh.y[mesh.vmapM], color = "black", legend = false)
+#plot boundary of domain
+scatter!(mesh.x[mesh.vmapB] , mesh.y[mesh.vmapB], color = "yellow", legend = false)
+display(plot(p1))
+println("the number of gridpoints are")
+println(length(x))
 ###
 ax = minimum(VX)
 bx = maximum(VX)

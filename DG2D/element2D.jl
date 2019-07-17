@@ -76,7 +76,9 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
         # volume of element
         volume = @. Jˢ / J[fmask][:]
-        
+
+        #### add nodes⁻ and nodes⁺ as struct members
+
         return new{typeof(index),typeof(vertices),typeof(x̃),typeof(fmask),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, x̃,nGL, fmask,nBP,n̂, D,lift, J,x̃ʳ,r̃ˣ,volume)
     end
 end

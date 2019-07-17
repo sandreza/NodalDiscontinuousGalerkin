@@ -443,10 +443,11 @@ rk_solver!(u̇, u, params, t)
 """
 function rk_solver!(rhs!, fields, params, dt, Nsteps)
     # Runge-Kutta residual storage
-    nFields = length(fields)
     solutions = []
-    for i in 1:nFields
-        push!(solutions, [])
+    for field in fields
+        uᵗ = similar(field.u)
+        @. uᵗ = field.u
+        push!(solutions, [uᵗ])
     end
 
     # time step loop

@@ -1,5 +1,5 @@
 # first define the stream function
-include("mesh2D.jl")
+include("grid2D.jl")
 include("dg_advection.jl")
 # choose the polynomial order
 #3 seems to be pretty efficient

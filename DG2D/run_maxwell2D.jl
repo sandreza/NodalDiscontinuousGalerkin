@@ -52,10 +52,26 @@ fields = (Hˣ, Hʸ, Eᶻ)
 params = (𝒢, α)
 rhs! = dg_maxwell2D!
 
-# g_maxwell2D!(fields, params)
-# display(Hˣ.u̇)
-# display(Hʸ.u̇)
-# display(Eᶻ.u̇)
+# exact solutions
+ω = π/sqrt(m^2 + n^2)
+tmp = collect(1:Nsteps+1)
+times = @. dt * (tmp - 1)
+H̃ˣ = @. -π*n/ω * sin(m*π*x) * cos(n*π*y)
+H̃ʸ = @. -π*m/ω * cos(m*π*x) * sin(n*π*y)
+Ẽᶻ = @. sin(m*π*x) * sin(n*π*y)
+
+exact = [[], [], []]
+for t in times
+    tH̃ˣ = @. H̃ˣ * sin(ω*t)
+    tH̃ʸ = @. H̃ʸ * sin(ω*t)
+    tẼᶻ = @. Ẽᶻ * cos(ω*t)
+
+    push!(exact[1], tH̃ˣ)
+    push!(exact[2], tH̃ʸ)
+    push!(exact[3], tẼᶻ)
+end
+
+dg_maxwell2D!(fields, params)
 
 solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, Nsteps)
 

@@ -496,26 +496,17 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int)
 
             nFP,_ = size(x⁻)
             # create distance matrix
-            D = zeros(nFP, nFP)
+            D = zeros(Int, nFP, nFP)
             for i in 1:nFP
                 for j in 1:i
-                    D[j,i] = (x⁻[i, 1] - x⁺[j, 1])^2 + (x⁻[i, 2] - x⁺[j, 2])^2
+                    D[j,i] = ((x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2]))
                 end
             end
             D = Symmetric(D)
 
-            # reference length of edge
-            v1 = ℳ.vertices[ℳ.EtoV[k,f⁻]]
-            v2 = ℳ.vertices[ℳ.EtoV[k, 1 + mod(f⁻, nFaces)]]
-            refd = sqrt((v1[1] - v2[1])^2 + (v1[2] - v2[2])^2)
-
-            # find indices of GL points on the boundary of the element
-            # i.e. distance between them is less than the reference difference
-            mask = @. sqrt(abs(D)) < eps(refd)
-
             # convert from matrix mask to linear mask
             m,n = size(D)
-            d = collect(Int, 1:(m*n))[mask[:]]
+            d = collect(Int, 1:(m*n))[Bool.(D[:])]
 
             # find IDs of matching interior and exterior GL nodes
             id⁻ =  @. floor(Int, (d-1)/m) + 1
@@ -542,5 +533,4 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int)
     nodesᴮ = nodes⁻[mapᴮ]
 
     return nodes⁻, nodes⁺, nodesᴮ, mapᴮ
-
 end

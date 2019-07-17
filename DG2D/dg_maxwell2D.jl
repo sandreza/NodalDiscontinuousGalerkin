@@ -37,7 +37,7 @@ function dg_maxwell2D!(fields, params)
 
     # perform calculations over elements
     let nGL = nBP = 0
-        for k in 𝒢.ℳ.K
+        for k in 1:𝒢.ℳ.K
             # get element and number of GL points
             Ωᵏ = 𝒢.Ω[k]
             nGLᵏ = (nGL + 1):(nGL + Ωᵏ.nGL)

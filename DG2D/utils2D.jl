@@ -170,3 +170,34 @@ function plotgrid2D(𝒢::Grid2D)
     # display
     display(plot(grid))
 end
+
+
+"""
+plotfield2D(times, solutions, x, y)
+
+# Description
+
+    Plots the fields as a function of time
+
+# Arguments
+
+-   `times`: time steps to plot
+-   `solutions`: fields to plot
+-   `x`: x coordinates of the GL points
+-   `y`: y coordinates of the GL points
+
+# Return Values
+
+    Displays a plot
+
+"""
+function plotfield2D(times, solutions, x, y)
+    @animate for t in times
+        plots = []
+        for (i,sol) in enumerate(solutions)
+            ploti = surface(x[:],y[:],sol[t][:], camera = (15,60))
+            push!(plots, ploti)
+        end
+        display(plot(plots...))
+    end
+end

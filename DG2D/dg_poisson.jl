@@ -46,7 +46,7 @@ function dg_poisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. ι.fʸ[:] = ι.φʸ[mesh.vmapM] - ι.φʸ[mesh.vmapP]
 
     #enfore boundary conditions for flux (neumann)
-    bc_φ!(ι.fˣ, ι.fʸ, dbc)
+    bc_φ!(ι.fˣ, ι.fʸ,ι.φˣ, ι.φʸ, dbc)
 
     #modify with τ, remember fⁿ is field differences at face points
     # which are are overwriting here
@@ -55,7 +55,7 @@ function dg_poisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. ι.fⁿ = (mesh.nx * ι.fˣ + mesh.ny * ι.fʸ + τ * ι.fⁿ)/ 2
 
     # compute divergence of flux, volume term
-    ∇⨀!(ι.u̇, ι.φˣ, ι.φʸ, mesh.D)
+    ∇⨀!(ι.u̇, ι.φˣ, ι.φʸ, mesh)
 
     # combine the terms
     tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) ))
@@ -68,18 +68,16 @@ end
 #builds the matrix (one column at a time) (sparse matrix)
 function poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
-    ι = triangles(mesh)
-
     @. ι.u = 0.0
     Δq = copy(ι.u)
     q =  copy(ι.u)
-
+    @. q = 0
     for i in 1:length(mesh.x)
-        ι.u[i] = 1.0
+        q[i] = 1.0
         dg_poisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:]
-        dropzeros!(L)
-        ι.u[i] = 0.0
+        q[i] = 0.0
     end
+    dropzeros!(L)
     return L
 end

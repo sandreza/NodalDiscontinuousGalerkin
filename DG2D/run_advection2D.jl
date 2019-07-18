@@ -17,7 +17,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 4
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
@@ -47,7 +47,7 @@ u⁰(x, y, σ) = exp(-σ * x^2 - σ * y^2) * cos(π/2 * x) * cos(π/2 * y)
 α = 0 # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
-@. vˣ = 0
+@. vˣ = 0.0
 @. vʸ = 0.5
 
 # solve equations

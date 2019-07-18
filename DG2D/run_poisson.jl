@@ -7,10 +7,12 @@ include("mesh2D.jl")
 include("dg_advection.jl")
 include("../DG2D/triangles.jl")
 include("../DG2D/dg_poisson.jl")
+include("../src/CuthillMckee.jl")
 
 
 timings = true
 plotting = true
+check_correctness = true
 # simulation parameters and grid
 n = 10
 FileName = "Maxwell025.neu"
@@ -39,7 +41,7 @@ function bc_u!(du, u, bc)
     @. du[bc[2]] = 2 * u[bc[1]]
 end
 #homogenous neumann
-function bc_φ!(fˣ, fʸ,φˣ, φʸ, bc)
+function bc_φ!(fˣ, fʸ, φˣ, φʸ, bc)
     @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
     @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
 end

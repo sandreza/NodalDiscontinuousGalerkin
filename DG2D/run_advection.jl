@@ -7,14 +7,14 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 7
-timings = false
+n = 10
+timings = true
 gradients_check = false
 solve_ode = false
 euler = false
 upwind_check = false
 plot_solution = false
-forward_and_backwards = true
+forward_and_backwards = false
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
 #in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]

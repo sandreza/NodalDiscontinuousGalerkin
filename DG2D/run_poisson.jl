@@ -14,7 +14,7 @@ timings = false
 plotting = true
 check_correctness = true
 # simulation parameters and grid
-n = 3
+n = 4
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
@@ -32,11 +32,13 @@ params = [τ]
 #homogenous dirichlet
 function bc_u!(du, u, bc)
     @. du[bc[2]] = 2 * u[bc[1]]
+    return nothing
 end
 #homogenous neumann
 function bc_φ!(fˣ, fʸ, φˣ, φʸ, bc)
     @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
     @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
+    return nothing
 end
 # define boundary conditions
 # check that it doesn't crash
@@ -73,8 +75,9 @@ if check_correctness
     y = mesh.y
 
     # evaluate at grid points with given values for α and β
-    α = 1
-    β = 1
+    # odd for dirichlet, even for neumann
+    α = 3
+    β = 3
     frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 
     # adjust for J * mass matrix component
@@ -91,12 +94,16 @@ if check_correctness
     println("This is a lower estimate since its on the grid points")
 
     # now to compute the solution
-    chol_∇² = cholesky(-∇²); #will need to multiply by -1
+    #chol_∇² = cholesky(-∇²); #will need to multiply by -1
+    chol_∇² = lu(-∇²); #will need to multiply by -1
     @. u = - frhs #due to cholesky nonsense
     tmpΔu = Δu[:]
     tmpu = u[:]
     #ldiv!(tmpΔu, chol_∇², tmpu)
     tmpΔu = chol_∇² \ tmpu #just using the fastest
+    #modify for neumann
+    tmpΔu = tmpΔu .- sum(tmpΔu)/length(tmpΔu) .+ sum(fsol)/length(fsol)
+    #set values
     @. Δu[:] = tmpΔu
     w2inf = maximum(abs.(Δu .- fsol)) / maximum(abs.(Δu))
     println("The relative error in computing the solution is $(w2inf)")

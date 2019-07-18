@@ -56,8 +56,8 @@ function ∇!(uˣ,uʸ, u, Ω)
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute partial derivatives on physical grid
-    uˣ = @. rˣ * uʳ + sˣ * uˢ
-    uʸ = @. rʸ * uʳ + sʸ * uˢ
+    @. uˣ = rˣ * uʳ + sˣ * uˢ
+    @. uʸ = rʸ * uʳ + sʸ * uˢ
 
     return nothing
 end
@@ -90,7 +90,7 @@ function ∇⨀!(∇⨀u, uˣ, uʸ, Ω)
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute gradient on physical grid
-    ∇⨀u = @. rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
+    @. ∇⨀u = rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
 
     return nothing
 end
@@ -124,7 +124,7 @@ function ∇⨂!(∇⨂u, uˣ, uʸ, Ω)
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute gradient on physical grid
-    ∇⨂u = @. rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
+    @. ∇⨂u = rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
 
     return nothing
 end
@@ -195,7 +195,7 @@ function plotfield2D(times, solutions, x, y)
     @animate for t in times
         plots = []
         for (i,sol) in enumerate(solutions)
-            ploti = surface(x[:],y[:],sol[t][:], camera = (15,60))
+            ploti = surface(x[:],y[:],sol[t][:], camera = (0,90))# (15,60))
             push!(plots, ploti)
         end
         display(plot(plots...))

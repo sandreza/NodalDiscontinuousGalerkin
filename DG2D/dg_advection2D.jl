@@ -15,22 +15,25 @@ dg_maxwell!(u̇, u, params)
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 
 """
-function dg_advection2D!(fields, params)
+function dg_advection2D!(U̇, U, params, t)
     # unpack params
-    𝒢  = params[1] # grid parameters
-    α  = params[2]
+    𝒢 = params[1] # grid parameters
+    α = params[2]
+    h = params[end]
+
+    @. h.u = U
+    @. h.u̇ = U̇
 
     # unpack fields
-    h = fields[1]
+    # h = fields[1]
 
     # define field differences at faces
     # println(h.u[𝒢.nodes⁻])
     # println(h.u[𝒢.nodes⁺])
-
     @. h.Δu = h.u[𝒢.nodes⁻] - h.u[𝒢.nodes⁺]
 
     # impose BC
-    @. h.u[𝒢.nodesᴮ] = 0.1
+    # @. h.u[𝒢.nodesᴮ] = 0.0
 
     # perform calculations over elements
     let nGL = nBP = 0
@@ -79,6 +82,9 @@ function dg_advection2D!(fields, params)
             @. u̇ = -∇u + lift
         end
     end
+
+    @. U = h.u
+    @. U̇ = h.u̇
 
     return nothing
 end

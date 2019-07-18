@@ -2,6 +2,7 @@ include("grid2D.jl")
 include("dg_advection2D.jl")
 
 using Plots
+using OrdinaryDiffEq
 
 # make mesh
 K = 2^3
@@ -50,14 +51,18 @@ vʸ = zeros(𝒢.nGL)
 @. vʸ = 0.5
 
 # solve equations
-stoptime = 10
+stoptime = 10.0
 Nsteps = ceil(Int, stoptime / dt)
-# Nsteps = 3
+# Nsteps = 10
 fields = [u]
-params = (𝒢, α, vˣ, vʸ)
+params = (𝒢, α, vˣ, vʸ, u)
+tspan = (0.0, stoptime)
 
-solutions = rk_solver!(dg_advection2D!, fields, params, dt, Nsteps)
+# solutions = rk_solver!(dg_advection2D!, fields, params, dt, Nsteps)
+problem = ODEProblem(dg_advection2D!, u.u, tspan, params);
+solutions = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+
 
 step = floor(Int, Nsteps / 50) + 1
 times = 1:step:Nsteps+1
-plotfield2D(times, solutions, x, y)
+plotfield2D(times, [solutions.u], x, y)

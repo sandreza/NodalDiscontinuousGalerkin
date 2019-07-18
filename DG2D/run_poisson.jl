@@ -7,31 +7,26 @@ include("mesh2D.jl")
 include("dg_advection.jl")
 include("../DG2D/triangles.jl")
 include("../DG2D/dg_poisson.jl")
+include("../src/CuthillMckee.jl")
 
 
-timings = true
+timings = false
 plotting = true
+check_correctness = true
 # simulation parameters and grid
-n = 1
+n = 3
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
 field = dg_garbage_triangle(mesh)
 
+# location of boundary grid points for dirichlet bc
 bc = (mesh.vmapB, mesh.mapB)
+# location of boundary grid points for neumann bc
 dbc = ([],[])
+
 #compute tau
-function compute_τ(mesh)
-    matP = mesh.J[mesh.vmapP] ./ mesh.sJ[:]
-    matM = mesh.J[mesh.vmapM] ./ mesh.sJ[:]
-    hmin = zeros(length(matP))
-    for i in 1:length(matP)
-        matP[i] < matM[i] ? hmin[i] = 2 * matP[i] : hmin[i] = 2* matM[i]
-    end
-    np = (mesh.n + 1) * (mesh.n + 2) / 2
-    return reshape(np ./ hmin, mesh.nfp * mesh.nFaces, mesh.K)
-end
 τ = compute_τ(mesh)
 params = [τ]
 #homogenous dirichlet
@@ -39,7 +34,7 @@ function bc_u!(du, u, bc)
     @. du[bc[2]] = 2 * u[bc[1]]
 end
 #homogenous neumann
-function bc_φ!(fˣ, fʸ,φˣ, φʸ, bc)
+function bc_φ!(fˣ, fʸ, φˣ, φʸ, bc)
     @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
     @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
 end
@@ -50,11 +45,12 @@ u = similar(field.u)
 #dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
+# may take a while for larger matrices
 ∇² = poisson_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+# make sure its symmetric
 ∇² = (∇² + ∇²')/2
 
-
-
+# output some matrix properties
 println("The size of the matrix is $(size(∇²))")
 i,j = findnz(∇²)
 println("The bandwidth of the matrix is $(maximum(i-j)+1)")
@@ -65,6 +61,47 @@ cm∇² = sparse(∇²[p,p])
 i,j = findnz(cm∇²)
 println("The bandwidth of the reordered matrix is $(maximum(i-j)+1)")
 
+if check_correctness
+    # first create an exact solution
+    exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β)
+
+    # then create a forcing function
+    forcing(x,y,α,β) = - ( (α*π/2)^2 + (β*π/2)^2 ) * cos(π/2 * x * α) * cos(π/2 * y * β)
+
+    #for convenience
+    x = mesh.x
+    y = mesh.y
+
+    # evaluate at grid points with given values for α and β
+    α = 1
+    β = 1
+    frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
+
+    # adjust for J * mass matrix component
+    frhs = mesh.J .* (mesh.M * frhs)
+
+    fsol = [exact(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
+
+    # chech, W^{2,∞} error
+    println("----------------")
+    @. u = fsol
+    dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    w2inf = maximum(abs.(Δu .- frhs)) / maximum(abs.(frhs))
+    println("The relative error in computing the second derivative is $(w2inf)")
+    println("This is a lower estimate since its on the grid points")
+
+    # now to compute the solution
+    chol_∇² = cholesky(-∇²); #will need to multiply by -1
+    @. u = - frhs #due to cholesky nonsense
+    tmpΔu = Δu[:]
+    tmpu = u[:]
+    #ldiv!(tmpΔu, chol_∇², tmpu)
+    tmpΔu = chol_∇² \ tmpu #just using the fastest
+    @. Δu[:] = tmpΔu
+    w2inf = maximum(abs.(Δu .- fsol)) / maximum(abs.(Δu))
+    println("The relative error in computing the solution is $(w2inf)")
+    println("----------------")
+end
 
 if timings
     # create full matrix
@@ -72,7 +109,7 @@ if timings
     # create banded matrix
     mat_size = size(cm∇²)
     i,j = findnz(cm∇²)
-    band = (maximum(i-j)+1)
+    band = maximum(i-j) + 1
     b∇² = BandedMatrix(zeros(mat_size), (band,band))
     @. b∇² = cm∇²
 

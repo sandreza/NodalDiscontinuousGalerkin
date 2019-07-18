@@ -71,7 +71,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
             𝒥 = [ [xʳ[i] xˢ[i]]; [yʳ[i] yˢ[i]]]
             x̃ʳ[i,:,:] = 𝒥
             r̃ˣ[i,:,:] = inv(𝒥)
-            J[i] = det(𝒥)
+            J[i] = -det(𝒥)
         end
 
         # volume of element

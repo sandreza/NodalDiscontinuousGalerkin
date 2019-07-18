@@ -60,30 +60,34 @@ H̃ˣ = @. -π*n/ω * sin(m*π*x) * cos(n*π*y)
 H̃ʸ = @. -π*m/ω * cos(m*π*x) * sin(n*π*y)
 Ẽᶻ = @. sin(m*π*x) * sin(n*π*y)
 
-exact = [[], [], []]
+exacts = [[], [], []]
 for t in times
     tH̃ˣ = @. H̃ˣ * sin(ω*t)
     tH̃ʸ = @. H̃ʸ * sin(ω*t)
     tẼᶻ = @. Ẽᶻ * cos(ω*t)
 
-    push!(exact[1], tH̃ˣ)
-    push!(exact[2], tH̃ʸ)
-    push!(exact[3], tẼᶻ)
+    push!(exacts[1], tH̃ˣ)
+    push!(exacts[2], tH̃ʸ)
+    push!(exacts[3], tẼᶻ)
 end
 
-dg_maxwell2D!(fields, params)
+solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, 1)
 
-solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, Nsteps)
+difference = @. solutions[1][2] - exacts[1][2]
+display(difference)
+
+quit()
 
 gr()
 step = floor(Int, Nsteps / 50)
 
 fieldNames = [ "H^{x}", "H^{y}", "E^{z}"]
 
-@animate for t in 1:step:Nsteps
+@animate for t in 1:step:(2*step)
     plots = []
-    for (i, sol) in enumerate(solutions)
-        ploti = surface(x[:],y[:],sol[t][:], title = fieldNames[i], camera = (15,60))
+    for (i, (sol, exact)) in enumerate(zip(solutions,exacts))
+        diff = @. sol[t] - exact[t]
+        ploti = surface(x[:],y[:],diff[:], title = fieldNames[i], camera = (15,60))
         push!(plots, ploti)
     end
     display(plot(plots...))

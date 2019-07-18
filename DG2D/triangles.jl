@@ -541,7 +541,7 @@ function connect2D(EtoV)
     # face 1 is associated with vn[1,2]
     # face 2 is associated with vn[2,3]
     # ...
-    # face nfaces is associated with vn[nfaces, 1]
+    # face nFaces is associated with vn[nFaces, 1]
     vn = zeros(Int, nFaces, 2)
     for i in 1:nFaces
         j = i % nFaces + 1
@@ -651,7 +651,7 @@ function connect_periodic_2D(VX, VY, EtoV)
     # face 1 is associated with vn[1,2]
     # face 2 is associated with vn[2,3]
     # ...
-    # face nfaces is associated with vn[nfaces, 1]
+    # face nFaces is associated with vn[nFaces, 1]
     vn = zeros(Int, nFaces, 2)
     for i in 1:nFaces
         j = i % nFaces + 1
@@ -673,7 +673,7 @@ function connect_periodic_2D(VX, VY, EtoV)
     # now make correction for periodic case
     # should only need to loop over elements on boundary
 
-    for i in 1:(nfaces*K)
+    for i in 1:(nFaces*K)
         for k in 1:(length(leftface[:,2])-1)
             vecL = Int.(leftface[k:k+1 , 2])
             vecR = Int.(rightface[k:k+1, 2])
@@ -736,7 +736,7 @@ end
 
 """
 
-buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
+buildmaps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
@@ -745,9 +745,9 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 # Arguments
 
 -   `K`: number of elements
--   `np`: number of points within an element (polynomial degree + 1)
+-   `np`: number of points within an element
 -   `nfp`: 1
--   `nfaces`: 2
+-   `nFaces`: 2
 -   `fmask`: an element by element mask to extract edge values
 -   `EtoE`: element to element connectivity
 -   `EtoF`: element to face connectivity
@@ -764,30 +764,30 @@ buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+function buildmaps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
     # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
-    vmapM = zeros(Int, nfp, nfaces, K)
-    vmapP = zeros(Int, nfp, nfaces, K)
-    mapM = collect(1: (K*nfp*nfaces) )'
-    mapP = copy( reshape(mapM, nfp, nfaces, K) )
+    vmapM = zeros(Int, nfp, nFaces, K)
+    vmapP = zeros(Int, nfp, nFaces, K)
+    mapM = collect(1: (K*nfp*nFaces) )'
+    mapP = copy( reshape(mapM, nfp, nFaces, K) )
     # find index of face nodes wrt volume node ordering
     for k1 in 1:K
-        for f1 in 1:nfaces
+        for f1 in 1:nFaces
             vmapM[:, f1, k1] = nodeids[fmask[:,f1], k1]
         end
     end
 
     let one1 = ones(1, nfp)
     for k1 = 1:K
-        for f1 = 1:nfaces
+        for f1 = 1:nFaces
             # find neighbor
             k2 = EtoE[k1, f1]
             f2 = EtoF[k1, f1]
 
             # reference length of edge
             v1 = EtoV[k1,f1]
-            v2 = EtoV[k1, 1 + mod(f1,nfaces)]
+            v2 = EtoV[k1, 1 + mod(f1,nFaces)]
             refd = @. sqrt( (VX[v1] - VX[v2])^2  + (VY[v1] - VY[v2])^2       )
 
             # find volume node numbers of left and right nodes
@@ -813,7 +813,7 @@ function buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
             idM =  @. Int( floor( (d[mask[:]]-1) / m) + 1 )
             idP =  @. Int( mod( (d[mask[:]]-1) , m) + 1 )
             vmapP[idM, f1, k1] = vidP[idP]
-            @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
+            @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nFaces*nfp
         end
     end
     end
@@ -830,7 +830,7 @@ end
 
 """
 
-build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
+build_periodic_maps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, x, y, VX, VY)
 
 # Description
 
@@ -841,7 +841,7 @@ build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 -   `K`: number of elements
 -   `np`: number of points within an element (polynomial degree + 1)
 -   `nfp`: 1
--   `nfaces`: 2
+-   `nFaces`: 2
 -   `fmask`: an element by element mask to extract edge values
 -   `EtoE`: element to element connectivity
 -   `EtoF`: element to face connectivity
@@ -858,33 +858,33 @@ build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, x, y, VX, VY)
 -   `mapB`: use to extract vmapB from vmapM
 
 """
-function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+function build_periodic_maps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
 
     xperiod = maximum(x)-minimum(x)
     yperiod = maximum(y)-minimum(y)
     # number volume nodes consecutively
     nodeids = reshape(collect(1:(K*np)), np, K)
-    vmapM = zeros(Int, nfp, nfaces, K)
-    vmapP = zeros(Int, nfp, nfaces, K)
-    mapM = collect(1: (K*nfp*nfaces) )'
-    mapP = copy( reshape(mapM, nfp, nfaces, K) )
+    vmapM = zeros(Int, nfp, nFaces, K)
+    vmapP = zeros(Int, nfp, nFaces, K)
+    mapM = collect(1: (K*nfp*nFaces) )'
+    mapP = copy( reshape(mapM, nfp, nFaces, K) )
     # find index of face nodes wrt volume node ordering
     for k1 in 1:K
-        for f1 in 1:nfaces
+        for f1 in 1:nFaces
             vmapM[:, f1, k1] = nodeids[fmask[:,f1], k1]
         end
     end
 
     let one1 = ones(1, nfp)
     for k1 = 1:K
-        for f1 = 1:nfaces
+        for f1 = 1:nFaces
             # find neighbor
             k2 = EtoE[k1, f1]
             f2 = EtoF[k1, f1]
 
             # reference length of edge
             v1 = EtoV[k1,f1]
-            v2 = EtoV[k1, 1 + mod(f1,nfaces)]
+            v2 = EtoV[k1, 1 + mod(f1,nFaces)]
             refd = @. sqrt( ( (VX[v1] - VX[v2]))^2  + ( (VY[v1] - VY[v2]))^2       )
 
             # find volume node numbers of left and right nodes
@@ -919,7 +919,7 @@ function build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y
             idM =  @. Int( floor( (d[mask[:]]-1) / m) + 1 )
             idP =  @. Int( mod( (d[mask[:]]-1) , m) + 1 )
             vmapP[idM, f1, k1] = vidP[idP]
-            @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nfaces*nfp
+            @. mapP[idM, f1, k1] = idP + (f2-1)*nfp + (k2-1)*nFaces*nfp
         end
     end
     end
@@ -1095,7 +1095,7 @@ struct garbage_triangle3{T, S, U, W, V}
 
     # face stuff
     nfp::S
-    nfaces::S
+    nFaces::S
     K::S
 
     # GL points
@@ -1134,7 +1134,7 @@ struct garbage_triangle3{T, S, U, W, V}
         #get number of points
         nfp = n+1
         np = Int( (n+1)*(n+2)/2 )
-        nfaces = 3
+        nFaces = 3
         nodetol = 1e-12
 
         #compute nodal set
@@ -1164,11 +1164,11 @@ struct garbage_triangle3{T, S, U, W, V}
         #EtoE, EtoF = connect2D(EtoV)
         EtoE, EtoF = triangle_connect2D(EtoV)
 
-        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
         Vr, Vs = dvandermonde2D(n,r,s)
         Drw = (V*Vr') / (V*V')
         Dsw = (V*Vs') / (V*V')
-        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nfaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nFaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
     end
 end
 
@@ -1180,7 +1180,7 @@ struct periodic_triangle{T, S, U, W, V}
 
     # face stuff
     nfp::S
-    nfaces::S
+    nFaces::S
     K::S
 
     # GL points
@@ -1219,7 +1219,7 @@ struct periodic_triangle{T, S, U, W, V}
         #get number of points
         nfp = n+1
         np = Int( (n+1)*(n+2)/2 )
-        nfaces = 3
+        nFaces = 3
         nodetol = 1e-12
 
         #compute nodal set
@@ -1249,11 +1249,11 @@ struct periodic_triangle{T, S, U, W, V}
         EtoE, EtoF = connect_periodic_2D(VX, VY, EtoV)
         #EtoE, EtoF = triangle_connect2D(EtoVp)
 
-        vmapM, vmapP, vmapB, mapB = build_periodic_maps2D(K, np, nfp, nfaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+        vmapM, vmapP, vmapB, mapB = build_periodic_maps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
         Vr, Vs = dvandermonde2D(n,r,s)
         Drw = (V*Vr') / (V*V')
         Dsw = (V*Vs') / (V*V')
-        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nfaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nFaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
     end
 end
 
@@ -1293,15 +1293,15 @@ struct dg_garbage_triangle{T}
         u̇   = similar(mesh.x)
         φˣ  = similar(mesh.x)
         φʸ  = similar(mesh.x)
-        fˣ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
-        fʸ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
-        fⁿ  = zeros(mesh.nfp * mesh.nfaces, mesh.K)
+        fˣ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fʸ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fⁿ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
         return new{typeof(u)}(u, u̇, φˣ, φʸ, fˣ, fʸ, fⁿ)
     end
 end
 
 """
-make_periodic(VX,VY, EtoV)
+make_periodic(VX, VY, EtoV)
 
 # Description
 

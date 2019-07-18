@@ -290,13 +290,13 @@ function normalsSQ(n, m)
     # set values of normals
     for i in 1:nf4
         if     i < nf1+1
-            n̂[i, :] = [ 0 -1] # normal is (0, -1) along first face
+            n̂[i, :] = [-1  0] # normal is (-1, 0) along first face
         elseif i < nf2+1
-            n̂[i, :] = [-1  0] # normal is (-1, 0) along second face
+            n̂[i, :] = [ 0 -1] # normal is (0, -1) along second face
         elseif i < nf3+1
-            n̂[i, :] = [ 0  1] # normal is (0, 1) along third face
+            n̂[i, :] = [ 1  0] # normal is (1, 0) along third face
         else
-            n̂[i, :] = [ 1  0] # normal is (1, 0) along fourth face
+            n̂[i, :] = [ 0  1] # normal is (0, 1) along fourth face
         end
     end
 

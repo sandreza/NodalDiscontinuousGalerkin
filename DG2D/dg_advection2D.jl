@@ -62,7 +62,7 @@ function dg_advection2D!(fields, params)
             mask = Ωᵏ.fmask
             n̂ˣ = Ωᵏ.n̂[:,1]
             n̂ʸ = Ωᵏ.n̂[:,2]
-            @. f = vˣ[mask][:] * Δu * n̂ˣ + vʸ[mask][:] * Δu * n̂ʸ
+            @. f = 1//2 * (vˣ[mask][:] * Δu * n̂ˣ + vʸ[mask][:] * Δu * n̂ʸ)
             # println(f)
 
             # println(∇u)

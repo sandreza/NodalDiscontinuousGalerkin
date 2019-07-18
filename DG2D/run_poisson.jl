@@ -12,7 +12,7 @@ include("../DG2D/dg_poisson.jl")
 timings = true
 plotting = true
 # simulation parameters and grid
-n = 1
+n = 10
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName

@@ -14,11 +14,7 @@ timings = false
 plotting = true
 check_correctness = true
 # simulation parameters and grid
-<<<<<<< HEAD
 n = 3
-=======
-n = 10
->>>>>>> ec97183a184f2a28923efce4ecc2ca90f874054b
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName

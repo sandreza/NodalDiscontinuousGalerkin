@@ -31,21 +31,29 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     vertices::T
 
     # GL points and normals
-    r::U # ideal coordinates
     x::U # physical coordinates
+    nGL::S # number of points
+
+    # boundary information
+    fmask::V
+    nBP::S # number of points on the boundary
     n̂::U # normal vectors
 
     # matrices for computation
-    D::V
+    D::W
     lift::U
-    fmask::W
 
     # geometric factors
     J::X
     xʳ::Y
     rˣ::Y
+    volume::X
 
-    function Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
+    function Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
+        # number of points on the boundary
+        nFPᵏ,nFaces = size(fmask)
+        nBP = nFPᵏ * nFaces
+
         # partial derivatives of x
         nGL,nDim = size(x̃)
         x̃ʳ = zeros(nGL, 2, 2)
@@ -63,10 +71,15 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
             𝒥 = [ [xʳ[i] xˢ[i]]; [yʳ[i] yˢ[i]]]
             x̃ʳ[i,:,:] = 𝒥
             r̃ˣ[i,:,:] = inv(𝒥)
-            J[i] = det(𝒥)
+            J[i] = -det(𝒥)
         end
 
-        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(D),typeof(fmask),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,n̂, D,lift,fmask, J,x̃ʳ,r̃ˣ)
+        # volume of element
+        volume = @. Jˢ / J[fmask][:]
+
+        #### add nodes⁻ and nodes⁺ as struct members
+
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(fmask),typeof(D),typeof(J),typeof(x̃ʳ)}(index,vertices, x̃,nGL, fmask,nBP,n̂, D,lift, J,x̃ʳ,r̃ˣ,volume)
     end
 end
 

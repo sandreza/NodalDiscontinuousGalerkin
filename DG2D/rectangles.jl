@@ -10,20 +10,17 @@ rectangle(k, EtoV, N, M, vmap)
 # Arguments
 
 -   `k`: element number in global map
--   `EtoV`: element to vertex map
+-   `vertices`: local vertex indices
 -   `N`: polynomial order along first axis within element
 -   `M`: polynomial order along second axis within element
--   `vmap`: array of vertices
+-   `vmap`: physical coordinates of global vertices
 
 # Return Values:
 
 -   `rect`: a properly initiliazed Element2D object
 
 """
-function rectangle(index, EtoV, N, M, vmap)
-    vertices = view(EtoV, index, :)
-    nFaces = length(vertices)
-
+function rectangle(index, vertices, N, M, vmap)
     # GL points in each dimension
     a = jacobiGL(0, 0, N)
     b = jacobiGL(0, 0, M)
@@ -32,17 +29,17 @@ function rectangle(index, EtoV, N, M, vmap)
     m = length(b)
 
     # get normals
-    n̂ = normalsSQ(n, m)
+    n̂,Jˢ = normalsSQ(n, m)
 
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
     lift = liftSQ(a, b)
 
     # get min and max values of physical coordinates
-    xmin = vmap[vertices[2]][1]
-    ymin = vmap[vertices[2]][2]
-    xmax = vmap[vertices[end]][1]
-    ymax = vmap[vertices[end]][2]
+    xmin = vmap[vertices[2], 1]
+    ymin = vmap[vertices[2], 2]
+    xmax = vmap[vertices[end], 1]
+    ymax = vmap[vertices[end], 2]
 
     # arrays of first,second coordinate of GL tensor product
     # both ideal and physical coordinates are saved
@@ -53,11 +50,11 @@ function rectangle(index, EtoV, N, M, vmap)
             for j in 1:m
                 k += 1
 
-                r̃[k, :] = [a[i] b[j]]
+                r̃[k,:] = [a[i] b[j]]
 
                 x = (xmax - xmin) * (a[i] + 1) / 2 + xmin
                 y = (ymax - ymin) * (b[j] + 1) / 2 + ymin
-                x̃[k, :] = [x y]
+                x̃[k,:] = [x y]
             end
         end
     end
@@ -66,7 +63,7 @@ function rectangle(index, EtoV, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # construct element
-    rect = Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
+    rect = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
 
     return rect
 end
@@ -281,7 +278,8 @@ normalsSQ(n, m)
 
 function normalsSQ(n, m)
     # empty vectors of right length
-    n̂ = zeros(n+m+n+m, 2)
+    n̂  = zeros(n+m+n+m, 2)
+    Jˢ = ones(n+m+n+m) # squares don't need to worry about this
 
     # ending index for each face
     nf1 = m
@@ -292,17 +290,17 @@ function normalsSQ(n, m)
     # set values of normals
     for i in 1:nf4
         if     i < nf1+1
-            n̂[i, :] = [ 0 -1] # normal is (0, -1) along first face
+            n̂[i, :] = [-1  0] # normal is (-1, 0) along first face
         elseif i < nf2+1
-            n̂[i, :] = [-1  0] # normal is (-1, 0) along second face
+            n̂[i, :] = [ 0 -1] # normal is (0, -1) along second face
         elseif i < nf3+1
-            n̂[i, :] = [ 0  1] # normal is (0, 1) along third face
+            n̂[i, :] = [ 1  0] # normal is (1, 0) along third face
         else
-            n̂[i, :] = [ 1  0] # normal is (1, 0) along fourth face
+            n̂[i, :] = [ 0  1] # normal is (0, 1) along fourth face
         end
     end
 
-    return n̂
+    return n̂,Jˢ
 end
 
 """
@@ -324,10 +322,10 @@ fmaskSQ(r, s)
 
 """
 function fmaskSQ(r, s)
-    fmask1 = findall( abs.( r .+ 1) .< eps(10.0) )'
-    fmask2 = findall( abs.( s .+ 1) .< eps(10.0) )'
-    fmask3 = findall( abs.( r .- 1) .< eps(10.0) )'
-    fmask4 = findall( abs.( s .- 1) .< eps(10.0) )'
+    fmask1 = findall( abs.( r .+ 1) .< eps(1.0) )'
+    fmask2 = findall( abs.( s .+ 1) .< eps(1.0) )'
+    fmask3 = findall( abs.( r .- 1) .< eps(1.0) )'
+    fmask4 = findall( abs.( s .- 1) .< eps(1.0) )'
     fmask = Array([fmask1; fmask2; fmask3; fmask4]')
     return fmask
 end

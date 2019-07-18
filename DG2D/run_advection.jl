@@ -1,5 +1,5 @@
 # first define the stream function
-include("mesh2D.jl")
+include("grid2D.jl")
 include("dg_advection.jl")
 include("triangles.jl")
 using Plots
@@ -32,7 +32,7 @@ y = mesh.y
 leftface = findall( x[:] .== -1)
 rightface = findall( x[:] .== 1)
 #plot the total mesh points
-p1 = scatter(mesh.x, mesh.y, legend=false)
+p1 = scatter(x, y, legend=false)
 # plot boundary of triangles
 scatter!(x[mesh.vmapM] , y[mesh.vmapM], color = "black", legend = false)
 #plot boundary of domain

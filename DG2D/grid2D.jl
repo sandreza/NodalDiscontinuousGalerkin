@@ -1,5 +1,6 @@
 include("../src/utils.jl")
-
+include("rectangles.jl")
+include("triangles.jl")
 
 using SparseArrays
 using LinearAlgebra
@@ -58,7 +59,7 @@ Grid2D(ℳ::Mesh2D, N::Int) ℳ
     return a properly initiliazed Grid2D object
 
 """
-struct Grid2D{S, T, U, V} <: AbstractGrid2D
+struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     # basic grid of vertices
     ℳ::S
 
@@ -66,28 +67,29 @@ struct Grid2D{S, T, U, V} <: AbstractGrid2D
     Ω::T
 
     # GL points
-    r::U # ideal coordinates
     x::U # physical coordinates
+    nGL::V # number of points
+    nBP::V # number of points on the boundary
 
     # maps maps maps
-    vmap⁻::V
-    vmap⁺::V
-    vmapᴮ::V
-    mapᴮ::V
+    nodes⁻::W
+    nodes⁺::W
+    nodesᴮ::W
+    mapᴮ::W
 
-    function Grid2D(ℳ::Mesh2D, N::Int)
+    function Grid2D(ℳ::Mesh2D, N::Int; periodic::Bool=false)
         # get elements and GL nodes
-        Ω,r̃,x̃ = makenodes2D(ℳ, N)
-        nGL = length(Ω[1].r[:, 1]) # get number of GL points from first element, buildmaps2D currently needs all elements to map to the same ideal element
-
+        Ω,x̃ = makenodes2D(ℳ, N)
+        nGL,_ = size(x̃)
         # make a facemask
-        fmask = Ω[1].fmask # same as with nGL, should eventually be done on an element by element basis
-        nFP,nFaces = size(fmask)
 
         # build the boundary maps
-        vmap⁻,vmap⁺,vmapᴮ,mapᴮ = buildmaps2D(ℳ, nFP, nGL, fmask, x̃)
+        l̃ˣ = abs(x̃[end,1] - x̃[1,1])
+        l̃ʸ = abs(x̃[end,2] - x̃[1,2])
+        nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL; lˣ=l̃ˣ, lʸ=l̃ʸ, periodic=periodic)
+        nBP = length(nodes⁻)
 
-        return new{typeof(ℳ),typeof(Ω),typeof(r̃),typeof(vmap⁻)}(ℳ, Ω, r̃,x̃, vmap⁻,vmap⁺,vmapᴮ,mapᴮ)
+        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(nodes⁻)}(ℳ,Ω, x̃,nGL,nBP, nodes⁻,nodes⁺,nodesᴮ,mapᴮ)
     end
 end
 
@@ -135,10 +137,10 @@ function meshreader_gambit2D(_filename)
     #first get node coordinates
     VX = ones(Nv)
     VY = ones(Nv)
+    vertices = zeros(Nv, 2)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
-    vertices = []
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces
@@ -147,7 +149,7 @@ function meshreader_gambit2D(_filename)
         dims = map(x->parse(Float64,x), dims)
         VX[i] = dims[2]
         VY[i] = dims[3]
-        push!(vertices, (dims[2], dims[3]))
+        vertices[i,:] = [dims[2] dims[3]]
     end
     #define EtoV matrix
     EtoV = zeros(Int, K, 3)
@@ -163,9 +165,13 @@ function meshreader_gambit2D(_filename)
         EtoV[k,:] = dims[4:6]
     end
 
-    #close the file
+    # close the file
     close(f)
-    return Nv, VX, VY, K, EtoV
+
+    # make mesh object
+    ℳ = Mesh2D(K, vertices, EtoV, 3)
+
+    return ℳ
 end
 
 """
@@ -218,10 +224,10 @@ function meshreader_gambit_bc_2D(_filename)
     #first get node coordinates
     VX = ones(Nv)
     VY = ones(Nv)
+    vertices = zeros(Nv, 2)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
-    vertices = []
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces
@@ -230,7 +236,7 @@ function meshreader_gambit_bc_2D(_filename)
         dims = map(x->parse(Float64,x), dims)
         VX[i] = dims[2]
         VY[i] = dims[3]
-        push!(vertices, (dims[2], dims[3]))
+        vertices[i,:] = [dims[2] dims[3]]
     end
     #define EtoV matrix
     EtoV = zeros(Int, K, 3)
@@ -302,27 +308,29 @@ rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 """
 function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     # 1D arrays
-    vx,mapx = unimesh1D(xmin, xmax, K)
-    vy,mapy = unimesh1D(ymin, ymax, L)
+    vˣ,mapˣ = unimesh1D(xmin, xmax, K)
+    vʸ,mapʸ = unimesh1D(ymin, ymax, L)
 
     # construct array of vertices
-    vertices = Tuple{Float64,Float64}[]
-    for x in vx
-        for y in vy
-            push!(vertices, (x,y))
+    vertices = zeros((K+1)*(L+1), 2)
+    let i = 0
+        for x in vˣ
+            for y in vʸ
+                i += 1
+                vertices[i,:] = [x y]
+            end
         end
     end
-    # v = reshape(v, K+1, L+1)
 
     # construct element to vertex map
-    EtoV = Int.(ones(K*L, 4))
+    EtoV = ones(Int, K*L, 4)
     j = 0
-    for l in 1:L
-        for k in 1:K
+    for k in 1:K
+        for l in 1:L
             j += 1
 
-            EtoV[j,2] = Int(k + (L+1) * (l-1))
-            EtoV[j,3] = Int(k + (L+1) * l)
+            EtoV[j,2] = Int(l + (L+1) * (k-1))
+            EtoV[j,3] = Int(l + (L+1) * k)
 
             EtoV[j,1] = Int(EtoV[j,2] + 1)
             EtoV[j,4] = Int(EtoV[j,3] + 1)
@@ -350,22 +358,22 @@ makenodes2D(ℳ::Mesh2D, N::Int)
 # Return Values:
 
 -   `Ω`: array of all the elements in the grid
--   `r`: ideal coordinates of GL points
 -   `x`: physical coordinates of GL points
 
 """
 function makenodes2D(ℳ::Mesh2D, N::Int)
     Ω = Element2D[]
-    r = Float64[]
     x = Float64[]
     for k in 1:ℳ.K
         # check number of faces, maybe eventually do on an element by element basis
-        if ℳ.nFaces == 3
-            # build a triangle, needs to be implemented
-            return
-        elseif ℳ.nFaces == 4
+        vertices = view(ℳ.EtoV, k, :)
+        nFaces = length(vertices)
+        if nFaces == 3
+            # build a triangle
+            Ωᵏ = triangle(k, vertices, N, ℳ.vertices)
+        elseif nFaces == 4
             # build a rectangle
-            Ωᵏ = rectangle(k, ℳ.EtoV, N, N, ℳ.vertices)
+            Ωᵏ = rectangle(k, vertices, N, N, ℳ.vertices)
         else
             # we will never use any other polygon ???
             return
@@ -373,11 +381,10 @@ function makenodes2D(ℳ::Mesh2D, N::Int)
 
         # fill in arrays
         push!(Ω, Ωᵏ)
-        r = cat(r, Ωᵏ.r; dims=1)
         x = cat(x, Ωᵏ.x; dims=1)
     end
 
-    return Ω,r,x
+    return Ω,x
 end
 
 """
@@ -398,8 +405,8 @@ connect2D(EToV)
 -   `EToF`: element to face map
 
 """
-function connect2D(ℳ::Mesh2D)
-    total_faces = ℳ.nFaces * ℳ.K
+function connect2D(ℳ::Mesh2D; periodic::Bool=false)
+    nFacesTotal = ℳ.nFaces * ℳ.K
 
     # list of local face to local vertex connections
     vn = zeros(Int, ℳ.nFaces, 2)
@@ -409,12 +416,70 @@ function connect2D(ℳ::Mesh2D)
     end
 
     # build global face to node sparse array
-    FtoV = spzeros(Int, total_faces, maximum(ℳ.EtoV))
+    FtoV = spzeros(Int, nFacesTotal, maximum(ℳ.EtoV))
     let sk = 1
         for k in 1:ℳ.K
             for face in 1:ℳ.nFaces
                 @. FtoV[sk, ℳ.EtoV[k, vn[face,:] ] ] = 1;
                 sk += 1
+            end
+        end
+    end
+
+    # make periodic
+    if periodic == true
+        VX = ℳ.vertices[:,1]
+        VY = ℳ.vertices[:,2]
+
+        # find min and max values for each axis
+        xmin = minimum(VX)
+        ymin = minimum(VY)
+        xmax = maximum(VX)
+        ymax = maximum(VY)
+
+        # find vertices on each boundary
+        x⁻ = findall( VX .≈ xmin )
+        y⁻ = findall( VY .≈ ymin )
+        x⁺ = findall( VX .≈ xmax )
+        y⁺ = findall( VY .≈ ymax )
+
+        #match up appropriate vertices, does not generalize to 3D
+        facesᴸ = sortslices([VY[x⁻] x⁻], dims = 1)[:,2]
+        facesᴿ = sortslices([VY[x⁺] x⁺], dims = 1)[:,2]
+        facesᴮ = sortslices([VX[y⁻] y⁻], dims = 1)[:,2]
+        facesᵀ = sortslices([VX[y⁺] y⁺], dims = 1)[:,2]
+
+        # loop over faces
+        nFacesᴴ = length(facesᴸ)
+        nFacesⱽ = length(facesᴮ)
+        for i in 1:nFacesTotal
+
+            # enforce periodicity in the horizontal direction
+            for k in 1:(nFacesᴴ-1)
+                faceᴸ = Int.(facesᴸ[k:k+1])
+                faceᴿ = Int.(facesᴿ[k:k+1])
+
+                # check if face i is faceᴸ
+                if sum(FtoV[i, faceᴸ]) == 2
+                    # identify left face with right face
+                    @. FtoV[i, faceᴸ] = 0
+                    @. FtoV[i, faceᴿ] = 1
+                    dropzeros!(FtoV)
+                end
+            end
+
+            # enforce periodicity in the vertical direction
+            for k in 1:(nFacesⱽ-1)
+                faceᴮ = Int.(facesᴮ[k:k+1])
+                faceᵀ = Int.(facesᵀ[k:k+1])
+
+                # check if face i is faceᴮ
+                if sum(FtoV[i, faceᴮ]) == 2
+                    # identify top face with bottom face
+                    @. FtoV[i, faceᴮ] = 0
+                    @. FtoV[i, faceᵀ] = 1
+                    dropzeros!(FtoV)
+                end
             end
         end
     end
@@ -473,16 +538,18 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     nodeids = reshape( collect(Int, 1:(ℳ.K * _nGL)), _nGL, ℳ.K)
     vmap⁻ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
     vmap⁺ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
+    # not actually used ???
     map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
     map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
 
-    # find index of face nodes wrt volume node ordering
+    # find index of interior face nodes wrt volume node ordering
     for k in 1:ℳ.K
         for f in 1:ℳ.nFaces
             vmap⁻[:, f, k] = nodeids[_fmask[:, f], k]
         end
     end
 
+    # find indices of exterior face nodes that match interior face nodes
     let one = ones(1, _nFP)
         for k1 in 1:ℳ.K
             for f1 in 1:ℳ.nFaces
@@ -490,17 +557,13 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 k2 = EtoE[k1, f1]
                 f2 = EtoF[k1, f1]
 
-                # reference length of edge
-                v1 = ℳ.EtoV[k1,f1]
-                v2 = ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]
-                refd = @. sqrt((ℳ.vertices[v1][1] - ℳ.vertices[v2][1])^2 + (ℳ.vertices[v1][2] - ℳ.vertices[v2][2])^2)
-
-                # find volume node numbers of left and right nodes
+                # find volume node numbers of interior and exterior nodes
                 vid⁻ = vmap⁻[:, f1, k1]
+                vid⁺ = vmap⁻[:, f2, k2]
+
                 x⁻ = _nodes[:, 1][vid⁻]
                 y⁻ = _nodes[:, 2][vid⁻]
 
-                vid⁺ = vmap⁻[:, f2, k2]
                 x⁺ = _nodes[:, 1][vid⁺]
                 y⁺ = _nodes[:, 2][vid⁺]
 
@@ -508,21 +571,30 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
                 D = zeros(length(x⁻), _nFP)
                 for i in 1:_nFP
                     for j in 1:i
-                        D[i,j] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
+                        D[j,i] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
                     end
                 end
                 D = Symmetric(D)
 
-                mask = @. D < eps(refd)
+                # reference length of edge
+                v1 = ℳ.vertices[ℳ.EtoV[k1,f1]]
+                v2 = ℳ.vertices[ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]]
+                refd = @. sqrt((v1[1] - v2[1])^2 + (v1[2] - v2[2])^2)
 
-                # find linear indices
+                # find indices of GL points on the boundary of the element
+                # i.e. distance between them is less than the reference difference
+                mask = @. sqrt(abs(D)) < eps(refd)
+
+                # convert from matrix mask to linear mask
                 m,n = size(D)
-                d = collect(Int, 1:(m*n))
+                d = collect(Int, 1:(m*n))[mask[:]]
 
-                id⁻ =  @. floor(Int, (d[mask[:]]-1) / m) + 1
-                id⁺ =  @. mod( (d[mask[:]]-1), m) + 1
+                # find IDs of matching interior and exterior GL nodes
+                id⁻ =  @. floor(Int, (d-1)/m) + 1
+                id⁺ =  @. mod(d-1, m) + 1
 
-                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺]
+                # save exterior node that interior node maps to
+                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺] # vid⁺ is a view of vmap⁻
                 @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
             end
         end
@@ -533,8 +605,107 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     vmap⁻ = reshape(vmap⁻, length(vmap⁻))
 
     # Create list of boundary nodes
-    mapᴮ = collect(Int, 1:length(vmap⁺))[vmap⁺ .== vmap⁻]
+    mapᴮ = map⁺[vmap⁺ .== vmap⁻]
     vmapᴮ = vmap⁻[mapᴮ]
 
     return vmap⁻, vmap⁺, vmapᴮ, mapᴮ
+end
+
+function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1, periodic::Bool=false)
+    # create face to node connectivity matrix
+    EtoE,EtoF = connect2D(ℳ, periodic=periodic)
+
+    # find indices of interior face nodes
+    vmap⁻ = []
+    nodes = collect(Int, 1:nGL)
+    let nGLᵏ = 0
+        for k in 1:ℳ.K
+            # get element
+            Ωᵏ = Ω[k]
+            push!(vmap⁻, [])
+            nFaces = length(Ωᵏ.vertices)
+
+            # get number of GL points in element k
+            xᵏ = (nGLᵏ + 1):(nGLᵏ + Ωᵏ.nGL)
+            nGLᵏ += Ωᵏ.nGL
+
+            # extract indices of GL points in element k
+            nodesᵏ = nodes[xᵏ]
+
+            for f in 1:nFaces
+                # get GL points on face f
+                maskᶠ = Ωᵏ.fmask[:, f]
+
+                # save global indices of GL on face f
+                push!(vmap⁻[k], nodesᵏ[maskᶠ])
+            end
+        end
+    end
+
+    # find indices of exterior nodes
+    vmap⁺ = []
+    for k in 1:ℳ.K
+        # get element
+        Ωᵏ = Ω[k]
+        push!(vmap⁺, [])
+        nFaces = length(Ωᵏ.vertices)
+
+        for f⁻ in 1:nFaces
+            # find neighbor and matching face
+            j  = EtoE[k, f⁻]
+            f⁺ = EtoF[k, f⁻]
+
+            # get neighbor
+            Ωʲ = Ω[j]
+
+            # get indices of GL points on the faces
+            mask⁻ = Ωᵏ.fmask[:, f⁻]
+            mask⁺ = Ωʲ.fmask[:, f⁺]
+
+            # get coordinates of GL points on the faces
+            x⁻ = Ωᵏ.x[mask⁻, :]
+            x⁺ = Ωʲ.x[mask⁺, :]
+
+            nFP,_ = size(x⁻)
+            # create distance matrix
+            D = zeros(Int, nFP, nFP)
+            for i in 1:nFP
+                for j in 1:i
+                    exact = (x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2])
+                    periodicˣ = (abs(x⁻[i, 1] - x⁺[j, 1]) ≈ lˣ) && (x⁻[i, 2] ≈ x⁺[j, 2])
+                    periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) && (x⁻[i, 1] ≈ x⁺[j, 1])
+                    D[j,i] = (exact || periodicˣ || periodicʸ)
+                end
+            end
+            D = Symmetric(D)
+
+            # convert from matrix mask to linear mask
+            m,n = size(D)
+            d = collect(Int, 1:(m*n))[Bool.(D[:])]
+
+            # find IDs of matching interior and exterior GL nodes
+            id⁻ =  @. floor(Int, (d-1)/m) + 1
+            id⁺ =  @. mod(d-1, m) + 1
+
+            # save exterior node that interior node maps to
+            push!(vmap⁺[k], vmap⁻[j][f⁺][id⁺])
+        end
+    end
+
+    # flatten lists of interior and exterior nodes
+    nodes⁻ = Int64[]
+    nodes⁺ = Int64[]
+    for k in 1:ℳ.K
+        for f in 1:length(Ω[k].vertices)
+            nodes⁻ = cat(nodes⁻, vmap⁻[k][f], dims=1)
+            nodes⁺ = cat(nodes⁺, vmap⁺[k][f], dims=1)
+        end
+    end
+
+    # Create list of boundary nodes
+    map⁻ = collect(Int, 1:length(nodes⁻))
+    mapᴮ = map⁻[nodes⁺ .== nodes⁻]
+    nodesᴮ = nodes⁻[mapᴮ]
+
+    return nodes⁻, nodes⁺, nodesᴮ, mapᴮ
 end

@@ -1,8 +1,71 @@
-
 include("../src/utils.jl")
-include("mesh2D.jl")
+include("element2D.jl")
 
 using SparseArrays
+
+"""
+triangle(k, EtoV, N, vmap)
+
+# Description
+
+    create a triangular element
+
+# Arguments
+
+-   `k`: element number in global map
+-   `vertices`: local vertex indices
+-   `N`: polynomial order along each axis within element
+-   `vmap`: physical coordinates of global vertices
+
+# Return Values:
+
+-   `tri`: a properly initiliazed Element2D object
+
+"""
+function triangle(index, vertices, N, vmap)
+    # GL points
+    a,b = nodes2D(N)
+    r,s = xytors(a,b)
+
+    # build reference elements and matrices
+    V = vandermonde2D(N, r, s)
+    D = dmatrices2D(N, r, s, V)
+
+    # create fmask
+    fmask = create_fmask(r, s)
+    lift = lift_tri(N, fmask, r, s, V)
+
+    # get physical vertices
+    x1 = vmap[vertices[1], 1]
+    y1 = vmap[vertices[1], 2]
+    x2 = vmap[vertices[2], 1]
+    y2 = vmap[vertices[2], 2]
+    x3 = vmap[vertices[3], 1]
+    y3 = vmap[vertices[3], 2]
+
+    # create physical GL points
+    x̃ = zeros(length(r), 2)
+    for (k, (r̃,s̃)) in enumerate(zip(r,s))
+        x =  0.5 * ( -(r̃ + s̃) * x1 + (1 + r̃) * x2 + (1 + s̃) * x3)
+        y =  0.5 * ( -(r̃ + s̃) * y1 + (1 + r̃) * y2 + (1 + s̃) * y3)
+
+        x̃[k,:] = [x y]
+    end
+
+    # construct normals
+    nx, ny, Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
+    Jˢ = reshape(Jˢ, length(Jˢ))
+
+    n̂ = zeros(length(nx), 2)
+    for (i, (x,y)) in enumerate(zip(nx,ny))
+        n̂[i,:] = [x y]
+    end
+
+    # construct element
+    tri = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
+
+    return tri
+end
 
 """
 rstoab(r,s)
@@ -68,13 +131,18 @@ nodes2D(n)
 
 """
 function nodes2D(n)
-    α° = [0.0000 0.0000 1.4152 0.1001 0.2751 0.9800 1.0999 1.2832 1.3648 1.4773 1.4959 1.5743 1.5770 1.6223 1.6258];
+    # constants
+    α° = [0.0000 0.0000 1.4152 0.1001 0.2751 0.9800 1.0999 1.2832 1.3648 1.4773 1.4959 1.5743 1.5770 1.6223 1.6258]
+
     if n < 16
         α = α°[n]
     else
         α = 5/3
     end
-    nGL = Int((n+1) * (n+2) / 2);
+    # number of GL points
+    nGL = Int((n+1) * (n+2) / 2)
+
+    # create equidistributed nodes on equilateral triangle
     L1 = zeros(nGL)
     L2 = zeros(nGL)
     L3 = zeros(nGL)
@@ -90,18 +158,27 @@ function nodes2D(n)
     @. L2 = 1.0 - L1 - L3
     x = -L2 + L3
     y = (-L2 - L3 + 2 .* L1 ) / sqrt(3)
+
+    # compute blending function at each node for each edge
     blend1 = 4 * L2 .* L3
     blend2 = 4 * L3 .* L1
     blend3 = 4 * L1 .* L2
+
+    # Amount of warp for each node for each edge
     warpf1 = warp_factor(n, L3 - L2)
     warpf2 = warp_factor(n, L1 - L3)
     warpf3 = warp_factor(n, L2 - L1)
+
+    # combine blend and warp
     warp1 = @. blend1 * warpf1 * (1 + (α * L1 )^2 )
     warp2 = @. blend2 * warpf2 * (1 + (α * L2 )^2 )
     warp3 = @. blend3 * warpf3 * (1 + (α * L3 )^2 )
+
+    # accumulate deformations associated with each edge
     x = x + 1*warp1 + cos(2π/3) * warp2 + cos(4π/3) * warp3
     y = y + 0*warp1 + sin(2π/3) * warp2 + sin(4π/3) * warp3
-    return x, y
+
+    return x,y
 end
 
 
@@ -124,12 +201,16 @@ xytors(x,y)
 
 """
 function xytors(x,y)
+    # compute lambda vectors
     L1 = @. (sqrt(3.0) * y + 1) / 3.0
     L2 = @. (-3.0 * x - sqrt(3.0) * y + 2.0) / 6.0
     L3 = @. ( 3.0 * x - sqrt(3.0) * y + 2.0) / 6.0
+
+    # compute right triangle coordinates
     r = -L2 + L3 - L1
-    s = -L2 -L3 + L1
-    return r, s
+    s = -L2 - L3 + L1
+
+    return r,s
 end
 
 """
@@ -636,10 +717,10 @@ function connect_periodic_2D(VX, VY, EtoV)
     maxindy = findall( VY .≈ by )
 
     #match up appropriate vertices, does not generalize to 3D
-    leftface = sortslices([VY[minindx] minindx], dims = 1)
-    rightface = sortslices([VY[maxindx] maxindx], dims = 1)
-    bottomface = sortslices([VX[minindy] minindy], dims = 1)
-    topface = sortslices([VX[maxindy] maxindy], dims = 1)
+    leftface = sortslices([VY[minindx] minindx], dims = 1)[:,2]
+    rightface = sortslices([VY[maxindx] maxindx], dims = 1)[:,2]
+    bottomface = sortslices([VX[minindy] minindy], dims = 1)[:,2]
+    topface = sortslices([VX[maxindy] maxindy], dims = 1)[:,2]
 
     nFaces = 3
     K = size(EtoV, 1)
@@ -673,22 +754,28 @@ function connect_periodic_2D(VX, VY, EtoV)
     # now make correction for periodic case
     # should only need to loop over elements on boundary
 
-    for i in 1:(nFaces*K)
-        for k in 1:(length(leftface[:,2])-1)
-            vecL = Int.(leftface[k:k+1 , 2])
-            vecR = Int.(rightface[k:k+1, 2])
-            # identify left face with right face
+    nFacesTotal = nFaces*K
+    nVX = length(leftface) # == length(bottomface[:,2])
+    for i in 1:nFacesTotal
+        for k in 1:(nVX-1)
+            vecL = Int.( leftface[k:k+1])
+            vecR = Int.(rightface[k:k+1])
+
+            # check if face i is vecL
             if sum(FtoV[i, vecL]) == 2
+                # identify left face with right face
                 @. FtoV[i, vecL] = 0
-                @. FtoV[i,vecR] = 1
+                @. FtoV[i, vecR] = 1
                 dropzeros!(FtoV)
             end
-            vecB = Int.(bottomface[k:k+1 , 2])
-            vecT = Int.(topface[k:k+1, 2])
+
+            vecB = Int.(bottomface[k:k+1])
+            vecT = Int.(   topface[k:k+1])
+
             # identify top face with bottom face
-            if sum(FtoV[i, vecB])==2
+            if sum(FtoV[i, vecB]) == 2
                 @. FtoV[i, vecB] = 0
-                @. FtoV[i,vecT] = 1
+                @. FtoV[i, vecT] = 1
                 dropzeros!(FtoV)
             end
         end

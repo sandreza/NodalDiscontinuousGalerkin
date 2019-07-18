@@ -36,12 +36,12 @@ function triangle(index, vertices, N, vmap)
     lift = lift_tri(N, fmask, r, s, V)
 
     # get physical vertices
-    x1 = vmap[vertices[1]][1]
-    y1 = vmap[vertices[1]][2]
-    x2 = vmap[vertices[2]][1]
-    y2 = vmap[vertices[2]][2]
-    x3 = vmap[vertices[3]][1]
-    y3 = vmap[vertices[3]][2]
+    x1 = vmap[vertices[1], 1]
+    y1 = vmap[vertices[1], 2]
+    x2 = vmap[vertices[2], 1]
+    y2 = vmap[vertices[2], 2]
+    x3 = vmap[vertices[3], 1]
+    y3 = vmap[vertices[3], 2]
 
     # create physical GL points
     x̃ = zeros(length(r), 2)

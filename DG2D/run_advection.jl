@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 1
+n = 7
 timings = false
 gradients_check = false
 solve_ode = false
@@ -17,6 +17,7 @@ plot_solution = false
 forward_and_backwards = true
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
+#in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
@@ -89,16 +90,18 @@ end
 external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 #define params
-tspan = (0.0, 4.0)
+tspan = (0.0, 8.0)
 ι = field
 ε = external
 𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
 #rhs! = dg_upwind_2D!
-
 # to reduce aliasing errors
-rhs! = dg_upwind_sym_2D!
+#rhs! = dg_upwind_sym_2D!
+rhs! = dg_central_sym_2D!
+#rhs! = dg_central_rand_2D!
+#rhs! = dg_central_switch_2D!
 dt =  0.5 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
@@ -123,10 +126,14 @@ if timings
     @btime dg_upwind_2D!(u̇, u, params, 0);
     println("divergence")
     @btime ∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢);
+    println("compare to 1 matrix multiplications (should compare to about 4)")
+    @btime mul!(ι.φʸ, 𝒢.Dˢ, ι.φˣ)
     println("lift")
     @btime lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ);
     println("symmetrized upwind ")
     @btime dg_upwind_sym_2D!(u̇, u, params, 0)
+    println("symmetrized central ")
+    @btime dg_central_sym_2D!(u̇, u, params, 0)
 end
 
 if gradients_check
@@ -177,19 +184,20 @@ u̇ = copy(field.u̇)
 if solve_ode
     prob = ODEProblem(rhs!, u, tspan, params);
     sol  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+    println("----------")
+    println("The energy at the beginning is")
+    println(norm(sol.u[1])^2)
+    println("The energy at the end is")
+    println(norm(sol.u[end])^2)
+    println("The relative loss in energy is ")
+    println( (norm(sol.u[1])^2-norm(sol.u[end])^2)/ norm(sol.u[1])^2)
+    println("---------")
+    println("The error for nice velocity is")
+    println(norm(sol.u[1]-sol.u[end]))
+    println("-------")
 end
 
-println("----------")
-println("The energy at the beginning is")
-println(norm(sol.u[1])^2)
-println("The energy at the end is")
-println(norm(sol.u[end])^2)
-println("The relative loss in energy is ")
-println( (norm(sol.u[1])^2-norm(sol.u[end])^2)/ norm(sol.u[1])^2)
-println("---------")
-println("The error for nice velocity is")
-println(norm(sol.u[1]-sol.u[end]))
-println("-------")
+
 #euler time-stepping for debugging
 
 

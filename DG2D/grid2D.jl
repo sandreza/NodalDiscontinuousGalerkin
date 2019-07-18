@@ -137,11 +137,10 @@ function meshreader_gambit2D(_filename)
     #first get node coordinates
     VX = ones(Nv)
     VY = ones(Nv)
-    vertices = Tuple{Float64,Float64}[]
+    vertices = zeros(Nv, 2)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
-    vertices = []
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces
@@ -150,7 +149,7 @@ function meshreader_gambit2D(_filename)
         dims = map(x->parse(Float64,x), dims)
         VX[i] = dims[2]
         VY[i] = dims[3]
-        push!(vertices, (dims[2], dims[3]))
+        vertices[i,:] = [dims[2] dims[3]]
     end
     #define EtoV matrix
     EtoV = zeros(Int, K, 3)
@@ -225,10 +224,10 @@ function meshreader_gambit_bc_2D(_filename)
     #first get node coordinates
     VX = ones(Nv)
     VY = ones(Nv)
+    vertices = zeros(Nv, 2)
 
     # the lines with data start at lines[10]
     # the lines end with lines[10+Nv]
-    vertices = []
     for i ∈ 1:Nv
         data = lines[9+i]
         #split up the blank spaces
@@ -237,7 +236,7 @@ function meshreader_gambit_bc_2D(_filename)
         dims = map(x->parse(Float64,x), dims)
         VX[i] = dims[2]
         VY[i] = dims[3]
-        push!(vertices, (dims[2], dims[3]))
+        vertices[i,:] = [dims[2] dims[3]]
     end
     #define EtoV matrix
     EtoV = zeros(Int, K, 3)
@@ -313,15 +312,18 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     vʸ,mapʸ = unimesh1D(ymin, ymax, L)
 
     # construct array of vertices
-    vertices = Tuple{Float64,Float64}[]
-    for x in vˣ
-        for y in vʸ
-            push!(vertices, (x,y))
+    vertices = zeros((K+1)*(L+1), 2)
+    let i = 0
+        for x in vˣ
+            for y in vʸ
+                i += 1
+                vertices[i,:] = [x y]
+            end
         end
     end
 
     # construct element to vertex map
-    EtoV = Int.(ones(K*L, 4))
+    EtoV = ones(Int, K*L, 4)
     j = 0
     for k in 1:K
         for l in 1:L
@@ -671,7 +673,7 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
                 for j in 1:i
                     exact = (x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2])
                     periodicˣ = (abs(x⁻[i, 1] - x⁺[j, 1]) ≈ lˣ) && (x⁻[i, 2] ≈ x⁺[j, 2])
-                    periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) ) && (x⁻[i, 1] ≈ x⁺[j, 1])
+                    periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) && (x⁻[i, 1] ≈ x⁺[j, 1])
                     D[j,i] = (exact || periodicˣ || periodicʸ)
                 end
             end

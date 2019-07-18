@@ -36,10 +36,10 @@ function rectangle(index, vertices, N, M, vmap)
     lift = liftSQ(a, b)
 
     # get min and max values of physical coordinates
-    xmin = vmap[vertices[2]][1]
-    ymin = vmap[vertices[2]][2]
-    xmax = vmap[vertices[end]][1]
-    ymax = vmap[vertices[end]][2]
+    xmin = vmap[vertices[2], 1]
+    ymin = vmap[vertices[2], 2]
+    xmax = vmap[vertices[end], 1]
+    ymax = vmap[vertices[end], 2]
 
     # arrays of first,second coordinate of GL tensor product
     # both ideal and physical coordinates are saved

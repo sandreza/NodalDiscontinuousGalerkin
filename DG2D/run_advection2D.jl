@@ -19,7 +19,7 @@ filename = filepath * filename
 N = 2
 
 # make grid
-𝒢 = Grid2D(ℳ, N)
+𝒢 = Grid2D(ℳ, N, periodic=true)
 x = 𝒢.x[:,1]
 y = 𝒢.x[:,2]
 # plotgrid2D(𝒢)
@@ -38,7 +38,7 @@ u = Field2D(𝒢)
 
 # initialize conditions
 σ = 10.0
-u⁰(x, y, σ) = exp(-σ * x^2 - σ * (y)^2) * cos(π/2 * x) * cos(π/2 * y)
+u⁰(x, y, σ) = exp(-σ * x^2 - σ * y^2) * cos(π/2 * x) * cos(π/2 * y)
 @. u.u = [u⁰(x[i],y[i],σ) for i in 1:𝒢.nGL]
 # @. u.u = 50
 

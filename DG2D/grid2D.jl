@@ -77,14 +77,16 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     nodesᴮ::W
     mapᴮ::W
 
-    function Grid2D(ℳ::Mesh2D, N::Int)
+    function Grid2D(ℳ::Mesh2D, N::Int; periodic::Bool=false)
         # get elements and GL nodes
         Ω,x̃ = makenodes2D(ℳ, N)
         nGL,_ = size(x̃)
         # make a facemask
 
         # build the boundary maps
-        nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL)
+        l̃ˣ = abs(x̃[end,1] - x̃[1,1])
+        l̃ʸ = abs(x̃[end,2] - x̃[1,2])
+        nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL; lˣ=l̃ˣ, lʸ=l̃ʸ, periodic=periodic)
         nBP = length(nodes⁻)
 
         return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(nodes⁻)}(ℳ,Ω, x̃,nGL,nBP, nodes⁻,nodes⁺,nodesᴮ,mapᴮ)
@@ -401,8 +403,8 @@ connect2D(EToV)
 -   `EToF`: element to face map
 
 """
-function connect2D(ℳ::Mesh2D)
-    total_faces = ℳ.nFaces * ℳ.K
+function connect2D(ℳ::Mesh2D; periodic::Bool=false)
+    nFacesTotal = ℳ.nFaces * ℳ.K
 
     # list of local face to local vertex connections
     vn = zeros(Int, ℳ.nFaces, 2)
@@ -412,12 +414,70 @@ function connect2D(ℳ::Mesh2D)
     end
 
     # build global face to node sparse array
-    FtoV = spzeros(Int, total_faces, maximum(ℳ.EtoV))
+    FtoV = spzeros(Int, nFacesTotal, maximum(ℳ.EtoV))
     let sk = 1
         for k in 1:ℳ.K
             for face in 1:ℳ.nFaces
                 @. FtoV[sk, ℳ.EtoV[k, vn[face,:] ] ] = 1;
                 sk += 1
+            end
+        end
+    end
+
+    # make periodic
+    if periodic == true
+        VX = ℳ.vertices[:,1]
+        VY = ℳ.vertices[:,2]
+
+        # find min and max values for each axis
+        xmin = minimum(VX)
+        ymin = minimum(VY)
+        xmax = maximum(VX)
+        ymax = maximum(VY)
+
+        # find vertices on each boundary
+        x⁻ = findall( VX .≈ xmin )
+        y⁻ = findall( VY .≈ ymin )
+        x⁺ = findall( VX .≈ xmax )
+        y⁺ = findall( VY .≈ ymax )
+
+        #match up appropriate vertices, does not generalize to 3D
+        facesᴸ = sortslices([VY[x⁻] x⁻], dims = 1)[:,2]
+        facesᴿ = sortslices([VY[x⁺] x⁺], dims = 1)[:,2]
+        facesᴮ = sortslices([VX[y⁻] y⁻], dims = 1)[:,2]
+        facesᵀ = sortslices([VX[y⁺] y⁺], dims = 1)[:,2]
+
+        # loop over faces
+        nFacesᴴ = length(facesᴸ)
+        nFacesⱽ = length(facesᴮ)
+        for i in 1:nFacesTotal
+
+            # enforce periodicity in the horizontal direction
+            for k in 1:(nFacesᴴ-1)
+                faceᴸ = Int.(facesᴸ[k:k+1])
+                faceᴿ = Int.(facesᴿ[k:k+1])
+
+                # check if face i is faceᴸ
+                if sum(FtoV[i, faceᴸ]) == 2
+                    # identify left face with right face
+                    @. FtoV[i, faceᴸ] = 0
+                    @. FtoV[i, faceᴿ] = 1
+                    dropzeros!(FtoV)
+                end
+            end
+
+            # enforce periodicity in the vertical direction
+            for k in 1:(nFacesⱽ-1)
+                faceᴮ = Int.(facesᴮ[k:k+1])
+                faceᵀ = Int.(facesᵀ[k:k+1])
+
+                # check if face i is faceᴮ
+                if sum(FtoV[i, faceᴮ]) == 2
+                    # identify top face with bottom face
+                    @. FtoV[i, faceᴮ] = 0
+                    @. FtoV[i, faceᵀ] = 1
+                    dropzeros!(FtoV)
+                end
             end
         end
     end
@@ -549,9 +609,9 @@ function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
     return vmap⁻, vmap⁺, vmapᴮ, mapᴮ
 end
 
-function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int)
+function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1, periodic::Bool=false)
     # create face to node connectivity matrix
-    EtoE,EtoF = connect2D(ℳ)
+    EtoE,EtoF = connect2D(ℳ, periodic=periodic)
 
     # find indices of interior face nodes
     vmap⁻ = []
@@ -609,7 +669,10 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int)
             D = zeros(Int, nFP, nFP)
             for i in 1:nFP
                 for j in 1:i
-                    D[j,i] = ((x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2]))
+                    exact = (x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2])
+                    periodicˣ = (abs(x⁻[i, 1] - x⁺[j, 1]) ≈ lˣ) && (x⁻[i, 2] ≈ x⁺[j, 2])
+                    periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) ) && (x⁻[i, 1] ≈ x⁺[j, 1])
+                    D[j,i] = (exact || periodicˣ || periodicʸ)
                 end
             end
             D = Symmetric(D)

@@ -717,10 +717,10 @@ function connect_periodic_2D(VX, VY, EtoV)
     maxindy = findall( VY .≈ by )
 
     #match up appropriate vertices, does not generalize to 3D
-    leftface = sortslices([VY[minindx] minindx], dims = 1)
-    rightface = sortslices([VY[maxindx] maxindx], dims = 1)
-    bottomface = sortslices([VX[minindy] minindy], dims = 1)
-    topface = sortslices([VX[maxindy] maxindy], dims = 1)
+    leftface = sortslices([VY[minindx] minindx], dims = 1)[:,2]
+    rightface = sortslices([VY[maxindx] maxindx], dims = 1)[:,2]
+    bottomface = sortslices([VX[minindy] minindy], dims = 1)[:,2]
+    topface = sortslices([VX[maxindy] maxindy], dims = 1)[:,2]
 
     nFaces = 3
     K = size(EtoV, 1)
@@ -754,22 +754,28 @@ function connect_periodic_2D(VX, VY, EtoV)
     # now make correction for periodic case
     # should only need to loop over elements on boundary
 
-    for i in 1:(nFaces*K)
-        for k in 1:(length(leftface[:,2])-1)
-            vecL = Int.(leftface[k:k+1 , 2])
-            vecR = Int.(rightface[k:k+1, 2])
-            # identify left face with right face
+    nFacesTotal = nFaces*K
+    nVX = length(leftface) # == length(bottomface[:,2])
+    for i in 1:nFacesTotal
+        for k in 1:(nVX-1)
+            vecL = Int.( leftface[k:k+1])
+            vecR = Int.(rightface[k:k+1])
+
+            # check if face i is vecL
             if sum(FtoV[i, vecL]) == 2
+                # identify left face with right face
                 @. FtoV[i, vecL] = 0
-                @. FtoV[i,vecR] = 1
+                @. FtoV[i, vecR] = 1
                 dropzeros!(FtoV)
             end
-            vecB = Int.(bottomface[k:k+1 , 2])
-            vecT = Int.(topface[k:k+1, 2])
+
+            vecB = Int.(bottomface[k:k+1])
+            vecT = Int.(   topface[k:k+1])
+
             # identify top face with bottom face
-            if sum(FtoV[i, vecB])==2
+            if sum(FtoV[i, vecB]) == 2
                 @. FtoV[i, vecB] = 0
-                @. FtoV[i,vecT] = 1
+                @. FtoV[i, vecT] = 1
                 dropzeros!(FtoV)
             end
         end

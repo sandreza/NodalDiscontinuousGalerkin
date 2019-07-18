@@ -71,9 +71,7 @@ function dg_advection2D!(U̇, U, params, t)
             # println(∇u)
 
             # local derivatives of the fields
-            φˣ = @. vˣ * u
-            φʸ = @. vʸ * u
-            ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
+            ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
 
             # println(∇u)
 

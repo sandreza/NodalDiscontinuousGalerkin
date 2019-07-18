@@ -4,19 +4,19 @@ include("dg_maxwell2D.jl")
 using Plots
 
 # make mesh
-K = 2^2
-L = 2^2
+K = 2^3
+L = 2^3
 xmin = ymin = -1.0
 xmax = ymax = 1.0
-# ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
+ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 filename = "Maxwell1.neu"
 filepath = "./DG2D/grids/"
 filename = filepath * filename
-ℳ = meshreader_gambit2D(filename)
+# ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 4
 
 # make grid
 𝒢 = Grid2D(ℳ, N)
@@ -71,23 +71,17 @@ for t in times
     push!(exacts[3], tẼᶻ)
 end
 
-solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, 1)
-
-difference = @. solutions[1][2] - exacts[1][2]
-display(difference)
-
-quit()
+solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, Nsteps)
 
 gr()
 step = floor(Int, Nsteps / 50)
 
 fieldNames = [ "H^{x}", "H^{y}", "E^{z}"]
 
-@animate for t in 1:step:(2*step)
+@animate for t in 1:step:Nsteps
     plots = []
-    for (i, (sol, exact)) in enumerate(zip(solutions,exacts))
-        diff = @. sol[t] - exact[t]
-        ploti = surface(x[:],y[:],diff[:], title = fieldNames[i], camera = (15,60))
+    for (i, sol) in enumerate(solutions)
+        ploti = surface(x[:],y[:],sol[t][:], title = fieldNames[i], camera = (15,60))
         push!(plots, ploti)
     end
     display(plot(plots...))

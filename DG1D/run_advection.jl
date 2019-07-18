@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 
 # choose eqn type
-periodic = true
+periodic = false
 
 # set number of DG elements and polynomial order
 K = 2^3 #number of elements

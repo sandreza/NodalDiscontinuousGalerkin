@@ -60,12 +60,15 @@ function dg_upwind!(u̇, u, params, t)
     @. ι.flux = 1//2 * diffs * (ε.v * 𝒢.normals - (1 - ε.α) * abs(ε.v * 𝒢.normals))
 
     # Inflow and Outflow boundary conditions
+
     if !periodic
         uin = -sin(ε.v * t)
         ι.flux[𝒢.mapI]  = @. (u[𝒢.vmapI] - uin)
-        ι.flux[𝒢.mapI] *= @. 1//2 * (ε.v * 𝒢.normals[𝒢.mapI] - (1-ε.α) * abs(ε.α * abs(ε.v * 𝒢.normals[𝒢.mapI])))
+        ι.flux[𝒢.mapI] *= @. 1//2 * (ε.v * 𝒢.normals[𝒢.mapI] - (1-ε.α) * abs(ε.v * 𝒢.normals[𝒢.mapI]))
         ι.flux[𝒢.mapO]  = 0
     end
+
+
 
     # rhs of the semi-discerte PDE, ∂ᵗu = -∂ˣu
     mul!(u̇, 𝒢.D, u)

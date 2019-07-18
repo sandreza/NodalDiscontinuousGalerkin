@@ -1,44 +1,63 @@
 # first define the stream function
 include("grid2D.jl")
 include("dg_advection.jl")
-
+include("triangles.jl")
+using Plots
+using BenchmarkTools
+using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 1
-timings = false
+n = 10
+timings = true
 gradients_check = false
-solve_ode = true
+solve_ode = false
 euler = false
 upwind_check = false
-
+plot_solution = false
+forward_and_backwards = false
 #load file
+#(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
+#in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
-grid = garbage_triangle3(n, filename)
-field = dg_garbage_triangle(grid)
+mesh = periodic_triangle(n, filename)
+field = dg_garbage_triangle(mesh)
 
 #for convenience
-x = grid.x
-y = grid.y
-#plot the total grid points
-p1 = scatter(x,y,legend=false)
+x = mesh.x
+y = mesh.y
+
+#
+leftface = findall( x[:] .== -1)
+rightface = findall( x[:] .== 1)
+#plot the total mesh points
+p1 = scatter(x, y, legend=false)
 # plot boundary of triangles
-scatter!(x[grid.vmapM] , y[grid.vmapM], color = "black", legend = false)
+scatter!(x[mesh.vmapM] , y[mesh.vmapM], color = "black", legend = false)
 #plot boundary of domain
-scatter!(x[grid.vmapB] , y[grid.vmapB], color = "yellow", legend = false)
+scatter!(x[mesh.vmapB] , y[mesh.vmapB], color = "yellow", legend = false)
 display(plot(p1))
 
 println("We have")
-println(length(grid.x))
+println(length(mesh.x))
 println("degrees of freedom")
+offsetx = 0.0
+offsety = -0.5
 #define stream function and components of velocity
 ψ(x, y, γ) = exp(γ*(y-1)^2 ) * cos(π/2 * x) * cos(π/2 * y)
 u1(x, y, γ) =  cos(π/2 * y) * cos(π/2 * x) * γ * 2 * (y-1) * exp(γ*(y-1)^2 )  - π / 2 * sin(π/2 * y) * exp(γ*(y-1)^2 ) * cos(π/2 * x)
 u2(x, y, γ) = π / 2 * sin(π/2 * x) * exp(γ*(y-1)^2 ) * cos(π/2 * y)
-u0(x, y, μ) = exp(-μ * x^2 - μ * (y+0.5)^2) * cos(π/2 * x) * cos(π/2 * y)
+u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * cos(π/2 * y)
 
-
+#simpler
+#=
+ψ(x, y, γ)  = x+y
+u1(x, y, γ) =  1.0
+u2(x, y, γ) = 0.0
+=#
+#u0(x, y, μ) = sin(x)*cos(y) + x
+#u0(x, y, μ) =  1.0
 
 
 
@@ -49,6 +68,11 @@ u⁰ = [u0(x[i,j],y[i,j],μ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 ψᵏ = [ψ(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 v¹ = [u1(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 v² = [u2(x[i,j],y[i,j],γ) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
+
+v¹ = [u1(x[i],y[i],γ) for i in 1:length(x)]
+v² = [u2(x[i],y[i],γ) for i in 1:length(x)]
+v¹ = reshape(v¹, size(x))
+v² = reshape(v², size(x))
 
 flux1 = v¹ .* u⁰
 flux2 = v² .* u⁰
@@ -63,27 +87,33 @@ struct velocity_field{T}
     end
 end
 
+external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 #define params
 tspan = (0.0, 8.0)
 ι = field
 ε = external
-𝒢 = grid
+𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-rhs! = dg_central_2D!
-dt =  0.5 * (grid.r[2] - grid.r[1]) / grid.K / maximum([1, maximum(v¹)])
+#rhs! = dg_upwind_2D!
+# to reduce aliasing errors
+#rhs! = dg_upwind_sym_2D!
+rhs! = dg_central_sym_2D!
+#rhs! = dg_central_rand_2D!
+#rhs! = dg_central_switch_2D!
+dt =  0.5 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
 println("The time step size is ")
 println(dt)
 # find numerical velocity field
 ∇!(ι.φˣ, ι.φʸ, ψᵏ, 𝒢)
 w¹ = copy(ι.φʸ)
 w² = -copy(ι.φˣ)
-external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 
 
-params = (grid, field, external)
+
+params = (mesh, field, external)
 
 @. field.u = u⁰
 u = field.u
@@ -96,8 +126,14 @@ if timings
     @btime dg_upwind_2D!(u̇, u, params, 0);
     println("divergence")
     @btime ∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢);
+    println("compare to 1 matrix multiplications (should compare to about 4)")
+    @btime mul!(ι.φʸ, 𝒢.Dˢ, ι.φˣ)
     println("lift")
     @btime lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ);
+    println("symmetrized upwind ")
+    @btime dg_upwind_sym_2D!(u̇, u, params, 0)
+    println("symmetrized central ")
+    @btime dg_central_sym_2D!(u̇, u, params, 0)
 end
 
 if gradients_check
@@ -148,7 +184,19 @@ u̇ = copy(field.u̇)
 if solve_ode
     prob = ODEProblem(rhs!, u, tspan, params);
     sol  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+    println("----------")
+    println("The energy at the beginning is")
+    println(norm(sol.u[1])^2)
+    println("The energy at the end is")
+    println(norm(sol.u[end])^2)
+    println("The relative loss in energy is ")
+    println( (norm(sol.u[1])^2-norm(sol.u[end])^2)/ norm(sol.u[1])^2)
+    println("---------")
+    println("The error for nice velocity is")
+    println(norm(sol.u[1]-sol.u[end]))
+    println("-------")
 end
+
 
 #euler time-stepping for debugging
 
@@ -208,6 +256,58 @@ end
 
 # [ max(x[i,j], y[i,j]) for i in 1:length(x[:,1]), j in 1:length(y[1,:]) ]
 
+if plot_solution
+    gr()
+    endtime = length(sol.t)
+    steps = Int( floor(endtime / 40))
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    println("The error for nice velocity is")
+    println(norm(sol.u[1]-sol.u[end]))
+end
+
+if forward_and_backwards
+    prob = ODEProblem(rhs!, u, tspan, params);
+    sol_f  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+    println("done with forwards")
+    params = (mesh, field, external)
+    @. external.v1 *= -1
+    @. external.v2 *= -1
+    u = copy(sol_f.u[end])
+    prob = ODEProblem(rhs!, u, tspan, params);
+    sol_b  = solve(prob, RK4(), dt=dt, adaptive = false);
+    println("done with backwards")
+
+    #now plot
+    gr()
+    endtime = length(sol_f.t)
+    steps = Int( floor(endtime / 40))
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol_f.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol_b.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    println("the relative error is")
+    println(norm(sol_f.u[1]-sol_b.u[end])/norm(sol_f.u[1]))
+end
 
 ###
  p1 = scatter(x[:,1],y[:,1])
@@ -217,24 +317,19 @@ end
 display(plot(p1))
 ###
 
+
+
 ###
 gr()
-endtime = length(sol.t)
-steps = Int( floor(endtime / 80))
-
-@gif for i in 1:steps:endtime
-    println(i)
-    u = copy(sol.u[i])
-    p1 = surface(x[:],y[:],u[:], camera = (15,60))
-    plot(p1)
+camera_top = 90 #this is a very hacky way to get a 2D contour plot
+camera_side = 0
+u = copy(sol.u[800])
+p1 = surface(x[:,1],y[:,1],u[:,1], camera = (camera_side,camera_top))
+for i in 2:mesh.K
+    surface!(x[:,i],y[:,i],u[:,i], camera = (camera_side,camera_top) )
 end
-###
-
-###
-gr()
-
-u = copy(sol.u[1])
-p1 = surface(x[:],y[:],u[:], camera = (15,60))
 plot(p1)
+
+#colors, default is :inferno,
 
 ###

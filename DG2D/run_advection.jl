@@ -1,6 +1,7 @@
 # first define the stream function
 include("grid2D.jl")
 include("dg_advection.jl")
+
 # choose the polynomial order
 #3 seems to be pretty efficient
 n = 1
@@ -9,6 +10,7 @@ gradients_check = false
 solve_ode = true
 euler = false
 upwind_check = false
+
 #load file
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
@@ -36,14 +38,7 @@ u1(x, y, γ) =  cos(π/2 * y) * cos(π/2 * x) * γ * 2 * (y-1) * exp(γ*(y-1)^2 
 u2(x, y, γ) = π / 2 * sin(π/2 * x) * exp(γ*(y-1)^2 ) * cos(π/2 * y)
 u0(x, y, μ) = exp(-μ * x^2 - μ * (y+0.5)^2) * cos(π/2 * x) * cos(π/2 * y)
 
-#simpler
-#=
-ψ(x, y, γ)  = y^2 + x
-u1(x, y, γ) =  2 * y
-u2(x, y, γ) = -1
-=#
-#u0(x, y, μ) = sin(x)*cos(y) + x
-#u0(x, y, μ) =  1.0
+
 
 
 

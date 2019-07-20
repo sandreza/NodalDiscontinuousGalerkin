@@ -112,29 +112,3 @@ function poisson_setup(𝒢, periodic, τ)
     end
     return L
 end
-
-"""
-compute_τ(mesh)
-
-# Description
-
-- Computes the tau parameter in NDG
-
-# Arguments
-
-- `mesh` : mesh struct
-
-# Returns
-
-- `τ` : the value of τ at every grid point. (in the code could be either)
-"""
-function compute_τ(mesh)
-    matP = mesh.J[mesh.vmapP] ./ mesh.sJ[:]
-    matM = mesh.J[mesh.vmapM] ./ mesh.sJ[:]
-    hmin = zeros(length(matP))
-    for i in 1:length(matP)
-        matP[i] < matM[i] ? hmin[i] = 2 * matP[i] : hmin[i] = 2 * matM[i]
-    end
-    np = (mesh.n + 1) * (mesh.n + 2) / 2
-    return reshape(np ./ hmin, mesh.nfp * mesh.nFaces, mesh.K)
-end

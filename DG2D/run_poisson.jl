@@ -14,8 +14,8 @@ timings = false
 plotting = true
 check_correctness = true
 # simulation parameters and grid
-n = 4
-FileName = "Maxwell025.neu"
+n = 6
+FileName = "Maxwell0125.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -96,18 +96,24 @@ if check_correctness
     # now to compute the solution
     #chol_∇² = cholesky(-∇²); #will need to multiply by -1
     chol_∇² = lu(-∇²); #will need to multiply by -1
-    @. u = - frhs #due to cholesky nonsense
+    @. Δu = - frhs #due to cholesky nonsense
     tmpΔu = Δu[:]
     tmpu = u[:]
     #ldiv!(tmpΔu, chol_∇², tmpu)
-    tmpΔu = chol_∇² \ tmpu #just using the fastest
+    tmpu = chol_∇² \ tmpΔu #just using the fastest
     #modify for neumann
-    tmpΔu = tmpΔu .- sum(tmpΔu)/length(tmpΔu) .+ sum(fsol)/length(fsol)
+    tmpu = tmpu .- sum(tmpu)/length(tmpu) .+ sum(fsol)/length(fsol)
     #set values
-    @. Δu[:] = tmpΔu
-    w2inf = maximum(abs.(Δu .- fsol)) / maximum(abs.(Δu))
+    @. u[:] = tmpu
+    w2inf = maximum(abs.(u .- fsol)) / maximum(abs.(u))
     println("The relative error in computing the solution is $(w2inf)")
     println("----------------")
+
+    println("-------------")
+    jump_max = maximum(abs.(u[mesh.vmapP] .- u[mesh.vmapM]))
+    println("The maximum discontinuity across gridpoints is $(jump_max)")
+    println("-------------")
+
 end
 
 if timings
@@ -125,7 +131,9 @@ if timings
     println("evaluating the second derivative takes")
     @btime dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
-    # now for timings
+    # now for timings,
+    #these are somewhat irrelevant hence the commenting
+    #=
     println("--------------")
     println("sparse")
     @btime ∇² \ u[:];
@@ -135,7 +143,7 @@ if timings
     @btime cm∇² \ u[p];
     println("banded")
     @btime b∇² \ u[p];
-
+    =#
     println("--------------")
 
     chol_f∇² = cholesky(-f∇²); #will need to multiply by -1

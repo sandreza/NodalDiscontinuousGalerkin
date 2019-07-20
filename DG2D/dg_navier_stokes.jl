@@ -320,8 +320,8 @@ pearson_vortex!(u, v, 𝒢, t)
 - `𝒢` : grid struct
 - `t` : time
 """
-function pearson_vortex!(u, v, p, 𝒢, t)
-        @.  u = -sin(2 * pi * 𝒢.y ) * exp( - nu * 4 * pi^2 * t)
-        @.  v =  sin(2 * pi * 𝒢.x ) * exp( - nu * 4 * pi^2 * t)
-        @.  p = -cos(2 * pi * 𝒢.x ) * cos(2 * pi * 𝒢.y) * exp( - nu * 8 * pi^2 * t)
+function pearson_vortex!(u, v, p, 𝒢, ν, t)
+        @.  u = -sin(2 * pi * 𝒢.y ) * exp( - ν * 4 * pi^2 * t)
+        @.  v =  sin(2 * pi * 𝒢.x ) * exp( - ν * 4 * pi^2 * t)
+        @.  p = -cos(2 * pi * 𝒢.x ) * cos(2 * pi * 𝒢.y) * exp( - ν * 8 * pi^2 * t)
 end

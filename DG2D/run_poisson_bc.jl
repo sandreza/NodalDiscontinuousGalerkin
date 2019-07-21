@@ -1,3 +1,5 @@
+# run_poisson_bc
+
 using BandedMatrices
 using BenchmarkTools
 using LinearAlgebra
@@ -11,8 +13,9 @@ include("../src/CuthillMckee.jl")
 
 
 timings = false
-plotting = true
+plotting_matrix = true
 check_correctness = true
+plotting_solution = false
 # simulation parameters and grid
 n = 3
 FileName = "Maxwell025.neu"
@@ -20,6 +23,7 @@ filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
 field = dg_garbage_triangle(mesh)
+ι = field
 
 # location of boundary grid points for dirichlet bc
 bc = (mesh.vmapB, mesh.mapB)
@@ -31,14 +35,14 @@ dbc = ([],[])
 params = [τ]
 #for the first poisson equation
 #homogenous dirichlet
-function bc_u!(du, u, bc)
-    @. du[bc[2]] = 2 * u[bc[1]]
+function bc_u!(ι, mesh, bc)
+    @. ι.fⁿ[bc[2]] = 1 * ι.u[bc[1]] - ( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
     return nothing
 end
 #homogenous neumann
-function bc_φ!(fˣ, fʸ, φˣ, φʸ, bc)
-    @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
-    @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
+function bc_φ!(ι, mesh, bc)
+    @. ι.fˣ[bc[2]] = ι.φˣ[bc[1]] - 0.0
+    @. ι.fʸ[bc[2]] = ι.φʸ[bc[1]] - 0.0
     return nothing
 end
 # define boundary conditions
@@ -47,11 +51,12 @@ end
 u = similar(field.u)
 #dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
+#( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
 
 # may take a while for larger matrices
-∇² = poisson_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+∇², b = poisson_setup_bc(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 # make sure its symmetric
-∇² = (∇² + ∇²')/2
+#∇² = (∇² + ∇²')/2
 
 # output some matrix properties
 println("The size of the matrix is $(size(∇²))")
@@ -66,10 +71,15 @@ println("The bandwidth of the reordered matrix is $(maximum(i-j)+1)")
 
 if check_correctness
     # first create an exact solution
-    exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β)
 
+    #exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β) + 10.0
+    #exact(x,y,α,β) = (x^2 -1 ) * (y^2 -1 )
+    exact(x,y,α,β) = x^2 + y^2
     # then create a forcing function
-    forcing(x,y,α,β) = - ( (α*π/2)^2 + (β*π/2)^2 ) * cos(π/2 * x * α) * cos(π/2 * y * β)
+
+    #forcing(x,y,α,β) = - ( (α*π/2)^2 + (β*π/2)^2 ) * cos(π/2 * x * α) * cos(π/2 * y * β)
+    #forcing(x,y,α,β) = 2.0 * (y^2 - 1.0) + 2.0 * (x^2 - 1.0)
+    forcing(x,y,α,β) = 4.0
 
     #for convenience
     x = mesh.x
@@ -77,21 +87,30 @@ if check_correctness
 
     # evaluate at grid points with given values for α and β
     # odd for dirichlet, even for neumann
-    α = 3
-    β = 3
+    α = 1
+    β = 1
     frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
+    #@. frhs[mesh.vmapB] = (x[mesh.vmapB])^2 + (y[mesh.vmapB])^2
 
     # adjust for J * mass matrix component
-    frhs = mesh.J .* (mesh.M * frhs)
+    frhs = mesh.J .* (mesh.M * frhs) - b
+    frhs_with_affine = mesh.J .* (mesh.M * frhs)
 
     fsol = [exact(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
 
     # chech, W^{2,∞} error
     println("----------------")
     @. u = fsol
-    dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
-    w2inf = maximum(abs.(Δu .- frhs)) / maximum(abs.(frhs))
-    println("The relative error in computing the second derivative is $(w2inf)")
+    e1 = similar(u)
+    @. e1 = 0.0
+    e1[2] = 0.0
+    # @. u = e1
+    dg_poisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    w2inf_Δ = maximum(abs.(Δu .- frhs_with_affine)) / maximum(abs.(frhs))
+    cc = ∇² * u[:]
+    ctmp = frhs[:]
+    w2inf_Δ_2 = maximum(abs.( cc .- ctmp)) / maximum(abs.(frhs))
+    println("The relative error in computing the second derivative is $(w2inf_Δ)")
     println("This is a lower estimate since its on the grid points")
 
     # now to compute the solution
@@ -103,7 +122,7 @@ if check_correctness
     #ldiv!(tmpΔu, chol_∇², tmpu)
     tmpu = chol_∇² \ tmpΔu #just using the fastest
     #modify for neumann
-    tmpu = tmpu .- sum(tmpu)/length(tmpu) .+ sum(fsol)/length(fsol)
+    #tmpu = tmpu .- sum(tmpu)/length(tmpu) .+ sum(fsol)/length(fsol)
     #set values
     @. u[:] = tmpu
     w2inf = maximum(abs.(u .- fsol)) / maximum(abs.(u))
@@ -181,8 +200,19 @@ if timings
     @btime qr_b∇² \ u[p];
 end
 
-if plotting
+if plotting_matrix
     p1 = spy(∇²)
     p2 = spy(cm∇²)
     display(plot(p1,p2))
+end
+
+if plotting_solution
+    gr()
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top))
+    p2 = surface(x[:],y[:],fsol[:], camera = (camera_side,camera_top))
+    p3 = surface(x[:],y[:],fsol[:].-u[:], camera = (camera_side,camera_top))
+
+    display(plot(p3))
 end

@@ -62,3 +62,64 @@ nyI = mesh.ny[mapI];
 # neuman boundary conditions for the
 @. ubc[mapO] = nyO *( ( 2*π) * (-cos(2*π*yO) * exp(-ν*4*π^2*t)));
 @. vbc[mapO] = nxO *(( 2*π)*( cos(2*π*xO)*exp(-ν*4*π^2*t)));
+
+
+# set up functions to evaluate boundary conditions
+#homogenous dirichlet
+function bc_p!(du, u, bc)
+    @. du[bc[2]] = u[bc[1]]  - bc[3]
+    return nothing
+end
+#homogenous neumann
+function bc_∇p!(fˣ, fʸ, φˣ, φʸ, bc)
+    @. fˣ[bc[2]] = φˣ[bc[1]] - bc[3]
+    @. fʸ[bc[2]] = φʸ[bc[1]] - bc[4]
+    return nothing
+end
+
+#homogenous dirichlet
+function bc_u!(du, u, bc)
+    @. du[bc[2]] = 2 * u[bc[1]] - bc[3]
+    return nothing
+end
+#homogenous neumann
+function bc_∇u!(fˣ, fʸ, φˣ, φʸ, bc)
+    @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
+    @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
+    return nothing
+end
+
+#homogenous dirichlet
+function bc_v!(du, u, bc)
+    @. du[bc[2]] = 2 * u[bc[1]] - bc[3]
+    return nothing
+end
+#homogenous neumann
+function bc_∇v!(fˣ, fʸ, φˣ, φʸ, bc)
+    @. fˣ[bc[2]] = 2 * φˣ[bc[1]]
+    @. fʸ[bc[2]] = 2 * φʸ[bc[1]]
+    return nothing
+end
+
+# set up pressure laplacian
+#boundary condition indices
+bc = ([vmapI vmapO][:], [mapI mapO][:], pbc)
+# location of boundary grid points for neumann bc
+dbc = ([], [], pbc)
+Δᵖ = poisson_setup(ι, params, mesh, bc_p!, bc, bc_∇p!, dbc)
+Δᵖ = cholesky(Δᵖ)
+
+# set up u-velocity laplacian
+#boundary condition indices
+bc = (vmapI, mapI, ubc)
+# location of boundary grid points for neumann bc
+dbc = (vmapO, mapO, ubc)
+Δᵘ = poisson_setup(ι, params, mesh, bc_u!, bc, bc_∇u!, dbc)
+Δᵘ = cholesky(Δᵘ)
+# set up v-velocity laplacian
+#boundary condition indices
+bc = (vmapI, mapI, vbc)
+# location of boundary grid points for neumann bc
+dbc = (vmapO, mapO, ubc)
+Δᵛ = poisson_setup(ι, params, mesh, bc_v!, bc, bc_∇v!, dbc)
+Δᵛ = cholesky(Δᵛ)

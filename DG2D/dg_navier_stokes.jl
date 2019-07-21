@@ -314,9 +314,9 @@ pearson_vortex!(u, v, 𝒢, t)
 
 # Arguments
 
-- `u` : velocity field component in the x-direction
-- `v` : veloctiy field component in the y-direction
-- `p` : pressure field
+- `!u` : velocity field component in the x-direction
+- `!v` : veloctiy field component in the y-direction
+- `!p` : pressure field
 - `𝒢` : grid struct
 - `t` : time
 """

@@ -28,12 +28,8 @@ function rectangle(index, vertices, N, M, vmap)
     n = length(a)
     m = length(b)
 
-    # get normals
-    n̂,Jˢ = normalsSQ(n, m)
-
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
-    lift = liftSQ(a, b)
 
     # get min and max values of physical coordinates
     xmin = vmap[vertices[2], 1]
@@ -46,8 +42,8 @@ function rectangle(index, vertices, N, M, vmap)
     r̃ = zeros(n*m, 2)
     x̃ = similar(r̃)
     let k = 0
-        for i in 1:n
-            for j in 1:m
+        for j in 1:m
+            for i in 1:n
                 k += 1
 
                 r̃[k,:] = [a[i] b[j]]
@@ -61,6 +57,10 @@ function rectangle(index, vertices, N, M, vmap)
 
     # build face mask for element
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
+
+    # lift matrix and normals
+    lift = liftSQ(a, b, fmask)
+    n̂,Jˢ = normalsSQ(n, m)
 
     # construct element
     rect = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
@@ -198,7 +198,7 @@ liftSQ(N, M)
 # Example
 
 """
-function liftSQ(r, s)
+function liftSQ(r, s, fmask)
     # get 2D vandermonde matrix
     V = vandermondeSQ(r,s)
 
@@ -207,47 +207,26 @@ function liftSQ(r, s)
     m = length(s)
 
     # empty matrix
-    ℰ = spzeros(Int, n*m, 2*(n+m))
+    ℰ = spzeros(n*m, 2*(n+m))
 
-    # starting column number for each face
-    rl = 1
-    sl = 1+m
-    rh = 1+m+n
-    sh = 1+m+n+m
+    # get 1D mass matrices matrices
+    Vʳ = vandermonde(r, 0, 0, n)
+    Vˢ = vandermonde(s, 0, 0, m)
 
-    # fill matrix for bounds on boundaries
-    # += syntax used for debugging, easily shows if multiple statements assign to the same entry
-    let k = 0 # element number
-        for i in 1:n
-            for j in 1:m
-                k += 1
+    Mʳ = inv(Vʳ * Vʳ')
+    Mˢ = inv(Vˢ * Vˢ')
 
-                # check if on rmin
-                if i == 1
-                    ℰ[k, rl] += 1
-                    rl += 1
-                end
+    # ending index for each face
+    nf1 = n
+    nf2 = n+m
+    nf3 = n+m+n
+    nf4 = n+m+n+m
 
-                # check if on smax
-                if j == 1
-                    ℰ[k, sl] += 1
-                    sl += 1
-                end
-
-                # check if on rmax
-                if i == n
-                    ℰ[k, rh] += 1
-                    rh += 1
-                end
-
-                # check if on smax
-                if j == m
-                    ℰ[k, sh] += 1
-                    sh += 1
-                end
-            end
-        end
-    end
+    # fill ℰ matrix with mass matrices
+    @. ℰ[fmask[:,1],     1:nf1] = Mʳ
+    @. ℰ[fmask[:,2], nf1+1:nf2] = Mˢ
+    @. ℰ[fmask[:,3], nf2+1:nf3] = Mʳ
+    @. ℰ[fmask[:,4], nf3+1:nf4] = Mˢ
 
     # compute lift (ordering because ℰ is sparse)
     lift = V * (V' * ℰ)
@@ -282,23 +261,16 @@ function normalsSQ(n, m)
     Jˢ = ones(n+m+n+m) # squares don't need to worry about this
 
     # ending index for each face
-    nf1 = m
-    nf2 = m+n
-    nf3 = m+n+m
-    nf4 = m+n+m+n
+    nf1 = n
+    nf2 = n+m
+    nf3 = n+m+n
+    nf4 = n+m+n+m
 
     # set values of normals
-    for i in 1:nf4
-        if     i < nf1+1
-            n̂[i, :] = [-1  0] # normal is (-1, 0) along first face
-        elseif i < nf2+1
-            n̂[i, :] = [ 0 -1] # normal is (0, -1) along second face
-        elseif i < nf3+1
-            n̂[i, :] = [ 1  0] # normal is (1, 0) along third face
-        else
-            n̂[i, :] = [ 0  1] # normal is (0, 1) along fourth face
-        end
-    end
+    @. n̂[    1:nf1, 2] = -1 # normal is ( 0, -1) along first face
+    @. n̂[nf1+1:nf2, 1] = -1 # normal is (-1,  0) along second face
+    @. n̂[nf2+1:nf3, 2] =  1 # normal is ( 0,  1) along third face
+    @. n̂[nf3+1:nf4, 1] =  1 # normal is ( 1,  0) along fourth face
 
     return n̂,Jˢ
 end

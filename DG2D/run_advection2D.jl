@@ -5,8 +5,8 @@ using Plots
 using OrdinaryDiffEq
 
 # make mesh
-K = 2^3
-L = 2^3
+K = 2
+L = 2
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
@@ -17,7 +17,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 4
+N = 2
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
@@ -47,7 +47,7 @@ u⁰(x, y, σ) = exp(-σ * x^2 - σ * y^2) * cos(π/2 * x) * cos(π/2 * y)
 α = 0 # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
-@. vˣ = 0.0
+@. vˣ = 0.5
 @. vʸ = 0.5
 
 # solve equations
@@ -63,6 +63,8 @@ problem = ODEProblem(dg_advection2D!, u.u, tspan, params);
 solutions = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
 
+Nsteps = length(solutions[1])
 step = floor(Int, Nsteps / 50) + 1
 times = 1:step:Nsteps+1
+# times = 1:6
 plotfield2D(times, [solutions.u], x, y)

@@ -504,7 +504,17 @@ function connect2D(ℳ::Mesh2D; periodic::Bool=false)
     EtoE[ind] = copy(element2)
     EtoF[ind] = copy(face2)
 
-    return EtoE,EtoF
+    connectivity = Array{Tuple{Int,Int}}[]
+    for k in 1:ℳ.K
+        push!(connectivity, Tuple{Int,Int}[])
+        for f in 1:ℳ.nFaces
+            E = EtoE[k,f]
+            F = EtoF[k,f]
+            push!(connectivity[k], (E,F))
+        end
+    end
+
+    return connectivity
 end
 
 """
@@ -530,99 +540,18 @@ buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
 -   `mapᴮ`: use to extract vmapᴮ from vmap⁻
 
 """
-function buildmaps2D(ℳ::Mesh2D, _nFP::Int, _nGL::Int, _fmask, _nodes)
-    # create face to node connectivity matrix
-    EtoE,EtoF = connect2D(ℳ)
-
-    # number volume nodes consecutively
-    nodeids = reshape( collect(Int, 1:(ℳ.K * _nGL)), _nGL, ℳ.K)
-    vmap⁻ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
-    vmap⁺ = zeros(Int, _nFP, ℳ.nFaces, ℳ.K)
-    # not actually used ???
-    map⁻  = collect(Int, 1:(_nFP * ℳ.nFaces * ℳ.K))'
-    map⁺  = copy(reshape(map⁻, _nFP, ℳ.nFaces, ℳ.K))
-
-    # find index of interior face nodes wrt volume node ordering
-    for k in 1:ℳ.K
-        for f in 1:ℳ.nFaces
-            vmap⁻[:, f, k] = nodeids[_fmask[:, f], k]
-        end
-    end
-
-    # find indices of exterior face nodes that match interior face nodes
-    let one = ones(1, _nFP)
-        for k1 in 1:ℳ.K
-            for f1 in 1:ℳ.nFaces
-                # find neighbor
-                k2 = EtoE[k1, f1]
-                f2 = EtoF[k1, f1]
-
-                # find volume node numbers of interior and exterior nodes
-                vid⁻ = vmap⁻[:, f1, k1]
-                vid⁺ = vmap⁻[:, f2, k2]
-
-                x⁻ = _nodes[:, 1][vid⁻]
-                y⁻ = _nodes[:, 2][vid⁻]
-
-                x⁺ = _nodes[:, 1][vid⁺]
-                y⁺ = _nodes[:, 2][vid⁺]
-
-                # create distance matrix
-                D = zeros(length(x⁻), _nFP)
-                for i in 1:_nFP
-                    for j in 1:i
-                        D[j,i] = (x⁻[i] - x⁺[j])^2 + (y⁻[i] - y⁺[j])^2
-                    end
-                end
-                D = Symmetric(D)
-
-                # reference length of edge
-                v1 = ℳ.vertices[ℳ.EtoV[k1,f1]]
-                v2 = ℳ.vertices[ℳ.EtoV[k1, 1 + mod(f1, ℳ.nFaces)]]
-                refd = @. sqrt((v1[1] - v2[1])^2 + (v1[2] - v2[2])^2)
-
-                # find indices of GL points on the boundary of the element
-                # i.e. distance between them is less than the reference difference
-                mask = @. sqrt(abs(D)) < eps(refd)
-
-                # convert from matrix mask to linear mask
-                m,n = size(D)
-                d = collect(Int, 1:(m*n))[mask[:]]
-
-                # find IDs of matching interior and exterior GL nodes
-                id⁻ =  @. floor(Int, (d-1)/m) + 1
-                id⁺ =  @. mod(d-1, m) + 1
-
-                # save exterior node that interior node maps to
-                vmap⁺[id⁻, f1, k1] = vid⁺[id⁺] # vid⁺ is a view of vmap⁻
-                @. map⁺[id⁻, f1, k1] = id⁺ + (f2-1) * _nFP + (k2-1) * ℳ.nFaces * _nFP
-            end
-        end
-    end
-
-    # reshape arrays
-    vmap⁺ = reshape(vmap⁺, length(vmap⁺))
-    vmap⁻ = reshape(vmap⁻, length(vmap⁻))
-
-    # Create list of boundary nodes
-    mapᴮ = map⁺[vmap⁺ .== vmap⁻]
-    vmapᴮ = vmap⁻[mapᴮ]
-
-    return vmap⁻, vmap⁺, vmapᴮ, mapᴮ
-end
-
 function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1, periodic::Bool=false)
     # create face to node connectivity matrix
-    EtoE,EtoF = connect2D(ℳ, periodic=periodic)
+    connectivity = connect2D(ℳ, periodic=periodic)
 
     # find indices of interior face nodes
-    vmap⁻ = []
+    vmap⁻ = Array{Array{Int}}[]
     nodes = collect(Int, 1:nGL)
     let nGLᵏ = 0
         for k in 1:ℳ.K
             # get element
             Ωᵏ = Ω[k]
-            push!(vmap⁻, [])
+            push!(vmap⁻, Array{Int}[])
             nFaces = length(Ωᵏ.vertices)
 
             # get number of GL points in element k
@@ -643,17 +572,16 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
     end
 
     # find indices of exterior nodes
-    vmap⁺ = []
+    vmap⁺ = Array{Array{Int}}[]
     for k in 1:ℳ.K
         # get element
         Ωᵏ = Ω[k]
-        push!(vmap⁺, [])
+        push!(vmap⁺, Array{Int}[])
         nFaces = length(Ωᵏ.vertices)
 
         for f⁻ in 1:nFaces
             # find neighbor and matching face
-            j  = EtoE[k, f⁻]
-            f⁺ = EtoF[k, f⁻]
+            j,f⁺ = connectivity[k][f⁻]
 
             # get neighbor
             Ωʲ = Ω[j]

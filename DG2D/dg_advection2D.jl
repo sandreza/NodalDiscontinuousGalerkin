@@ -24,12 +24,7 @@ function dg_advection2D!(U̇, U, params, t)
     @. h.u = U
     @. h.u̇ = U̇
 
-    # unpack fields
-    # h = fields[1]
-
     # define field differences at faces
-    # println(h.u[𝒢.nodes⁻])
-    # println(h.u[𝒢.nodes⁺])
     @. h.Δu = h.u[𝒢.nodes⁻] - h.u[𝒢.nodes⁺]
 
     # impose BC
@@ -45,8 +40,6 @@ function dg_advection2D!(U̇, U, params, t)
             nGL += Ωᵏ.nGL
             nBP += Ωᵏ.nBP
 
-            # println("\n$k")
-
             # get views of params
             vˣ = view(params[3], nGLᵏ)
             vʸ = view(params[4], nGLᵏ)
@@ -58,25 +51,17 @@ function dg_advection2D!(U̇, U, params, t)
             Δu = view(h.Δu, nBPᵏ)
             f = view(h.f, nBPᵏ)
 
-            # println(u)
-            # println(Δu)
-
             # evaluate fluxes
             mask = Ωᵏ.fmask
             n̂ˣ = Ωᵏ.n̂[:,1]
             n̂ʸ = Ωᵏ.n̂[:,2]
-            @. f = 1//2 * (vˣ[mask][:] * Δu * n̂ˣ + vʸ[mask][:] * Δu * n̂ʸ)
-            # println(f)
-
-            # println(∇u)
+            @. f = 1//2 * (n̂ˣ * vˣ[mask][:] + n̂ʸ * vʸ[mask][:]) * Δu
 
             # local derivatives of the fields
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
 
-            # println(∇u)
-
             # compute RHS of PDE's
-            lift = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* f)
+            lift = Ωᵏ.lift * (Ωᵏ.volume .* f)
             @. u̇ = -∇u + lift
         end
     end

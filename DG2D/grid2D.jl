@@ -84,8 +84,8 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
         # make a facemask
 
         # build the boundary maps
-        l̃ˣ = abs(x̃[end,1] - x̃[1,1])
-        l̃ʸ = abs(x̃[end,2] - x̃[1,2])
+        l̃ˣ = abs(maximum(x̃[:,1]) - minimum(x̃[:,1]))
+        l̃ʸ = abs(maximum(x̃[:,2]) - minimum(x̃[:,2]))
         nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL; lˣ=l̃ˣ, lʸ=l̃ʸ, periodic=periodic)
         nBP = length(nodes⁻)
 

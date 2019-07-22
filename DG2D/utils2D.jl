@@ -192,6 +192,8 @@ plotfield2D(times, solutions, x, y)
 
 """
 function plotfield2D(times, solutions, x, y)
+    gr()
+    theme(:juno)
     @animate for t in times
         plots = []
         for (i,sol) in enumerate(solutions)

@@ -314,8 +314,8 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     # construct array of vertices
     vertices = zeros((K+1)*(L+1), 2)
     let i = 0
-        for x in vˣ
-            for y in vʸ
+        for y in vʸ
+            for x in vˣ
                 i += 1
                 vertices[i,:] = [x y]
             end
@@ -325,15 +325,15 @@ function rectmesh2D(xmin, xmax, ymin, ymax, K, L)
     # construct element to vertex map
     EtoV = ones(Int, K*L, 4)
     j = 0
-    for k in 1:K
-        for l in 1:L
+    for l in 1:L
+        for k in 1:K
             j += 1
 
-            EtoV[j,2] = Int(l + (L+1) * (k-1))
-            EtoV[j,3] = Int(l + (L+1) * k)
+            EtoV[j,1] = Int(k + (K+1) * (l-1))
+            EtoV[j,4] = Int(k + (K+1) * l)
 
-            EtoV[j,1] = Int(EtoV[j,2] + 1)
-            EtoV[j,4] = Int(EtoV[j,3] + 1)
+            EtoV[j,3] = Int(EtoV[j,4] + 1)
+            EtoV[j,2] = Int(EtoV[j,1] + 1)
         end
     end
 
@@ -617,6 +617,9 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
 
             # save exterior node that interior node maps to
             push!(vmap⁺[k], vmap⁻[j][f⁺][id⁺])
+            if length(vmap⁺[k][f⁻]) != length(vmap⁻[k][f⁻])
+                display(D)
+            end
         end
     end
 

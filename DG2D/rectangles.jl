@@ -32,10 +32,10 @@ function rectangle(index, vertices, N, M, vmap)
     D = dmatricesSQ(a, b)
 
     # get min and max values of physical coordinates
-    xmin = vmap[vertices[2], 1]
-    ymin = vmap[vertices[2], 2]
-    xmax = vmap[vertices[end], 1]
-    ymax = vmap[vertices[end], 2]
+    xmin = vmap[vertices[1], 1]
+    ymin = vmap[vertices[1], 2]
+    xmax = vmap[vertices[3], 1]
+    ymax = vmap[vertices[3], 2]
 
     # arrays of first,second coordinate of GL tensor product
     # both ideal and physical coordinates are saved
@@ -268,9 +268,9 @@ function normalsSQ(n, m)
 
     # set values of normals
     @. n̂[    1:nf1, 2] = -1 # normal is ( 0, -1) along first face
-    @. n̂[nf1+1:nf2, 1] = -1 # normal is (-1,  0) along second face
+    @. n̂[nf1+1:nf2, 1] =  1 # normal is (-1,  0) along second face
     @. n̂[nf2+1:nf3, 2] =  1 # normal is ( 0,  1) along third face
-    @. n̂[nf3+1:nf4, 1] =  1 # normal is ( 1,  0) along fourth face
+    @. n̂[nf3+1:nf4, 1] = -1 # normal is ( 1,  0) along fourth face
 
     return n̂,Jˢ
 end
@@ -294,10 +294,10 @@ fmaskSQ(r, s)
 
 """
 function fmaskSQ(r, s)
-    fmask1 = findall( abs.( r .+ 1) .< eps(1.0) )'
-    fmask2 = findall( abs.( s .+ 1) .< eps(1.0) )'
-    fmask3 = findall( abs.( r .- 1) .< eps(1.0) )'
-    fmask4 = findall( abs.( s .- 1) .< eps(1.0) )'
+    fmask1 = findall( abs.( s .+ 1) .< eps(1.0) )'
+    fmask2 = findall( abs.( r .- 1) .< eps(1.0) )'
+    fmask3 = findall( abs.( s .- 1) .< eps(1.0) )'
+    fmask4 = findall( abs.( r .+ 1) .< eps(1.0) )'
     fmask = Array([fmask1; fmask2; fmask3; fmask4]')
     return fmask
 end

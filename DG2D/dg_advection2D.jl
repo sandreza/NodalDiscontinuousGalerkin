@@ -34,7 +34,7 @@ function dg_advection2D!(U̇, U, params, t)
     let nGL = nBP = 0
         for k in 1:𝒢.ℳ.K
             # get element and number of GL points
-            Ωᵏ = 𝒢.Ω[k]
+            Ωᵏ   = 𝒢.Ω[k]
             nGLᵏ = (nGL + 1):(nGL + Ωᵏ.nGL)
             nBPᵏ = (nBP + 1):(nBP + Ωᵏ.nBP)
             nGL += Ωᵏ.nGL
@@ -45,17 +45,16 @@ function dg_advection2D!(U̇, U, params, t)
             vʸ = view(params[4], nGLᵏ)
 
             # get views of computation elements
-            u = view(h.u, nGLᵏ)
-            u̇ = view(h.u̇, nGLᵏ)
+            u  = view(h.u,  nGLᵏ)
+            u̇  = view(h.u̇,  nGLᵏ)
             ∇u = view(h.∇u, nGLᵏ)
             Δu = view(h.Δu, nBPᵏ)
-            f = view(h.f, nBPᵏ)
+            f  = view(h.f,  nBPᵏ)
 
             # evaluate flux
-            mask = Ωᵏ.fmask
             n̂ˣ = Ωᵏ.n̂[:,1]
             n̂ʸ = Ωᵏ.n̂[:,2]
-            vⁿ̂ = @. n̂ˣ * vˣ[mask][:] + n̂ʸ * vʸ[mask][:]
+            vⁿ̂ = @. n̂ˣ * vˣ[Ωᵏ.fmask][:] + n̂ʸ * vʸ[Ωᵏ.fmask][:]
             @. f = 1//2 * (vⁿ̂ - α * abs(vⁿ̂)) * Δu
 
             # local derivatives of the fields
@@ -67,7 +66,6 @@ function dg_advection2D!(U̇, U, params, t)
         end
     end
 
-    @. U = h.u
     @. U̇ = h.u̇
 
     return nothing

@@ -193,13 +193,13 @@ plotfield2D(times, solutions, x, y)
 """
 function plotfield2D(times, solutions, x, y)
     gr()
-    theme(:juno)
+    theme(:default)
     @animate for t in times
         plots = []
         for (i,sol) in enumerate(solutions)
-            ploti = surface(x[:],y[:],sol[t], camera = (0,90), zaxis = ("bob",(0, 1), 0:0.1:1.0)) # (15,60))
+            ploti = surface(x[:], y[:], sol[t], zlims = (0.0, 1.0), camera = (0, 90)) # (15,60))
             push!(plots, ploti)
         end
-        display(plot(plots...))
+        display(plot(plots..., zlims = (0.0, 1.0), colors = :blue))
     end
 end

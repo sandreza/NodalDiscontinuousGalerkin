@@ -51,11 +51,12 @@ function dg_advection2D!(U̇, U, params, t)
             Δu = view(h.Δu, nBPᵏ)
             f = view(h.f, nBPᵏ)
 
-            # evaluate fluxes
+            # evaluate flux
             mask = Ωᵏ.fmask
             n̂ˣ = Ωᵏ.n̂[:,1]
             n̂ʸ = Ωᵏ.n̂[:,2]
-            @. f = 1//2 * (n̂ˣ * vˣ[mask][:] + n̂ʸ * vʸ[mask][:]) * Δu
+            vⁿ̂ = @. n̂ˣ * vˣ[mask][:] + n̂ʸ * vʸ[mask][:]
+            @. f = 1//2 * (vⁿ̂ - α * abs(vⁿ̂)) * Δu
 
             # local derivatives of the fields
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)

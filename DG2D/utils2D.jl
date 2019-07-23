@@ -126,6 +126,70 @@ end
 
 
 """
+advec(∇⨀u, fx, fy, Ω)
+
+# Description
+
+    Compute the advection of a scalar θ by flow field (vx,vy)
+
+# Arguments
+-   `u⨀∇θ`: allocated memory for result
+-   `vx`: first component of vector u
+-   `vy`: second component of vector u
+-   `θ`: the scalar
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `∇⨀u`: the divergence of u
+
+"""
+function advec!(u⨀∇θ, vx, vy, θ, Ω)
+    # compute partial derivatives on ideal grid
+    Dx = Ω.rx .*  Ω.Dʳ + Ω.sx * Ω.Dˢ
+    Dy = Ω.ry .*  Ω.Dʳ + Ω.sy * Ω.Dˢ
+
+    # compute gradient on physical grid
+    tmp = Dx * ( vx .* θ )  + Dy * ( vy .* θ )
+
+    @. u⨀∇θ = tmp
+    return nothing
+end
+
+
+"""
+sym_advec(∇⨀u, fx, fy, Ω)
+
+# Description
+
+    Compute the advection of a scalar θ by flow field (vx,vy), symmetrized advection
+
+# Arguments
+-   `u⨀∇θ`: allocated memory for result
+-   `vx`: first component of vector u
+-   `vy`: second component of vector u
+-   `θ`: the scalar
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `∇⨀u`: the divergence of u
+
+"""
+function sym_advec!(u⨀∇θ, vx, vy, θ, Ω)
+    # compute partial derivatives on ideal grid
+    Dx = Ω.rx .*  Ω.Dʳ + Ω.sx * Ω.Dˢ
+    Dy = Ω.ry .*  Ω.Dʳ + Ω.sy * Ω.Dˢ
+
+    # compute gradient on physical grid
+    tmp = Dx * ( vx .* θ )  + Dy * ( vy .* θ ) + vx .* (Dx * θ) + vy .* (Dy * θ)
+
+    @. u⨀∇θ = tmp / 2
+    return nothing
+end
+
+
+"""
 make_periodic2D(Ω)
 
 # Description

@@ -107,7 +107,7 @@ function dg_poisson_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     ∇!(ι.φˣ, ι.φʸ, u, mesh)
     @.  ι.φˣ -= liftx
     @.  ι.φʸ -= lifty
-
+    
     # Form field differences at faces for x and y partial derivatives
     @. ι.fˣ[:] = ι.φˣ[mesh.vmapM] - (ι.φˣ[mesh.vmapP] + ι.φˣ[mesh.vmapM] )/2
     @. ι.fʸ[:] = ι.φʸ[mesh.vmapM] - (ι.φʸ[mesh.vmapP] + ι.φʸ[mesh.vmapM] )/2
@@ -151,6 +151,7 @@ end
 
 
 # builds the affine operator (one column at a time) (sparse matrix)
+# here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
 function poisson_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0

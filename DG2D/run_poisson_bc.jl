@@ -17,7 +17,7 @@ plotting_matrix = true
 check_correctness = true
 plotting_solution = false
 # simulation parameters and grid
-n = 3
+n = 4
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
@@ -27,22 +27,25 @@ field = dg_garbage_triangle(mesh)
 
 # location of boundary grid points for dirichlet bc
 bc = (mesh.vmapB, mesh.mapB)
+bc = ([],[])
 # location of boundary grid points for neumann bc
 dbc = ([],[])
+dbc = (mesh.vmapB, mesh.mapB)
 
 #compute tau
 τ = compute_τ(mesh)
-params = [τ]
+params = [τ] 
 #for the first poisson equation
-#homogenous dirichlet
+#dirichlet
+const shift = 00.0
 function bc_u!(ι, mesh, bc)
-    @. ι.fⁿ[bc[2]] = 1 * ι.u[bc[1]] - ( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
+    @. ι.fⁿ[bc[2]] = 1 * ι.u[bc[1]] - shift
     return nothing
 end
-#homogenous neumann
+#neumann
 function bc_φ!(ι, mesh, bc)
-    @. ι.fˣ[bc[2]] = ι.φˣ[bc[1]] - 0.0
-    @. ι.fʸ[bc[2]] = ι.φʸ[bc[1]] - 0.0
+    @. ι.fˣ[bc[2]] = ι.φˣ[bc[1]] - 0.0 - 2 * mesh.x[bc[1]]
+    @. ι.fʸ[bc[2]] = ι.φʸ[bc[1]] - 0.0 - 2 * mesh.y[bc[1]]
     return nothing
 end
 # define boundary conditions
@@ -55,8 +58,29 @@ u = similar(field.u)
 
 # may take a while for larger matrices
 ∇², b = poisson_setup_bc(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
-# make sure its symmetric
-#∇² = (∇² + ∇²')/2
+# make sure its numericall symmetric
+symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))
+if symmetric_check > eps(1.0)
+    println("warning the matrix is not numerically symmetric")
+    ∇² = (∇² + ∇²')/2
+else
+    ∇² = (∇² + ∇²')/2
+end
+i,j = findnz(∇²)
+#manually drop the zeros
+println("current number of nonzero entries is $(length(i))")
+drop_criteria = eps(maximum(abs.(∇²)))
+for loop in 1:length(i)
+    if abs(∇²[i[loop],j[loop]]) < drop_criteria
+        #println("dropping")
+        #println(abs(∇²[i[loop],j[loop]]))
+        #println((i[loop],j[loop]))
+        ∇²[i[loop],j[loop]] = 0.0
+    end
+end
+dropzeros!(∇²)
+i,j = findnz(∇²)
+println("now it is $(length(i))")
 
 # output some matrix properties
 println("The size of the matrix is $(size(∇²))")
@@ -72,7 +96,7 @@ println("The bandwidth of the reordered matrix is $(maximum(i-j)+1)")
 if check_correctness
     # first create an exact solution
 
-    #exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β) + 10.0
+    exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β) + shift
     #exact(x,y,α,β) = (x^2 -1 ) * (y^2 -1 )
     exact(x,y,α,β) = x^2 + y^2
     # then create a forcing function
@@ -87,8 +111,8 @@ if check_correctness
 
     # evaluate at grid points with given values for α and β
     # odd for dirichlet, even for neumann
-    α = 1
-    β = 1
+    α = 2
+    β = 2
     frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
     #@. frhs[mesh.vmapB] = (x[mesh.vmapB])^2 + (y[mesh.vmapB])^2
 
@@ -122,7 +146,7 @@ if check_correctness
     #ldiv!(tmpΔu, chol_∇², tmpu)
     tmpu = chol_∇² \ tmpΔu #just using the fastest
     #modify for neumann
-    #tmpu = tmpu .- sum(tmpu)/length(tmpu) .+ sum(fsol)/length(fsol)
+    tmpu = tmpu .- sum(tmpu)/length(tmpu) .+ sum(fsol)/length(fsol)
     #set values
     @. u[:] = tmpu
     w2inf = maximum(abs.(u .- fsol)) / maximum(abs.(u))
@@ -149,7 +173,7 @@ if timings
     #for comparison
     println("------------")
     println("evaluating the second derivative takes")
-    @btime dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    @btime dg_poisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     # now for timings,
     #these are somewhat irrelevant hence the commenting

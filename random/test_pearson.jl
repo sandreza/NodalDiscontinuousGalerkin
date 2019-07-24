@@ -92,6 +92,7 @@ dbc = ([], [], pbc)
 bc = (vmapI, mapI, ubc)
 # location of boundary grid points for neumann bc
 dbc = (vmapO, mapO, ubc)
+#for future updates one just needs to evaluate poisson_bc or helmholtz_bc at zero
 Δᵘ, bᵘ = helhomtz_setup_bc(ι.u, params, mesh, bc_u!, bc, bc_∇u!, dbc)
 Δᵘ = cholesky(Δᵘ)
 # set up v-velocity laplacian

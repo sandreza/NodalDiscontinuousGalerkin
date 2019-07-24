@@ -516,6 +516,12 @@ git-tree-sha1 = "8b4f6cf3c97530e1ba7177ad3bc2b134373da851"
 uuid = "ae5879a3-cd67-5da8-be7f-38c6eb64a37b"
 version = "0.6.0"
 
+[[ReverseDiff]]
+deps = ["DiffResults", "DiffRules", "ForwardDiff", "FunctionWrappers", "LinearAlgebra", "NaNMath", "Random", "SpecialFunctions", "StaticArrays", "Statistics", "Test"]
+git-tree-sha1 = "d44e80d815a1a5abaf1ff1def21bb629cabaffec"
+uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+version = "0.3.1"
+
 [[Revise]]
 deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Pkg", "REPL", "UUIDs", "Unicode"]
 git-tree-sha1 = "09cbf077a36bf58e7d5d2b026bb2af8c92931993"

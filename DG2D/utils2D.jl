@@ -171,6 +171,33 @@ function plotgrid2D(𝒢::Grid2D)
     display(plot(grid))
 end
 
+"""
+minspacing2D(𝒢::Grid2D)
+
+# Description
+
+    Determining minimum grid spacing for CFL conditions
+
+# Arguments
+
+-   `𝒢`: grid to plot
+
+# Return Values
+
+-   `𝒢`: minimum spacing
+
+"""
+function minspacing2D(𝒢::Grid2D)
+    x = 𝒢.x[:,1]
+    y = 𝒢.x[:,2]
+
+    δx = minimum(setdiff!(union!([abs(x[i+1] - x[i]) for i in 1:length(x)-1]), [0.0]))
+    δy = minimum(setdiff!(union!([abs(y[i+1] - y[i]) for i in 1:length(y)-1]), [0.0]))
+    Δx = minimum([δx, δy])
+
+    return Δx
+end
+
 
 """
 plotfield2D(times, solutions, x, y)

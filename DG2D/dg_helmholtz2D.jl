@@ -107,7 +107,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
         dirichlet!(ϕ, BCᵈ)
     end
 
-    # perform calculations over elements
+    # compute fluxes for each element
     let nGL = nBP = 0
         for Ωᵏ in 𝒢.Ω
             # get number of GL points
@@ -120,14 +120,13 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             u  = view(ϕ.u,  GLᵏ)
             φˣ = view(ϕ.φˣ, GLᵏ)
             φʸ = view(ϕ.φʸ, GLᵏ)
-
             Δu = view(ϕ.Δu, BPᵏ)
 
             liftˣ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,1] .* Δu)
             liftʸ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,2] .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
-            #first get ∇q + flux terms
+            # first get ∇q + flux terms
             ∇!(φˣ, φʸ, u, Ωᵏ)
             @. φˣ -= liftˣ
             @. φʸ -= liftʸ
@@ -143,8 +142,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
         neumann!(ϕ, BCⁿ)
     end
 
-
-    # perform calculations over elements
+    # compute tendecy for each element
     let nGL = nBP = 0
         for Ωᵏ in 𝒢.Ω
             # get number of GL points
@@ -166,14 +164,18 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             fⁿ = view(ϕ.fⁿ, BPᵏ)
 
             # modify with τ, remember fⁿ is field differences at face points
-            # compute surface term
             @. fⁿ = Ωᵏ.n̂[:,1] * fˣ + Ωᵏ.n̂[:,2] * fʸ - τ * Δu
 
             # compute divergence of flux, volume term
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
 
+            # compute surface term
+            lift = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* fⁿ)
+
             # combine the terms
-            u̇ = ∇u - inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* fⁿ) - γ * u
+            @. u̇ = ∇u - lift - γ * u
+
+            # multiply by J * M for cholesky stuff
             u̇ = Ωᵏ.J .* (Ωᵏ.M * u̇)
         end
     end

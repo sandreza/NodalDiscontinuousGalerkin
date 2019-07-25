@@ -102,15 +102,10 @@ println("The bandwidth of the reordered matrix is $(maximum(i-j)+1)")
 
 if check_correctness
     # first create an exact solution
-
     exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β) + shift
-    #exact(x,y,α,β) = (x^2 -1 ) * (y^2 -1 )
-    #exact(x,y,α,β) = x^2 + y^2
-    # then create a forcing function
 
+    # then create a forcing function
     forcing(x,y,α,β) = - ( (α*π/2)^2 + (β*π/2)^2 + γ) * cos(π/2 * x * α) * cos(π/2 * y * β) - shift * γ
-    #forcing(x,y,α,β) = 2.0 * (y^2 - 1.0) + 2.0 * (x^2 - 1.0) + γ * exact(x,y,α,β)
-    #forcing(x,y,α,β) = 4.0 + γ * exact(x,y,α,β)
 
     #for convenience
     x = mesh.x

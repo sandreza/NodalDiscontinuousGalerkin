@@ -47,7 +47,7 @@ dirichlet!(ϕ::Field2D, B::DirichletBC)
 
 """
 function dirichlet!(ϕ::Field2D, B::DirichletBC)
-    @. ϕ.fⁿ[B.map] = ϕ.u[B.nodes] - B.f
+    @. ϕ.Δu[B.map] = ϕ.u[B.nodes] - B.f
 
     return nothing
 end

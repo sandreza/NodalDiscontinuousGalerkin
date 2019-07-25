@@ -30,22 +30,27 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     index::S
     vertices::T
 
-    # GL points and normals
-    r::U # ideal coordinates
-    x::U # physical coordinates
-    n̂::U # normal vectors
+    # GL points
+    nGL::S # number of points
+    x::U   # physical coordinates
+    D::V   # differentiation matrices
+    M::U   # mass matrix
 
-    # matrices for computation
-    D::V
-    lift::U
-    fmask::W
+    # boundary information
+    nBP::S    # number of points on the boundary
+    fmask::W  # mapping of GL points to faces
+    n̂::U      # normal vectors
+    ℰ::U   # lift matrix
 
     # geometric factors
-    J::X
-    xʳ::Y
-    rˣ::Y
+    rˣ::X     # jacobian matrix from ideal to physical space
+    volume::Y # size of the element in physical space
 
-    function Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
+    function Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
+        # number of points on the boundary
+        nFPᵏ,nFaces = size(fmask)
+        nBP = nFPᵏ * nFaces
+
         # partial derivatives of x
         nGL,nDim = size(x̃)
         x̃ʳ = zeros(nGL, 2, 2)
@@ -66,7 +71,12 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
             J[i] = det(𝒥)
         end
 
-        return new{typeof(index),typeof(vertices),typeof(r̃),typeof(D),typeof(fmask),typeof(J),typeof(x̃ʳ)}(index,vertices, r̃,x̃,n̂, D,lift,fmask, J,x̃ʳ,r̃ˣ)
+        # volume of element
+        volume = @. Jˢ / J[fmask][:]
+
+        #### add nodes⁻ and nodes⁺ as struct members
+
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(r̃ˣ),typeof(volume)}(index,vertices, nGL,x̃,D,M, nBP,fmask,n̂,ℰ, r̃ˣ,volume)
     end
 end
 

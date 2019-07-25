@@ -23,9 +23,15 @@ Field2D(𝒢::Grid2D)
 struct Field2D{T} <: AbstractField2D
     u::T
     u̇::T
-    Δu::T
     ∇u::T
-    f::T
+    φˣ::T
+    φʸ::T
+
+    Δu::T
+    fˣ::T
+    fʸ::T
+    fⁿ::T
+
     r::T
 
     function Field2D(𝒢::Grid2D)
@@ -33,10 +39,16 @@ struct Field2D{T} <: AbstractField2D
         u  = zeros(𝒢.nGL)
         u̇  = zeros(𝒢.nGL)
         ∇u = zeros(𝒢.nGL)
+        φˣ = zeros(𝒢.nGL)
+        φʸ = zeros(𝒢.nGL)
+
         Δu = zeros(𝒢.nBP)
-        f  = zeros(𝒢.nBP)
+        fˣ = zeros(𝒢.nBP)
+        fʸ = zeros(𝒢.nBP)
+        fⁿ = zeros(𝒢.nBP)
+
         r  = zeros(𝒢.nGL)
 
-        return new{typeof(u)}(u, u̇, Δu, ∇u, f, r)
+        return new{typeof(u)}(u,u̇,∇u,φˣ,φʸ, Δu,fˣ,fʸ,fⁿ, r)
     end
 end

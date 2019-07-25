@@ -31,7 +31,7 @@ end
 
 
 """
-∇!(uˣ, uʸ, u, Ω)
+∇!(uˣ, uʸ, u, Ω::Element2D)
 
 # Description
 
@@ -47,7 +47,7 @@ end
 # Return Values
 
 """
-function ∇!(uˣ,uʸ, u, Ω)
+function ∇!(uˣ,uʸ, u, Ω::Element2D)
     # compute partial derivatives on ideal grid
     uʳ = Ω.D[1] * u
     uˢ = Ω.D[2] * u
@@ -63,7 +63,7 @@ function ∇!(uˣ,uʸ, u, Ω)
 end
 
 """
-∇⨀!(∇⨀u, uˣ, uʸ, Ω)
+∇⨀!(∇⨀u, uˣ, uʸ, Ω::Element2D)
 
 # Description
 
@@ -79,7 +79,7 @@ end
 # Return Values
 
 """
-function ∇⨀!(∇⨀u, uˣ, uʸ, Ω)
+function ∇⨀!(∇⨀u, uˣ, uʸ, Ω::Element2D)
     # compute partial derivatives on ideal grid
     xʳ = Ω.D[1] * uˣ
     xˢ = Ω.D[2] * uˣ
@@ -97,7 +97,7 @@ end
 
 
 """
-∇⨂!(∇⨂u, uˣ, uʸ, Ω)
+∇⨂!(∇⨂u, uˣ, uʸ, Ω::Element2D)
 
 # Description
 
@@ -113,7 +113,7 @@ end
 # Return Values
 
 """
-function ∇⨂!(∇⨂u, uˣ, uʸ, Ω)
+function ∇⨂!(∇⨂u, uˣ, uʸ, Ω::Element2D)
     # compute partial derivatives on ideal grid
     xʳ = Ω.D[1] * uˣ
     xˢ = Ω.D[2] * uˣ
@@ -200,7 +200,6 @@ end
 
 
 """
-
 advec(∇⨀u, fx, fy, Ω)
 
 # Description
@@ -265,8 +264,6 @@ end
 
 
 """
-make_periodic2D(Ω)
-=======
 plotfield2D(times, solutions, x, y)
 
 # Description

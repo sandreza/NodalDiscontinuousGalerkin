@@ -32,9 +32,8 @@ function dg_advection2D!(U̇, U, params, t)
 
     # perform calculations over elements
     let nGL = nBP = 0
-        for k in 1:𝒢.ℳ.K
-            # get element and number of GL points
-            Ωᵏ   = 𝒢.Ω[k]
+        for Ωᵏ in 𝒢.Ω
+            # get number of GL points
             GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
             BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
             nGL += Ωᵏ.nGL
@@ -49,7 +48,7 @@ function dg_advection2D!(U̇, U, params, t)
             u̇  = view(h.u̇,  GLᵏ)
             ∇u = view(h.∇u, GLᵏ)
             Δu = view(h.Δu, BPᵏ)
-            f  = view(h.f,  BPᵏ)
+            f  = view(h.fⁿ, BPᵏ)
 
             # evaluate flux
             n̂ˣ = Ωᵏ.n̂[:,1]

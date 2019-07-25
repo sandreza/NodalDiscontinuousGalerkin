@@ -5,10 +5,10 @@ using BenchmarkTools
 using LinearAlgebra
 using Plots
 
-include("mesh2D.jl")
+include("grid2D.jl")
 include("dg_advection.jl")
-include("../DG2D/triangles.jl")
-include("../DG2D/dg_helmholtz.jl")
+include("triangles.jl")
+include("dg_helmholtz.jl")
 include("../src/CuthillMckee.jl")
 
 
@@ -64,7 +64,7 @@ u = similar(field.u)
 #( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
 
 # may take a while for larger matrices
-∇², b = helmholtz_setup_bc(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+∇², b = helmholtz_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 # make sure its numericall symmetric
 symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))
 if symmetric_check > eps(1.0)

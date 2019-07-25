@@ -44,6 +44,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
     # geometric factors
     rˣ::X     # jacobian matrix from ideal to physical space
+    J::Y      # magnitude of the jacobian
     volume::Y # size of the element in physical space
 
     function Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
@@ -76,7 +77,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
         #### add nodes⁻ and nodes⁺ as struct members
 
-        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(r̃ˣ),typeof(volume)}(index,vertices, nGL,x̃,D,M, nBP,fmask,n̂,ℰ, r̃ˣ,volume)
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(r̃ˣ),typeof(volume)}(index,vertices, nGL,x̃,D,M, nBP,fmask,n̂,ℰ, r̃ˣ,J,volume)
     end
 end
 

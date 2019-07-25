@@ -437,3 +437,24 @@ julia> a = [1 2; 3 4]
 function tt(a)
     return 1
 end
+
+
+"""
+rel_error(u,v)
+
+# Description
+
+- calculate the relative error between u and v with respect to v
+
+# Arguments
+
+- `u` : a structure of numbers
+- `v` : a structure of numbers
+
+# return
+
+- `relative error`:
+"""
+function rel_error(u,v)
+    return maximum(abs.(u[:] .- v[:])) / maximum(abs.(u[:]))
+end

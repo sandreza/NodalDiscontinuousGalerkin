@@ -145,14 +145,14 @@ advec(∇⨀u, fx, fy, Ω)
 
 """
 function advec!(u⨀∇θ, vx, vy, θ, Ω)
-    # compute partial derivatives on ideal grid
-    Dx = Ω.rx .*  Ω.Dʳ + Ω.sx * Ω.Dˢ
-    Dy = Ω.ry .*  Ω.Dʳ + Ω.sy * Ω.Dˢ
-
     # compute gradient on physical grid
-    tmp = Dx * ( vx .* θ )  + Dy * ( vy .* θ )
+    tmpˣ =  Ω.rx .* ( vx .* (Ω.Dʳ * θ) )
+    tmpˣ += Ω.sx .* ( vx .* (Ω.Dˢ * θ) )
+    tmpʸ =  Ω.ry .* ( vy .* (Ω.Dʳ * θ) )
+    tmpʸ += Ω.sy .* ( vy .* (Ω.Dˢ * θ) )
 
-    @. u⨀∇θ = tmp
+    @. u⨀∇θ = (tmpˣ + tmpʸ)
+
     return nothing
 end
 
@@ -162,29 +162,29 @@ sym_advec(∇⨀u, fx, fy, Ω)
 
 # Description
 
-    Compute the advection of a scalar θ by flow field (vx,vy), symmetrized advection
+-    Compute the advection of a scalar θ by flow field (vx,vy), symmetrized advection
 
 # Arguments
 -   `u⨀∇θ`: allocated memory for result
 -   `vx`: first component of vector u
 -   `vy`: second component of vector u
 -   `θ`: the scalar
--   `Ω`: element to compute in
+-   `Ω`: mesh to compute in
 
 # Return Values
 
--   `∇⨀u`: the divergence of u
+-   `u⨀∇θ`: symmetric advective component
 
 """
 function sym_advec!(u⨀∇θ, vx, vy, θ, Ω)
-    # compute partial derivatives on ideal grid
-    Dx = Ω.rx .*  Ω.Dʳ + Ω.sx * Ω.Dˢ
-    Dy = Ω.ry .*  Ω.Dʳ + Ω.sy * Ω.Dˢ
 
     # compute gradient on physical grid
-    tmp = Dx * ( vx .* θ )  + Dy * ( vy .* θ ) + vx .* (Dx * θ) + vy .* (Dy * θ)
+    tmpˣ = Ω.rx .* ( Ω.Dʳ * ( vx .* θ )  + vx .* (Ω.Dʳ * θ) )
+    tmpˣ += Ω.sx .* ( Ω.Dˢ * ( vx .* θ )  + vx .* (Ω.Dˢ * θ) )
+    tmpʸ = Ω.ry .* ( Ω.Dʳ * ( vy .* θ )  + vy .* (Ω.Dʳ * θ) )
+    tmpʸ += Ω.sy .* ( Ω.Dˢ * ( vy .* θ )  + vy .* (Ω.Dˢ * θ) )
 
-    @. u⨀∇θ = tmp / 2
+    @. u⨀∇θ = (tmpˣ + tmpʸ) * 0.5
     return nothing
 end
 

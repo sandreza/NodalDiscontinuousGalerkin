@@ -12,6 +12,12 @@ include("../DG2D/dg_helmholtz.jl")
 include("../src/CuthillMckee.jl")
 
 
+#notes to self
+
+# the tests here need to be modified in order to run
+# properly with respect to the different boudnary conditions
+# ideally there would be a switch case that examines this more thoroughly
+
 timings = false
 plotting_matrix = true
 check_correctness = true

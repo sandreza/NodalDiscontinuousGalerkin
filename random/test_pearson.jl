@@ -1,11 +1,12 @@
 # To make easy comparisons to the Matlab code
+
 include("../DG2D/dg_navier_stokes.jl")
 include("../DG2D/dg_poisson.jl")
 include("../DG2D/triangles.jl")
 include("../DG2D/mesh2D.jl")
 
 # define polynomial order
-n = 1
+n = 20
 
 # load grids
 FileName = "pvortex4A01.neu"
@@ -21,7 +22,7 @@ mapT, vmapT, bc_label = build_bc_maps(mesh, bctype, bc_name)
 
 # construct exact solution
 t = 0
-ν = 1e-2
+ν = 1e-2 # should declare as constant
 u_exact = similar(mesh.x)
 v_exact = similar(mesh.x)
 p_exact = similar(mesh.x)
@@ -106,12 +107,11 @@ dbc = (vmapO, mapO, ubc)
 
 
 
-###
 
 # functions
-u_analytic(x,y,t) = -sin(2 * pi * y ) * exp( - ν * 4 * pi^2 * t);
-v_analytic(x,y,t) =  sin(2 * pi * x ) * exp( - ν * 4 * pi^2 * t);
-p_analytic(x,y,t) = -cos(2 * pi * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t);
+u_analytic(x,y,t) = -sin(2 * π * y ) * exp( - ν * 4 * π^2 * t);
+v_analytic(x,y,t) =  sin(2 * π * x ) * exp( - ν * 4 * π^2 * t);
+p_analytic(x,y,t) = -cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t);
 
 #∂ˣ
 ∂ˣu_analytic(x,y,t) = 0.0;
@@ -123,15 +123,17 @@ p_analytic(x,y,t) = -cos(2 * pi * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t
 ∂ʸv_analytic(x,y,t) =  0.0;
 ∂ʸp_analytic(x,y,t) = 2 * π * cos(2 *π * x ) * sin(2 *π * y) * exp( - ν * 8 * π^2 * t);
 
+u∇ux_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣu_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸu_analytic(x,y,t)
+u∇uy_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣv_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸv_analytic(x,y,t)
+
 function eval_grid(phield, mesh, t)
     tmp = [phield(mesh.x[i],mesh.y[i], t) for i in 1:length(mesh.x) ]
     return reshape(tmp, size(mesh.x))
 end
 
 eval_grid(u_analytic, mesh, 0);
-###
 
-###
+
 # potential struct for navier_stokes
 
 struct dg_field{T}
@@ -219,7 +221,7 @@ struct ns_fields{T}
         return new{typeof(u)}(u, v, p)
     end
 end
-###
+#=
 
 # set up functions to evaluate boundary conditions
 #dirichlet
@@ -238,7 +240,7 @@ end
 function bc_u!(ι, mesh, bc)
     @. ι.u.fⁿ[bc[2]] = ι.u.ϕ[bc[1]] - bc[3]
     return nothing
-end \phi
+end
 #neumann
 
 function bc_∇u!(ι, mesh, bc)
@@ -258,4 +260,189 @@ function bc_∇v!(ι, mesh, bc)
     @. ι.v.fʸ[bc[2]] = ι.v.φʸ[bc[1]] - bc[4]
     return nothing
 end
-###
+=#
+
+# check pointwise convergece of pressure equation
+# use exact boundary conditions as the check
+# will also check the divergence and everything else
+
+# ∂ᵗ u = -u⋅∇u + ν Δu - ∇p
+# ∇⋅u = 0
+# from whence
+# Δp = ∇ ⋅ ( -u⋅∇u ), we are checking this equation
+
+println("the size of the solution is $(length(mesh.x))")
+println("------------------")
+# first compute the advective term
+t = 0
+# u component set
+tmp = eval_grid(u_analytic, mesh, t)
+@. ι.u.ϕ = tmp
+# v component set
+tmp = eval_grid(v_analytic, mesh, t)
+@. ι.v.ϕ = tmp
+# p component set
+tmp = eval_grid(p_analytic, mesh, t)
+@. ι.p.ϕ = tmp
+
+# compute advection
+sym_advec!(ι.u.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.u.ϕ, mesh)
+sym_advec!(ι.v.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.v.ϕ, mesh)
+
+# compute advection analytically
+advecu = eval_grid(u∇ux_analytic, mesh, t)
+advecv = eval_grid(u∇uy_analytic, mesh, t)
+
+# state
+relu = rel_error(advecu, ι.u.φⁿ)
+relv = rel_error(advecv, ι.v.φⁿ)
+println("The error in computing the advection for u is $(relu)")
+println("The error in computing the advection for v is $(relv)")
+
+# compute divergence of advection
+rhs = similar(ι.p.ϕ)
+∇⨀!(rhs , ι.u.φⁿ, ι.v.φⁿ, mesh)
+@. rhs *= -1.0 # since its the negative divergence that shows up
+
+# set up boundary conditions for pressure
+# location of boundary grid points for dirichlet bc
+dirichlet_pressure_bc = ι.p.ϕ[mesh.vmapB];
+bc = (mesh.vmapB, mesh.mapB, dirichlet_pressure_bc)
+dbc = ([],[],0.0,0.0)
+
+# set up τ matrix
+τ = compute_τ(mesh)
+params = [τ]
+
+# set up matrix and affine component
+Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+
+# set up appropriate rhs
+frhsᵖ = mesh.J .* (mesh.M * rhs) - bᵖ
+@. frhsᵖ *= -1.0
+# cholesky decomposition
+Δᵖ = -(Δᵖ + Δᵖ')/2
+Δᵖ = cholesky(Δᵖ)
+
+# compute answer
+num_solᵖ = Δᵖ \ frhsᵖ[:];
+
+# compute analytic answer
+# p component set
+tmp = eval_grid(p_analytic, mesh, t)
+@. ι.p.ϕ = tmp
+
+# check answer
+w2inf = maximum(abs.(ι.p.ϕ[:] .- num_solᵖ)) / maximum(abs.(ι.p.ϕ))
+println("The relative error in computing the solution is $(w2inf)")
+println("----------------")
+
+
+Δt = 0.1
+# compute operators for helmholtz
+t = 0
+
+u_exact = eval_grid(u_analytic, mesh, t)
+v_exact = eval_grid(v_analytic, mesh, t)
+
+dirichlet_u_bc = u_exact[mesh.vmapB];
+bc_u = (mesh.vmapB, mesh.mapB, dirichlet_u_bc)
+dbc_u = ([],[],0.0,0.0)
+dirichlet_v_bc = v_exact[mesh.vmapB];
+bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
+dbc_v = ([],[],0.0,0.0)
+
+τ = compute_τ(mesh)
+γ = 1 / (ν * Δt)
+params_vel = [τ, γ]
+Hᵘ, bᵘ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+Hᵛ, bᵛ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+Hᵘ = (Hᵘ + Hᵘ')/2
+Hᵛ = (Hᵛ + Hᵛ')/2
+chol_Hᵘ = cholesky(-Hᵘ)
+chol_Hᵛ = cholesky(-Hᵛ)
+
+# preliminary orszag thing
+u⁰ = eval_grid(u_analytic, mesh, 0)
+v⁰ = eval_grid(v_analytic, mesh, 0)
+@. ι.u.ϕ = u⁰
+@. ι.v.ϕ = v⁰
+
+# compute boundary conditions for u and v
+t += Δt
+
+u_exact = eval_grid(u_analytic, mesh, t)
+v_exact = eval_grid(v_analytic, mesh, t)
+
+dirichlet_u_bc = u_exact[mesh.vmapB];
+bc_u = (mesh.vmapB, mesh.mapB, dirichlet_u_bc)
+dbc_u = ([],[],0.0,0.0)
+dirichlet_v_bc = v_exact[mesh.vmapB];
+bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
+dbc_v = ([],[],0.0,0.0)
+
+# get affine part of operator
+zero_value = 0.0 * u_exact
+
+dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+# now set up pressure
+# location of boundary grid points for dirichlet bc
+bc = ([],[],0.0)
+dbc = (mesh.vmapB, mesh.mapB, 0.0, 0.0)
+
+# set up τ matrix
+τ = compute_τ(mesh)
+params = [τ]
+
+# set up matrix and affine component
+Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+#slight regularization
+Δᵖ = (Δᵖ + Δᵖ' ) ./ 2 - eps(00.0)*I
+chol_Δᵖ = lu(-Δᵖ)
+
+
+# compute forcing term for helmholtz
+# first u
+sym_advec!(ι.u.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.u.ϕ, mesh)
+@. ι.u.φⁿ *= -1 / ν
+@. ι.u.φⁿ -= u⁰ / ( ν * Δt )
+rhsᵘ = mesh.J .* (mesh.M * ι.u.φⁿ) - bᵘ
+rhsᵘ *= -1.0 #cholesky nonsense
+# then v
+sym_advec!(ι.v.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.v.ϕ, mesh)
+@. ι.v.φⁿ *= -1 / ν
+@. ι.v.φⁿ -= v⁰ / ( ν * Δt )
+rhsᵛ = mesh.J .* (mesh.M * ι.v.φⁿ) - bᵛ
+rhsᵛ *= -1.0 #cholesky nonsense
+
+# step one solve helmholtz equation for velocity field
+ũ = reshape(chol_Hᵘ \ rhsᵘ[:], size(mesh.x) )
+ṽ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
+
+# step two, project
+rhsᵖ = similar(ι.p.ϕ)
+∇⨀!(rhsᵖ , ũ, ṽ, mesh)
+@. rhsᵖ *= -1.0
+frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
+@. frhsᵖ *= -1.0
+p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
+∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
+u¹ = ũ - ι.p.∂ˣ
+v¹ = ṽ - ι.p.∂ʸ
+
+# now set old values equal to new values
+@. u⁰ = u¹
+@. v⁰ = v¹
+
+# check
+u_exact = eval_grid(u_analytic, mesh, t)
+v_exact = eval_grid(v_analytic, mesh, t)
+
+u_error = rel_error(u_exact, u¹)
+v_error = rel_error(v_exact, v¹)
+println("The relative error is $(u_error)")
+println("The relative error is $(v_error)")
+
+println(rel_error(u_exact[mesh.vmapM], ũ[mesh.vmapM]))

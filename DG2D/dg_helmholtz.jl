@@ -66,22 +66,24 @@ end
 
 
 """
-dg_helmholtz_bc!(Δu, u, params, t)
+dg_helmholtz_bc!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 # Description
 
-- Evaluate the right hand side for helmholtz's equation. Makes it easier to see boundary conditions
+- Evaluate the helmholtz operator
 
 # Arguments
 
-- `Δu` : the laplacian of u
+- `Hu` : helholtz operator acting on u
 - `u` :  the thing we want to take laplacian of
 - `ι` : struct for temporary variables
 - `params`: any penalty parameters that we would like to include
 - `mesh` : the mesh struct with all the grid information
-- `bc_function!`: function that computes boundary conditions
+- `bc_u!`: function that computes boundary conditions
 - `bc` : boundary condition tuple with indices
+- `bc_φ!`: function that computes derivative boundary conditions
+- `dbc` : boundary condition tuple with indices
 
 
 """

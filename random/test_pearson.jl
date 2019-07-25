@@ -6,7 +6,7 @@ include("../DG2D/triangles.jl")
 include("../DG2D/mesh2D.jl")
 
 # define polynomial order
-n = 20
+n = 4
 
 # load grids
 FileName = "pvortex4A01.neu"
@@ -359,6 +359,8 @@ Hᵘ, bᵘ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc
 Hᵛ, bᵛ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
 Hᵘ = (Hᵘ + Hᵘ')/2
 Hᵛ = (Hᵛ + Hᵛ')/2
+dropϵzeros!(Hᵘ)
+dropϵzeros!(Hᵛ)
 chol_Hᵘ = cholesky(-Hᵘ)
 chol_Hᵛ = cholesky(-Hᵛ)
 
@@ -392,15 +394,22 @@ dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, 
 bc = ([],[],0.0)
 dbc = (mesh.vmapB, mesh.mapB, 0.0, 0.0)
 
+bc_wierd = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
+dbc_wierd = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
+
+
 # set up τ matrix
 τ = compute_τ(mesh)
 params = [τ]
 
 # set up matrix and affine component
-Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
+sΔᵖ, sbᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
 #slight regularization
-Δᵖ = (Δᵖ + Δᵖ' ) ./ 2 - eps(00.0)*I
-chol_Δᵖ = lu(-Δᵖ)
+Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
+dropϵzeros!(Δᵖ)
+chol_Δᵖ = cholesky(-Δᵖ)
+#Δᵖ  = lu(-Δᵖ)
 
 
 # compute forcing term for helmholtz
@@ -424,7 +433,7 @@ ṽ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
 # step two, project
 rhsᵖ = similar(ι.p.ϕ)
 ∇⨀!(rhsᵖ , ũ, ṽ, mesh)
-@. rhsᵖ *= -1.0
+
 frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
 @. frhsᵖ *= -1.0
 p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
@@ -440,9 +449,48 @@ v¹ = ṽ - ι.p.∂ʸ
 u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
 
+
+println("without incompressibility")
+u_error = rel_error(u_exact, ũ)
+v_error = rel_error(v_exact, ṽ)
+println("The relative error is $(u_error)")
+println("The relative error is $(v_error)")
+println("with incompressibility")
 u_error = rel_error(u_exact, u¹)
 v_error = rel_error(v_exact, v¹)
 println("The relative error is $(u_error)")
 println("The relative error is $(v_error)")
 
-println(rel_error(u_exact[mesh.vmapM], ũ[mesh.vmapM]))
+println("with incompressibility and 1 norm")
+u_error = rel_1_error(u_exact, u¹)
+v_error = rel_1_error(v_exact, v¹)
+println("The relative error is $(u_error)")
+println("The relative error is $(v_error)")
+
+println("relative error in boundary conditions")
+println(rel_error(u_exact[mesh.vmapB], ũ[mesh.vmapB]))
+println(rel_error(u_exact[mesh.vmapB], u¹[mesh.vmapB]))
+∇⨀!(rhsᵖ , u¹, v¹, mesh)
+println("The maximum incompressibility is $(maximum(abs.(rhsᵖ)))")
+
+∇⨀!(rhsᵖ , ũ, ṽ, mesh)
+println("The maximum incompressibility before was $(maximum(abs.(rhsᵖ)))")
+
+
+rightwall = findall(mesh.x[:] .≈ maximum(mesh.x))
+leftwall = findall(mesh.x[:] .≈ minimum(mesh.x))
+
+topwall = findall(mesh.y[:] .≈ maximum(mesh.y))
+bottomwall = findall(mesh.y[:] .≈ minimum(mesh.y))
+
+
+gr()
+camera_top = 90 #this is a very hacky way to get a 2D contour plot
+camera_side = 0
+x = mesh.x;
+y = mesh.y;
+u = copy(u_exact .- u¹);
+v = copy(v_exact .- v¹);
+p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top))
+p2 = surface(x[:],y[:],v[:], camera = (camera_side,camera_top))
+plot(p1,p2)

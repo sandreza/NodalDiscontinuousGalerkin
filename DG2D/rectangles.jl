@@ -30,6 +30,8 @@ function rectangle(index, vertices, N, M, vmap)
 
     # differentiation and lift matrices through tensor products
     D = dmatricesSQ(a, b)
+    V = vandermondeSQ(a, b)
+    M = inv(V * V')
 
     # get min and max values of physical coordinates
     xmin = vmap[vertices[1], 1]
@@ -59,11 +61,11 @@ function rectangle(index, vertices, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # lift matrix and normals
-    lift = liftSQ(a, b, fmask)
+    ℰ = liftSQ(a, b, fmask)
     n̂,Jˢ = normalsSQ(n, m)
 
     # construct element
-    rect = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
+    rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
 
     return rect
 end
@@ -199,9 +201,6 @@ liftSQ(N, M)
 
 """
 function liftSQ(r, s, fmask)
-    # get 2D vandermonde matrix
-    V = vandermondeSQ(r,s)
-
     # number of GL points in each dimension
     n = length(r)
     m = length(s)
@@ -228,10 +227,7 @@ function liftSQ(r, s, fmask)
     @. ℰ[fmask[:,3], nf2+1:nf3] = Mʳ
     @. ℰ[fmask[:,4], nf3+1:nf4] = Mˢ
 
-    # compute lift (ordering because ℰ is sparse)
-    lift = V * (V' * ℰ)
-
-    return lift
+    return ℰ
 end
 
 """
@@ -296,8 +292,8 @@ fmaskSQ(r, s)
 function fmaskSQ(r, s)
     fmask1 = findall( abs.( s .+ 1) .< eps(1.0) )'
     fmask2 = findall( abs.( r .- 1) .< eps(1.0) )'
-    fmask3 = findall( abs.( s .- 1) .< eps(1.0) )'
-    fmask4 = findall( abs.( r .+ 1) .< eps(1.0) )'
+    fmask3 = reverse(findall( abs.( s .- 1) .< eps(1.0) ))'
+    fmask4 = reverse(findall( abs.( r .+ 1) .< eps(1.0) ))'
     fmask = Array([fmask1; fmask2; fmask3; fmask4]')
     return fmask
 end

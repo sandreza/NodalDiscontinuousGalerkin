@@ -35,21 +35,21 @@ function dg_advection2D!(U̇, U, params, t)
         for k in 1:𝒢.ℳ.K
             # get element and number of GL points
             Ωᵏ   = 𝒢.Ω[k]
-            nGLᵏ = (nGL + 1):(nGL + Ωᵏ.nGL)
-            nBPᵏ = (nBP + 1):(nBP + Ωᵏ.nBP)
+            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
+            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
             nGL += Ωᵏ.nGL
             nBP += Ωᵏ.nBP
 
             # get views of params
-            vˣ = view(params[3], nGLᵏ)
-            vʸ = view(params[4], nGLᵏ)
+            vˣ = view(params[3], GLᵏ)
+            vʸ = view(params[4], GLᵏ)
 
             # get views of computation elements
-            u  = view(h.u,  nGLᵏ)
-            u̇  = view(h.u̇,  nGLᵏ)
-            ∇u = view(h.∇u, nGLᵏ)
-            Δu = view(h.Δu, nBPᵏ)
-            f  = view(h.f,  nBPᵏ)
+            u  = view(h.u,  GLᵏ)
+            u̇  = view(h.u̇,  GLᵏ)
+            ∇u = view(h.∇u, GLᵏ)
+            Δu = view(h.Δu, BPᵏ)
+            f  = view(h.f,  BPᵏ)
 
             # evaluate flux
             n̂ˣ = Ωᵏ.n̂[:,1]
@@ -61,7 +61,7 @@ function dg_advection2D!(U̇, U, params, t)
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
 
             # compute RHS of PDE's
-            lift = Ωᵏ.lift * (Ωᵏ.volume .* f)
+            lift = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* f)
             @. u̇ = -∇u + lift
         end
     end

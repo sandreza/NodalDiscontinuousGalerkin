@@ -19,7 +19,7 @@ filename = filepath * filename
 N = 4
 
 # make grid
-𝒢 = Grid2D(ℳ, N)
+𝒢 = Grid2D(ℳ, N, periodic=false)
 x = 𝒢.x[:,1]
 y = 𝒢.x[:,2]
 plotgrid2D(𝒢)
@@ -29,7 +29,7 @@ println("The degrees of freedom are $dof")
 
 # determine timestep
 vmax = 10 # no material here
-Δx  = 𝒢.x[2,2] - 𝒢.x[1,1]
+Δx = minspacing2D(𝒢)
 CFL = 0.75
 dt  = CFL * Δx / vmax
 
@@ -45,10 +45,10 @@ n = m = 1
 @. Hʸ.u = 0.0
 
 # solve equations
-stoptime = 10
+stoptime = 0.5
 Nsteps = ceil(Int, stoptime / dt)
 fields = (Hˣ, Hʸ, Eᶻ)
-α = 0 # determine upwind or central flux
+α = 1 # determine upwind or central flux
 params = (𝒢, α)
 rhs! = dg_maxwell2D!
 

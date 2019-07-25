@@ -602,7 +602,11 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
                     exact = (x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2])
                     periodicˣ = (abs(x⁻[i, 1] - x⁺[j, 1]) ≈ lˣ) && (x⁻[i, 2] ≈ x⁺[j, 2])
                     periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) && (x⁻[i, 1] ≈ x⁺[j, 1])
-                    D[j,i] = (exact || periodicˣ || periodicʸ)
+                    if periodic
+                        D[j,i] = (exact || periodicˣ || periodicʸ)
+                    else
+                        D[j,i] = exact
+                    end
                 end
             end
             D = Symmetric(D)

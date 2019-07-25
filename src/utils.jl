@@ -492,3 +492,100 @@ julia> a = [1 2; 3 4]
 function tt(a)
     return 1
 end
+
+
+"""
+rel_error(u,v)
+
+# Description
+
+- calculate the relative error between u and v with respect to v
+
+# Arguments
+
+- `u` : a structure of numbers
+- `v` : a structure of numbers
+
+# return
+
+- `relative error`:
+"""
+function rel_error(u,v)
+    return maximum(abs.(u[:] .- v[:])) / maximum(abs.(u[:]))
+end
+
+"""
+rel_1_error(u,v)
+
+# Description
+
+- calculate the relative error between u and v with respect to v
+
+# Arguments
+
+- `u` : a structure of numbers
+- `v` : a structure of numbers
+
+# return
+
+- `relative error`:
+"""
+function rel_1_error(u,v)
+    return sum(abs.(u[:] .- v[:])) / sum(abs.(u[:]))
+end
+
+
+
+"""
+dropϵzeros!(sparseMatrix)
+
+# Description
+
+- Drops machine zeros in sparse matrix
+
+# Arguments
+
+- `!A`: a sparse matrix
+
+# return
+
+- nothing
+
+"""
+function dropϵzeros!(A)
+    i,j = findnz(A)
+    drop_criteria = eps(maximum(abs.(A)))
+    for loop in 1:length(i)
+        if abs(A[i[loop],j[loop]]) < drop_criteria
+            A[i[loop],j[loop]] = 0.0
+        end
+    end
+    dropzeros!(A)
+end
+
+"""
+dropϵzeros!(sparseMatrix, drop_criteria)
+
+# Description
+
+- Drops machine zeros in sparse matrix
+
+# Arguments
+
+- `A`: a sparse matrix
+- `drop_criteria`: criteria for dropping entries
+
+# return
+
+- nothing
+
+"""
+function dropϵzeros!(A, drop_criteria)
+    i,j = findnz(A)
+    for loop in 1:length(i)
+        if abs(A[i[loop],j[loop]]) < drop_criteria
+            A[i[loop],j[loop]] = 0.0
+        end
+    end
+    dropzeros!(A)
+end

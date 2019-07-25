@@ -7,14 +7,14 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 10
-timings = true
+n = 5
+timings = false
 gradients_check = false
 solve_ode = false
 euler = false
 upwind_check = false
 plot_solution = false
-forward_and_backwards = false
+forward_and_backwards = true
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
 #in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]
@@ -54,7 +54,7 @@ u0(x, y, μ) = exp(-μ * (x-offsetx)^2 - μ * (y-offsety)^2) * cos(π/2 * x) * c
 #=
 ψ(x, y, γ)  = x+y
 u1(x, y, γ) =  1.0
-u2(x, y, γ) = 0.0
+u2(x, y, γ) = 1.0
 =#
 #u0(x, y, μ) = sin(x)*cos(y) + x
 #u0(x, y, μ) =  1.0

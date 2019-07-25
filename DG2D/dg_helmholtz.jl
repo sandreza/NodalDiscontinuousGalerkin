@@ -1,11 +1,11 @@
-# builds the 2D poisson matrix
+# builds the 2D helmholtz matrix
 """
-dg_poisson!(Δu, u, params, t)
+dg_helmholtz!(Δu, u, params, t)
 
 
 # Description
 
-- Evaluate the right hand side for poisson's equation
+- Evaluate the right hand side for helmholtz's equation
 
 # Arguments
 
@@ -19,9 +19,10 @@ dg_poisson!(Δu, u, params, t)
 
 
 """
-function dg_poisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function dg_helmholtz!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # unpack parameters
     τ = params[1]
+    γ = params[2]
 
     # Form field differences at faces
     @. ι.fⁿ[:] =  (u[mesh.vmapM] - u[mesh.vmapP])
@@ -58,36 +59,38 @@ function dg_poisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     ∇⨀!(ι.u̇, ι.φˣ, ι.φʸ, mesh)
 
     # combine the terms
-    tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) ))
+    tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) - γ * u ) )
     @. Δu = tmp
     return nothing
 end
 
 
 """
-dg_poisson_bc!(Δu, u, params, t)
+dg_helmholtz_bc!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 # Description
 
-- Evaluate the right hand side for poisson's equation. Makes it easier to see boundary conditions
+- Evaluate the helmholtz operator
 
 # Arguments
 
-- `Δu` : the laplacian of u
+- `Hu` : helholtz operator acting on u
 - `u` :  the thing we want to take laplacian of
 - `ι` : struct for temporary variables
 - `params`: any penalty parameters that we would like to include
 - `mesh` : the mesh struct with all the grid information
-- `bc_function!`: function that computes boundary conditions
+- `bc_u!`: function that computes boundary conditions
 - `bc` : boundary condition tuple with indices
+- `bc_φ!`: function that computes derivative boundary conditions
+- `dbc` : boundary condition tuple with indices
 
 
 """
-function dg_poisson_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function dg_helmholtz_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # unpack parameters
     τ = params[1]
-
+    γ = params[2]
     # Form q-flux differences at faces
     @. ι.fⁿ[:] =  u[mesh.vmapM] - (u[mesh.vmapM] + u[mesh.vmapP])/2
 
@@ -125,7 +128,7 @@ function dg_poisson_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     ∇⨀!(ι.u̇, ι.φˣ, ι.φʸ, mesh)
 
     # combine the terms
-    tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) ))
+    tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) - γ * u ) )
     @. Δu = tmp
     return nothing
 end
@@ -133,7 +136,7 @@ end
 
 
 #builds the matrix (one column at a time) (sparse matrix)
-function poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function helmholtz_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -141,7 +144,7 @@ function poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. q = 0
     for i in 1:length(mesh.x)
         q[i] = 1.0
-        dg_poisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        dg_helmholtz!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:]
         q[i] = 0.0
     end
@@ -152,7 +155,7 @@ end
 
 # builds the affine operator (one column at a time) (sparse matrix)
 # here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
-function poisson_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function helmholtz_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -161,11 +164,11 @@ function poisson_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. q = 0
     @. b = 0
     # affine part of operator
-    dg_poisson_bc!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    dg_helmholtz_bc!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     #now construct linear part
     for i in 1:length(mesh.x)
         q[i] = 1.0
-        dg_poisson_bc!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        dg_helmholtz_bc!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:] - b[:]
         q[i] = 0.0
     end

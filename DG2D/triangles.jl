@@ -1145,12 +1145,12 @@ build_bc_maps(mesh, bctype, bc_label)
 
 - `mesh` : mesh struct
 -  `bctype` : matrix corresponding to boundary conditions (sime size as EToV)
--  `y` : y-coordinates of grid
+-  `bc_label` : label corresponding to index (this is for the user)
 
 # Return
 
-- `mapT`: inflow and outflow maps
-- `vmapT`: inflow and outlfow global indices
+- `mapT`: all the maps, including inflow and outflow maps
+- `vmapT`: all the vmaps, including inflow and outlfow global indices
 - `newbc_label`: labels for indices
 
 # Example

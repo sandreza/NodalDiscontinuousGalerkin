@@ -200,6 +200,73 @@ end
 
 
 """
+
+advec(∇⨀u, fx, fy, Ω)
+
+# Description
+
+    Compute the advection of a scalar θ by flow field (vx,vy)
+
+# Arguments
+-   `u⨀∇θ`: allocated memory for result
+-   `vx`: first component of vector u
+-   `vy`: second component of vector u
+-   `θ`: the scalar
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `∇⨀u`: the divergence of u
+
+"""
+function advec!(u⨀∇θ, vx, vy, θ, Ω)
+    # compute gradient on physical grid
+    tmpˣ =  Ω.rx .* ( vx .* (Ω.Dʳ * θ) )
+    tmpˣ += Ω.sx .* ( vx .* (Ω.Dˢ * θ) )
+    tmpʸ =  Ω.ry .* ( vy .* (Ω.Dʳ * θ) )
+    tmpʸ += Ω.sy .* ( vy .* (Ω.Dˢ * θ) )
+
+    @. u⨀∇θ = (tmpˣ + tmpʸ)
+
+    return nothing
+end
+
+
+"""
+sym_advec(∇⨀u, fx, fy, Ω)
+
+# Description
+
+-    Compute the advection of a scalar θ by flow field (vx,vy), symmetrized advection
+
+# Arguments
+-   `u⨀∇θ`: allocated memory for result
+-   `vx`: first component of vector u
+-   `vy`: second component of vector u
+-   `θ`: the scalar
+-   `Ω`: mesh to compute in
+
+# Return Values
+
+-   `u⨀∇θ`: symmetric advective component
+
+"""
+function sym_advec!(u⨀∇θ, vx, vy, θ, Ω)
+
+    # compute gradient on physical grid
+    tmpˣ = Ω.rx .* ( Ω.Dʳ * ( vx .* θ )  + vx .* (Ω.Dʳ * θ) )
+    tmpˣ += Ω.sx .* ( Ω.Dˢ * ( vx .* θ )  + vx .* (Ω.Dˢ * θ) )
+    tmpʸ = Ω.ry .* ( Ω.Dʳ * ( vy .* θ )  + vy .* (Ω.Dʳ * θ) )
+    tmpʸ += Ω.sy .* ( Ω.Dˢ * ( vy .* θ )  + vy .* (Ω.Dˢ * θ) )
+
+    @. u⨀∇θ = (tmpˣ + tmpʸ) * 0.5
+    return nothing
+end
+
+
+"""
+make_periodic2D(Ω)
+=======
 plotfield2D(times, solutions, x, y)
 
 # Description

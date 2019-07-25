@@ -14,7 +14,7 @@ timings = true   #to see how different linear solvers perform
 
 # set number of DG elements and polynomial order
 K = 2^5 #number of elements
-n = 2^1 - 1 #polynomial order,
+n = 2^3 - 1 #polynomial order,
 
 # for 64 total dof, K = 2^3, n = 2^3 -1 is the break even point b/w sparse and full
 # for K = 2^4, n = 2^2 - 1 sparse does better
@@ -29,7 +29,7 @@ xmin = 0.0
 xmax = L
 
 # generate mesh variables
-𝒢 = mesh(K, n, xmin, xmax)
+𝒢 = Mesh(K, n, xmin, xmax)
 
 # generate internal variables
 ι = dg(𝒢)
@@ -86,12 +86,24 @@ sparsity = length(s∇².rowval) / length(s∇²)
 println(sparsity)
 #check to see how long it takes to solve the system
 if timings == true
+    #=
     println("Full solve")
-    @btime comp_sol = ∇² \ tmp
+    @btime comp_sol = ∇² \ tmp;
     println("sparse solve")
-    @btime comp_sol = s∇² \ tmp
+    @btime comp_sol = s∇² \ tmp;
     println("banded solve")
-    @btime comp_sol = b∇² \ tmp
+    @btime comp_sol = b∇² \ tmp;
+    =#
+
+    chol_∇² = cholesky(-∇²)
+    chol_s∇² = cholesky(-s∇²)
+    qr_b∇² = qr(b∇²)
+    println("factored Full solve")
+    @btime comp_sol = chol_∇² \ tmp;
+    println("factored sparse solve")
+    @btime comp_sol = chol_s∇² \ tmp;
+    println("factored banded solve")
+    @btime comp_sol = qr_b∇² \ tmp;
 end
 
 #scatter(𝒢.x,reshape(eig_vec[:,end],size(𝒢.x)),legend=false)

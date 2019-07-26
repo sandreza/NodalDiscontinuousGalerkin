@@ -270,4 +270,8 @@ v = copy(v_exact .- v¹);
 p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top))
 p2 = surface(x[:],y[:],v[:], camera = (camera_side,camera_top))
 plot(p1,p2)
+
+divu = similar(mesh.x)
+∇⨀!(divu, u¹, v¹, mesh)
+p3 = surface(x[:],y[:], abs.(divu[:]), camera = (camera_side,camera_top))
 =#

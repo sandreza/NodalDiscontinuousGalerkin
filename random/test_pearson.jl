@@ -11,7 +11,7 @@ include("../DG2D/mesh2D.jl")
 include("../DG2D/utils2D.jl")
 
 # define polynomial order
-n = 15
+n = 10
 
 # load grids
 FileName = "pvortex4A01.neu"

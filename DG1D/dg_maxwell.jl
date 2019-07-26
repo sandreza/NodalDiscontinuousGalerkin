@@ -33,18 +33,14 @@ dg_maxwell!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function dg_maxwell!(u̇, u, params, t)
+function dg_maxwell!(fields, params)
+    # unpack fields
+    E   = fields[1] # internal parameters for E
+    H   = fields[2] # internal parameters for H
+
     # unpack params
     𝒢   = params[1] # grid parameters
-    E   = params[2] # internal parameters for E
-    H   = params[3] # internal parameters for H
-    ext = params[4] # external parameters
-
-    # unpack variables
-    @. E.u = u[1]
-    @. H.u = u[2]
-    @. E.u̇ = u̇[1]
-    @. H.u̇ = u̇[2]
+    ext = params[2] # external parameters
 
     # compute impedence
     Z = @. sqrt(ext.μ / ext.ϵ)
@@ -83,12 +79,6 @@ function dg_maxwell!(u̇, u, params, t)
     @. H.u̇ *= -𝒢.rx
     liftH   = 𝒢.lift * (𝒢.fscale .* H.flux)
     @. H.u̇ += liftH / ext.μ
-
-    # pass values back into arguments
-    @. u̇[1] = E.u̇
-    @. u̇[2] = H.u̇
-    @. E.flux = 0
-    @. H.flux = 0
 
     return nothing
 end

@@ -421,7 +421,62 @@ function jacobiGL(α, β, N)
     return x
 end
 
+# low storage Runge-Kutta coefficients
+rk4a = [ 0.0, -567301805773.0/1357537059087.0, -2404267990393.0/2016746695238.0, -3550918686646.0/2091501179385.0, -1275806237668.0/842570457699.0]
+rk4b = [ 1432997174477.0/9575080441755.0, 5161836677717.0/13612068292357.0, 1720146321549.0/2090206949498.0, 3134564353537.0/4481467310338.0, 2277821191437.0/14882151754819.0]
+rk4c = [ 0.0, 1432997174477.0/9575080441755.0, 2526269341429.0/6820363962896.0, 2006345519317.0/3224310063776.0, 2802321613138.0/2924317926251.0]
 
+"""
+rk_solver!(u̇, u, params, t)
+
+# Description
+
+    time stepping with 4th order runge-kutta
+
+# Arguments
+
+-   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
+-   `u  = (E , H )`: container for starting field values
+-   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
+-   `t`: time to evaluate at
+
+"""
+function rk_solver!(rhs!, fields, params, dt, Nsteps)
+    # Runge-Kutta residual storage
+    solutions = []
+    for field in fields
+        uᵗ = similar(field.u)
+        @. uᵗ = field.u
+        push!(solutions, [uᵗ])
+    end
+
+    # time step loop
+    for tstep in 1:Nsteps
+        for iRK in 1:5
+            # get numerical solution
+            rhs!(fields, params)
+
+            # update solutions
+            for field in fields
+                @. field.r = rk4a[iRK] * field.r + field.u̇ * dt
+                @. field.u = rk4b[iRK] * field.r + field.u
+                # seems to differ from matlab code during this step ???
+            end
+        end
+
+        for (i,field) in enumerate(fields)
+            uᵗ = similar(field.u)
+            @. uᵗ = field.u
+            push!(solutions[i], uᵗ)
+        end
+
+        if (tstep % 10000) == 0
+            println( string(tstep, " / ", Nsteps))
+        end
+    end
+
+    return solutions
+end
 
 """
 Some nice documentation here.

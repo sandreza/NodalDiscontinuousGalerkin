@@ -15,7 +15,6 @@ n = 20
 
 # load grids
 FileName = "pvortex4A01.neu"
-#FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -57,7 +56,7 @@ println("------------")
 
 # compute operators for helmholtz
 t = 0
-Δt = 1e-1
+Δt = 1.0
 
 u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
@@ -259,20 +258,3 @@ topwall = findall(mesh.y[:] .≈ maximum(mesh.y))
 bottomwall = findall(mesh.y[:] .≈ minimum(mesh.y))
 
 println("------------")
-
-#=
-gr()
-camera_top = 90 #this is a very hacky way to get a 2D contour plot
-camera_side = 0
-x = mesh.x;
-y = mesh.y;
-u = copy(u_exact .- u¹);
-v = copy(v_exact .- v¹);
-p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top))
-p2 = surface(x[:],y[:],v[:], camera = (camera_side,camera_top))
-plot(p1,p2)
-
-divu = similar(mesh.x)
-∇⨀!(divu, u¹, v¹, mesh)
-p3 = surface(x[:],y[:], divu[:], camera = (camera_side,camera_top))
-=#

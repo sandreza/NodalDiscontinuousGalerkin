@@ -23,8 +23,8 @@ plotting_matrix = true
 check_correctness = true
 plotting_solution = false
 # simulation parameters and grid
-n = 7
-FileName = "Maxwell025.neu"
+n = 3
+FileName = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)

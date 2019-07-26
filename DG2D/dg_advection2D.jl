@@ -60,7 +60,7 @@ function dg_advection2D!(U̇, U, params, t)
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
 
             # compute RHS of PDE's
-            lift = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* f)
+            lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* f)
             @. u̇ = -∇u + lift
         end
     end

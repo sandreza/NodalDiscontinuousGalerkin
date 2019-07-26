@@ -61,11 +61,11 @@ function rectangle(index, vertices, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # lift matrix and normals
-    ℰ = liftSQ(a, b, fmask)
+    ∮ = liftSQ(a, b, fmask)
     n̂,Jˢ = normalsSQ(n, m)
 
     # construct element
-    rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
+    rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,∮)
 
     return rect
 end
@@ -206,7 +206,7 @@ function liftSQ(r, s, fmask)
     m = length(s)
 
     # empty matrix
-    ℰ = spzeros(n*m, 2*(n+m))
+    ∮ = spzeros(n*m, 2*(n+m))
 
     # get 1D mass matrices matrices
     Vʳ = vandermonde(r, 0, 0, n)
@@ -221,13 +221,13 @@ function liftSQ(r, s, fmask)
     nf3 = n+m+n
     nf4 = n+m+n+m
 
-    # fill ℰ matrix with mass matrices
-    @. ℰ[fmask[:,1],     1:nf1] = Mʳ
-    @. ℰ[fmask[:,2], nf1+1:nf2] = Mˢ
-    @. ℰ[fmask[:,3], nf2+1:nf3] = Mʳ
-    @. ℰ[fmask[:,4], nf3+1:nf4] = Mˢ
+    # fill ∮ matrix with mass matrices
+    @. ∮[fmask[:,1],     1:nf1] = Mʳ
+    @. ∮[fmask[:,2], nf1+1:nf2] = Mˢ
+    @. ∮[fmask[:,3], nf2+1:nf3] = Mʳ
+    @. ∮[fmask[:,4], nf3+1:nf4] = Mˢ
 
-    return ℰ
+    return ∮
 end
 
 """

@@ -122,8 +122,8 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             φʸ = view(ϕ.φʸ, GLᵏ)
             Δu = view(ϕ.Δu, BPᵏ)
 
-            liftˣ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,1] .* Δu)
-            liftʸ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,2] .* Δu)
+            liftˣ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.n̂[:,1] .* Δu)
+            liftʸ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.n̂[:,2] .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
@@ -170,7 +170,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
 
             # compute surface term
-            lift = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* fⁿ)
+            lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
 
             # combine the terms
             @. u̇ = ∇u - lift - γ * u

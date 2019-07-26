@@ -13,7 +13,7 @@ xmin = ymin = -1.0
 xmax = ymax = 1.0
 # ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
-filename = "Maxwell05.neu"
+filename = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 filename = filepath * filename
 ℳ = meshreader_gambit2D(filename)

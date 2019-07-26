@@ -39,12 +39,12 @@ dbc = ([],[])
 #dbc = (mesh.vmapB, mesh.mapB)
 
 #compute tau and define γ
-γ = 010.0
-τ = compute_τ(mesh)
+γ = 10.0
+τ = 1 # compute_τ(mesh)
 params = [τ, γ]
 #for the first helmholtz equation
 #dirichlet, remember to change α and β
-const shift = 10.0
+const shift = 0.0 # 10.0
 function bc_u!(ι, mesh, bc)
     @. ι.fⁿ[bc[2]] = 1 * ι.u[bc[1]] - shift
     return nothing

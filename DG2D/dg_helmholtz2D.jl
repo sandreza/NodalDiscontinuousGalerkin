@@ -162,9 +162,10 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             fˣ = view(ϕ.fˣ, BPᵏ)
             fʸ = view(ϕ.fʸ, BPᵏ)
             fⁿ = view(ϕ.fⁿ, BPᵏ)
+            r  = view(ϕ.r,  GLᵏ)
 
             # modify with τ, remember fⁿ is field differences at face points
-            @. fⁿ = Ωᵏ.n̂[:,1] * fˣ + Ωᵏ.n̂[:,2] * fʸ - τ * Δu
+            @. fⁿ = Ωᵏ.n̂[:,1] * fˣ + Ωᵏ.n̂[:,2] * fʸ + τ * Δu
 
             # compute divergence of flux, volume term
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
@@ -173,10 +174,11 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
 
             # combine the terms
-            @. u̇ = ∇u - lift - γ * u
+            @. r = ∇u - lift - γ * u
 
             # multiply by J * M for cholesky stuff
-            u̇ = Ωᵏ.J .* (Ωᵏ.M * u̇)
+            mul!(u̇, Ωᵏ.M, r)
+            @. u̇ *= Ωᵏ.J
         end
     end
 

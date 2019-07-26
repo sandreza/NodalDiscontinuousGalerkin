@@ -62,8 +62,12 @@ function dg_helmholtz!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     ∇⨀!(ι.u̇, ι.φˣ, ι.φʸ, mesh)
 
     # combine the terms
-    tmp =  mesh.J .* ( mesh.M * (ι.u̇ - mesh.lift * (mesh.fscale .* ι.fⁿ) - γ * u ) )
+    lift = mesh.lift * (mesh.fscale .* ι.fⁿ)
+
+    tmp =  mesh.J .* ( mesh.M *  ι.u̇)
+
     @. Δu = tmp
+
     return nothing
 end
 

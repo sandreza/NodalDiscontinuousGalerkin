@@ -1241,6 +1241,7 @@ struct garbage_triangle3{T, S, U, W, V}
         fmask = create_fmask(r, s)
         edge_x, edge_y = find_edge_nodes(fmask, x, y)
         lift = lift_tri(n, fmask, r, s, V)
+        lift = Mi * lift
 
         rx, sx, ry, sy, J = geometricfactors2D(x, y, Dʳ, Dˢ)
 

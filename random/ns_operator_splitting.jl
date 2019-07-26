@@ -11,7 +11,7 @@ include("../DG2D/triangles.jl")
 
 
 # define polynomial order
-n = 15
+n = 10
 
 # load grids
 FileName = "pvortex4A01.neu"
@@ -159,10 +159,10 @@ sym_advec!(ι.v.φⁿ, u⁰, v⁰, v⁰, mesh)
 #first compute boundary conditions for pressure
 fu¹ = fv¹ = 0.0
 
-∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t, mesh)
+∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t-Δt, mesh)
 
-@. ∂pˣ *= 0.0
-@. ∂pʸ *= 0.0
+#@. ∂pˣ *= 0.0
+#@. ∂pʸ *= 0.0
 #=
 bc = ([],[],0.0)
 dbc = (mesh.vmapB, mesh.mapB, ∂pˣ[mesh.vmapB], ∂pʸ[mesh.vmapB])

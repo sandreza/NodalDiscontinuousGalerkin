@@ -129,10 +129,15 @@ p_analytic(x,y,t) = -cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t
 ∂ʸv_analytic(x,y,t) =  0.0;
 ∂ʸp_analytic(x,y,t) = 2 * π * cos(2 *π * x ) * sin(2 *π * y) * exp( - ν * 8 * π^2 * t);
 
+#Δ
+Δu_analytic(x,y,t) = (2 * π )^2 * sin(2 * π * y ) * exp( - ν * 4 * π^2 * t);
+Δv_analytic(x,y,t) =  - (2 * π )^2 * sin(2 * π * x ) * exp( - ν * 4 * π^2 * t);
+Δp_analytic(x,y,t) = ((2 * π )^2 + (2 * π )^2 ) * cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t);
+
 #∂ᵗ
 ∂ᵗu_analytic(x,y,t) = -sin(2 * π * y ) * exp( - ν * 4 * π^2 * t) * (- ν * 4 * π^2);
 ∂ᵗv_analytic(x,y,t) =  sin(2 * π * x ) * exp( - ν * 4 * π^2 * t) * (- ν * 4 * π^2);
-∂ᵗp_analytic(x,y,t) = -cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t) * ( - ν * 8 *π^2 );
+∂ᵗp_analytic(x,y,t) = -cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t) * ( - ν * 8 * π^2 );
 
 u∇ux_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣu_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸu_analytic(x,y,t)
 u∇uy_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣv_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸv_analytic(x,y,t)
@@ -145,9 +150,9 @@ end
 
 
 # super inefficient, only need points on boundary yet things are evaluated everywhere
-function compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t¹, mesh)
-    ∂ᵗu¹ = eval_grid(∂ᵗu_analytic, mesh, t¹)
-    ∂ᵗv¹ = eval_grid(∂ᵗv_analytic, mesh, t¹)
+function compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t⁰, mesh)
+    ∂ᵗu¹ = eval_grid(∂ᵗu_analytic, mesh, t⁰)
+    ∂ᵗv¹ = eval_grid(∂ᵗv_analytic, mesh, t⁰)
     𝒩u = similar(u⁰)
     sym_advec!(𝒩u , u⁰, v⁰, u⁰, mesh)
     𝒩v = similar(v⁰)

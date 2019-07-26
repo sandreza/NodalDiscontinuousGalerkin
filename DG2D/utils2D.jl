@@ -111,16 +111,16 @@ end
 
 """
 function ∇⨂∇⨂(ux, uy, Ω)
-    ∂ˣux = Ω.rx .* ( Ω.Dʳ * ux  + Ω.Dʳ * ux )
-    ∂ʸux = Ω.ry .* ( Ω.Dʳ * ux  + Ω.Dʳ * ux )
-    ∂ˣuy = Ω.rx .* ( Ω.Dʳ * uy  + Ω.Dʳ * uy )
-    ∂ʸuy = Ω.ry .* ( Ω.Dʳ * uy  + Ω.Dʳ * uy )
+    ∂ˣux = Ω.rx .* (Ω.Dʳ * ux)  + Ω.sx .* (Ω.Dˢ * ux)
+    ∂ʸux = Ω.ry .* (Ω.Dʳ * ux)  + Ω.sy .* (Ω.Dˢ * ux)
+    ∂ˣuy = Ω.rx .* (Ω.Dʳ * uy)  + Ω.sx .* (Ω.Dˢ * uy)
+    ∂ʸuy = Ω.ry .* (Ω.Dʳ * uy)  + Ω.sy .* (Ω.Dˢ * uy)
 
-    ∂ˣ∂ʸux = Ω.ry .* ( Ω.Dʳ * ∂ˣux  + Ω.Dʳ * ∂ˣux )
-    ∂ˣ∂ʸuy = Ω.ry .* ( Ω.Dʳ * ∂ˣuy  + Ω.Dʳ * ∂ˣuy )
+    ∂ˣ∂ʸux = Ω.ry .* (Ω.Dʳ * ∂ˣux)  + Ω.sy .* (Ω.Dˢ * ∂ˣux)
+    ∂ˣ∂ʸuy = Ω.ry .* (Ω.Dʳ * ∂ˣuy)  + Ω.sy .* (Ω.Dˢ * ∂ˣuy)
 
-    ∂ˣ∂ˣuy = Ω.rx .* ( Ω.Dʳ * ∂ˣuy  + Ω.Dʳ * ∂ˣuy )
-    ∂ʸ∂ʸux = Ω.ry .* ( Ω.Dʳ * ∂ʸux  + Ω.Dʳ * ∂ʸux )
+    ∂ˣ∂ˣuy = Ω.rx .* (Ω.Dʳ * ∂ˣuy)  + Ω.sx .* (Ω.Dˢ * ∂ˣuy)
+    ∂ʸ∂ʸux = Ω.ry .* (Ω.Dʳ * ∂ʸux)  + Ω.sy .* (Ω.Dˢ * ∂ʸux)
 
     tmpˣ = ∂ˣ∂ʸuy - ∂ʸ∂ʸux
     tmpʸ = ∂ˣ∂ʸux - ∂ˣ∂ˣuy

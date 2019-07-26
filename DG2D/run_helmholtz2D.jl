@@ -3,24 +3,23 @@ include("dg_advection2D.jl")
 include("dg_helmholtz2D.jl")
 include("../src/CuthillMckee.jl")
 
-using BandedMatrices
 using LinearAlgebra
 using Plots
 
 # make mesh
-K = 1
-L = 1
+K = 2
+L = 2
 xmin = ymin = -1.0
 xmax = ymax = 1.0
-ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
+# ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 filename = "Maxwell05.neu"
 filepath = "./DG2D/grids/"
 filename = filepath * filename
-# ℳ = meshreader_gambit2D(filename)
+ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 1
+N = 3
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)

@@ -1,6 +1,6 @@
 # builds the 2D helmholtz matrix
 """
-dg_helmholtz_bc!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+dg_helmholtz!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 # Description
@@ -78,8 +78,10 @@ function helmholtz_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     b = copy(ι.u)
     @. q = 0
     @. b = 0
+
     # affine part of operator
     dg_helmholtz!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+
     #now construct linear part
     for i in 1:length(mesh.x)
         q[i] = 1.0

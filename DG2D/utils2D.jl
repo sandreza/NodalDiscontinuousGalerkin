@@ -63,6 +63,29 @@ function ∇!(uˣ,uʸ, u, Ω::Element2D)
 end
 
 """
+∇!(uˣ, uʸ, u, Ω)
+# Description
+    Compute gradient of u wrt physical grid
+# Arguments
+-   `uˣ`: first component of the gradient, overwitten
+-   `uʸ`: second component of the gradient, overwritten
+-   `u`: scalar to take gradient of
+-   `Ω`: element to compute in
+# Return Values
+"""
+function ∇!(uˣ, uʸ, u, 𝒢)
+    # compute partial derivatives on ideal grid
+    uʳ = 𝒢.Dʳ * u
+    uˢ = 𝒢.Dˢ * u
+
+    # compute partial derivatives on physical grid
+    @. uˣ =  𝒢.rx * uʳ + 𝒢.sx * uˢ
+    @. uʸ =  𝒢.ry * uʳ + 𝒢.sy * uˢ
+
+    return nothing
+end
+
+"""
 ∇⨀!(∇⨀u, uˣ, uʸ, Ω::Element2D)
 
 # Description
@@ -92,6 +115,30 @@ function ∇⨀!(∇⨀u, uˣ, uʸ, Ω::Element2D)
     # compute gradient on physical grid
     @. ∇⨀u = rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
 
+    return nothing
+end
+
+"""
+∇⨀!(∇⨀u, fx, fy, Ω)
+# Description
+    Compute the divergence of u=(fx,fy) wrt physical grid
+# Arguments
+-   `∇⨀u`: allocated memory for result
+-   `x`: first component of vector u
+-   `y`: second component of vector u
+-   `Ω`: element to compute in
+# Return Values
+-   `∇⨀u`: the divergence of u
+"""
+function ∇⨀!(∇⨀u, x, y, 𝒢)
+    # compute partial derivatives on ideal grid
+    xʳ = 𝒢.Dʳ * x
+    xˢ = 𝒢.Dˢ * x
+    yʳ = 𝒢.Dʳ * y
+    yˢ = 𝒢.Dˢ * y
+
+    # compute gradient on physical grid
+    @. ∇⨀u = 𝒢.rx * xʳ + 𝒢.sx * xˢ + 𝒢.ry * yʳ + 𝒢.sy * yˢ
     return nothing
 end
 

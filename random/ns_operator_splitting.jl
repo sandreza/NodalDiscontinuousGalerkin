@@ -1,14 +1,14 @@
-# To make easy comparisons to the Matlab code
-
-
 using Plots
+using BenchmarkTools
 include("../DG2D/dg_navier_stokes.jl")
+include("../DG2D/mesh2D.jl")
+include("../DG2D/utils2D.jl")
 include("../random/navier_stokes_structs.jl")
 include("../DG2D/dg_poisson.jl")
 include("../DG2D/dg_helmholtz.jl")
 include("../DG2D/triangles.jl")
-include("../DG2D/mesh2D.jl")
-include("../DG2D/utils2D.jl")
+
+
 
 # define polynomial order
 n = 15
@@ -124,8 +124,8 @@ dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, 
 bc = ([],[],0.0)
 dbc = (mesh.vmapB, mesh.mapB, 0.0, 0.0)
 
-bc_wierd = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
-dbc_wierd = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
+bc = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
+dbc = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
 
 
 # set up τ matrix
@@ -133,8 +133,8 @@ dbc_wierd = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
 params = [τ]
 
 # set up matrix and affine component
-Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
-sΔᵖ, sbᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+#Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
+Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
 #slight regularization
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)
@@ -145,34 +145,73 @@ chol_Δᵖ = cholesky(-Δᵖ)
 # this is where the method actually starts
 # prior to this is set up
 
-# compute forcing term for helmholtz
+# step 1, compute the advection step
 # first u
-sym_advec!(ι.u.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.u.ϕ, mesh)
-@. ι.u.φⁿ *= -1 / ν
-@. ι.u.φⁿ -= u⁰ / ( ν * Δt )
-rhsᵘ = mesh.J .* (mesh.M * ι.u.φⁿ) - bᵘ
+sym_advec!(ι.u.φⁿ, u⁰, v⁰, u⁰, mesh)
+@. ι.u.φⁿ *= -Δt
+@. ι.u.φⁿ += u⁰
+# then v
+sym_advec!(ι.v.φⁿ, u⁰, v⁰, v⁰, mesh)
+@. ι.v.φⁿ *= -Δt
+@. ι.v.φⁿ += v⁰
+
+# step two, project
+#first compute boundary conditions for pressure
+fu¹ = fv¹ = 0.0
+
+∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t, mesh)
+
+@. ∂pˣ *= 0.0
+@. ∂pʸ *= 0.0
+#=
+bc = ([],[],0.0)
+dbc = (mesh.vmapB, mesh.mapB, ∂pˣ[mesh.vmapB], ∂pʸ[mesh.vmapB])
+=#
+bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
+dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
+dg_poisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
+
+# take the divergence of the solution
+rhsᵖ = similar(ι.p.ϕ)
+∇⨀!(rhsᵖ , ι.u.φⁿ, ι.v.φⁿ, mesh)
+
+# construct the right hand side for poissons equation
+frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
+@. frhsᵖ *= -1.0
+# solve the linear system
+p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
+# compute the gradient
+∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
+# project
+ũ = ι.u.φⁿ - ι.p.∂ˣ
+ṽ = ι.v.φⁿ - ι.p.∂ʸ
+
+# now for the diffusive step
+
+# get bc
+u_exact = eval_grid(u_analytic, mesh, t)
+v_exact = eval_grid(v_analytic, mesh, t)
+dirichlet_u_bc = u_exact[mesh.vmapB];
+bc_u = (mesh.vmapB, mesh.mapB, dirichlet_u_bc)
+dbc_u = ([],[],0.0,0.0)
+dirichlet_v_bc = v_exact[mesh.vmapB];
+bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
+dbc_v = ([],[],0.0,0.0)
+
+# set up affine part
+dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+#
+rhsᵘ = -1 .* mesh.J .* (mesh.M * ũ ./ (ν*Δt) ) - bᵘ
 rhsᵘ *= -1.0 #cholesky nonsense
 # then v
-sym_advec!(ι.v.φⁿ, ι.u.ϕ, ι.v.ϕ, ι.v.ϕ, mesh)
-@. ι.v.φⁿ *= -1 / ν
-@. ι.v.φⁿ -= v⁰ / ( ν * Δt )
-rhsᵛ = mesh.J .* (mesh.M * ι.v.φⁿ) - bᵛ
+rhsᵛ = -1 .* mesh.J .* (mesh.M * ṽ ./ (ν*Δt)) - bᵛ
 rhsᵛ *= -1.0 #cholesky nonsense
 
 # step one solve helmholtz equation for velocity field
-ũ = reshape(chol_Hᵘ \ rhsᵘ[:], size(mesh.x) )
-ṽ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
-
-# step two, project
-rhsᵖ = similar(ι.p.ϕ)
-∇⨀!(rhsᵖ , ũ, ṽ, mesh)
-
-frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
-@. frhsᵖ *= -1.0
-p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
-∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
-u¹ = ũ - ι.p.∂ˣ
-v¹ = ṽ - ι.p.∂ʸ
+u¹ = reshape(chol_Hᵘ \ rhsᵘ[:], size(mesh.x) )
+v¹ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
 
 # now set old values equal to new values
 @. u⁰ = u¹
@@ -183,28 +222,30 @@ u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
 
 
-println("without incompressibility")
+println("before satisfying boundary conditions")
 u_error = rel_error(u_exact, ũ)
 v_error = rel_error(v_exact, ṽ)
 println("The relative error is $(u_error)")
 println("The relative error is $(v_error)")
-println("with incompressibility")
+println("with satisfying boudnary conditions")
 u_error = rel_error(u_exact, u¹)
 v_error = rel_error(v_exact, v¹)
 println("The relative error is $(u_error)")
 println("The relative error is $(v_error)")
 
-println("with incompressibility and 1 norm")
+println("with bc and 1 norm")
 u_error = rel_1_error(u_exact, u¹)
 v_error = rel_1_error(v_exact, v¹)
 println("The relative error is $(u_error)")
 println("The relative error is $(v_error)")
 
 println("relative error in boundary conditions")
+println("before")
 println(rel_error(u_exact[mesh.vmapB], ũ[mesh.vmapB]))
+println("after")
 println(rel_error(u_exact[mesh.vmapB], u¹[mesh.vmapB]))
 ∇⨀!(rhsᵖ , u¹, v¹, mesh)
-println("The maximum incompressibility is $(maximum(abs.(rhsᵖ)))")
+println("The maximum incompressibility is now $(maximum(abs.(rhsᵖ)))")
 
 ∇⨀!(rhsᵖ , ũ, ṽ, mesh)
 println("The maximum incompressibility before was $(maximum(abs.(rhsᵖ)))")
@@ -217,6 +258,7 @@ topwall = findall(mesh.y[:] .≈ maximum(mesh.y))
 bottomwall = findall(mesh.y[:] .≈ minimum(mesh.y))
 
 println("------------")
+
 #=
 gr()
 camera_top = 90 #this is a very hacky way to get a 2D contour plot

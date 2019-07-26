@@ -91,6 +91,42 @@ function ∇⨂(x, y, Ω)
     return ∇⨂u
 end
 
+"""
+∇⨂∇⨂(u, v, Ω)
+
+# Description
+
+    Compute the curl of curl of u
+
+# Arguments
+
+-   `ux`: first component of vector
+-   `uy`: second component of vector
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `(∇⨂∇⨂u)ˣ`: first component the curl of curl u
+-   `(∇⨂∇⨂u)ʸ`: second component the curl of curl u
+
+"""
+function ∇⨂∇⨂(ux, uy, Ω)
+    ∂ˣux = Ω.rx .* ( Ω.Dʳ * ux  + Ω.Dʳ * ux )
+    ∂ʸux = Ω.ry .* ( Ω.Dʳ * ux  + Ω.Dʳ * ux )
+    ∂ˣuy = Ω.rx .* ( Ω.Dʳ * uy  + Ω.Dʳ * uy )
+    ∂ʸuy = Ω.ry .* ( Ω.Dʳ * uy  + Ω.Dʳ * uy )
+
+    ∂ˣ∂ʸux = Ω.ry .* ( Ω.Dʳ * ∂ˣux  + Ω.Dʳ * ∂ˣux )
+    ∂ˣ∂ʸuy = Ω.ry .* ( Ω.Dʳ * ∂ˣuy  + Ω.Dʳ * ∂ˣuy )
+
+    ∂ˣ∂ˣuy = Ω.rx .* ( Ω.Dʳ * ∂ˣuy  + Ω.Dʳ * ∂ˣuy )
+    ∂ʸ∂ʸux = Ω.ry .* ( Ω.Dʳ * ∂ʸux  + Ω.Dʳ * ∂ʸux )
+
+    tmpˣ = ∂ˣ∂ʸuy - ∂ʸ∂ʸux
+    tmpʸ = ∂ˣ∂ʸux - ∂ˣ∂ˣuy
+    return tmpˣ , tmpʸ
+end
+
 
 
 

@@ -103,11 +103,9 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
     @. ϕ.Δu = ϕ.u[𝒢.nodes⁻] - 1//2 * (ϕ.u[𝒢.nodes⁻] + ϕ.u[𝒢.nodes⁺])
 
     # Choose boundary condition type, dirichlet
-
     if BCᵈ != nothing
         dirichlet!(ϕ, BCᵈ)
     end
-
     # compute fluxes for each element
     let nGL = nBP = 0
         for Ωᵏ in 𝒢.Ω
@@ -125,11 +123,11 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
 
             liftˣ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,1] .* Δu)
             liftʸ = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* Ωᵏ.n̂[:,2] .* Δu)
-
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
             ∇!(φˣ, φʸ, u, Ωᵏ)
             @. φˣ -= liftˣ
+            @. φʸ -= liftʸ
         end
     end
 

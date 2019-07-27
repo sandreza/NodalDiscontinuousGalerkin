@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 1
+N = 3
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -41,7 +41,7 @@ BCⁿ = nothing
 
 #compute tau and define γ
 γ = 10.0
-τ = 1
+τ = -1
 params = [τ, γ]
 
 # for the first helmholtz equation
@@ -91,8 +91,8 @@ end
 Δu = -(frhs - b)
 
 # now to compute the solution
-∇² = lu(-∇²)
-u = ∇² \ Δu
+lu_∇² = cholesky(-∇²)
+u = lu_∇² \ Δu
 
 # modify for neumann
 u = u .- sum(u)/length(u) .+ sum(fsol)/length(fsol)
@@ -101,3 +101,4 @@ u = u .- sum(u)/length(u) .+ sum(fsol)/length(fsol)
 w2inf = rel_error(u, fsol)
 println("The relative error in computing the solution is $(w2inf)")
 println("----------------")
+spy(∇²)

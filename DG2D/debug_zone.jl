@@ -43,13 +43,20 @@ BCᵈ = DirichletBC(𝒢.nodesᴮ, 𝒢.mapᴮ, 0.0)
 BCⁿ = nothing
 
 #compute tau and define γ
-γ = 0.0
-τ = 0.0
+γ = 00.0
+τ = 0000.0
 params = [τ, γ]
 
 # for the first helmholtz equation
 # may take a while for larger matrices
-@. 𝒢.Ω[1].ℰ = 0.0
+#@. 𝒢.Ω[1].ℰ = 0.0
+m,n  = size(𝒢.Ω[1].ℰ )
+e1 = zeros(n)
+e1[1] = 1.0
+e1[12] = 1.0
+e3 = zeros(n)
+e3[3] = 1.0
+e3[3] = 1.0
 ∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ);
 interior = setdiff(collect(1:length(mesh.x[:,1])), mesh.nodesᴮ);
 check = ∇²[interior, interior] - (∇²[interior, interior] + ∇²[interior, interior]') ./ 2;
@@ -62,12 +69,17 @@ display(Array(∇²))
 rˣ,sˣ,rʸ,sʸ = partials(mesh.Ω[1].rˣ)
 #manually constructed laplacian
 md1 = mesh.Ω[1].M * ( mesh.Ω[1].D[1] * mesh.Ω[1].D[1] + mesh.Ω[1].D[2] * mesh.Ω[1].D[2] )
-println("constructed by hand")
+println("constructed by hand (only for lift = 0) ")
 display(md1)
+tmp = inv(mesh.Ω[1].M ) * ∇²
+tmp = sparse(tmp)
+dropϵzeros!(tmp)
 
-
-
-
+display(rel_error(md1,∇²) )
+asym =  ∇² - ∇²'
+dropϵzeros!(asym)
+println("The asymmetry is ")
+display(Array(asym))
 ###
 # load the 1D operator for checking
 
@@ -101,10 +113,10 @@ xmin = 0.0
 xmax = L
 
 # generate mesh variables
-𝒢 = Mesh(K, n, xmin, xmax)
+𝒢1 = Mesh(K, n, xmin, xmax)
 mesh1d = Mesh(K, n, xmin, xmax)
 # generate internal variables
-ι = dg(𝒢)
+ι = dg(𝒢1)
 
 # set external parameters
 ϰ = 1.0   #
@@ -113,21 +125,30 @@ mesh1d = Mesh(K, n, xmin, xmax)
 ε = (ϰ, α)
 
 # easy access
-x  = 𝒢.x
+x  = 𝒢1.x
 u  = ι.u
 u̇ = ι.u̇
 q = copy(u)
 dq = copy(ι.flux)
 
 
-params = (𝒢, ι, ε, periodic, q, dq, τ)
+params = (𝒢1, ι, ε, periodic, q, dq, τ)
 
-d1∇² = poisson_setup(𝒢, periodic, τ)
+d1∇² = poisson_setup(𝒢1, periodic, τ)
 
 # construct identity matrices
 Iⁿ = Matrix(I, n+1, n+1)
 Iᵐ = Matrix(I, n+1, n+1)
 
+rel_error(Δ1D , tmp)
+Δ1D = kron(Iᵐ, mesh1d.D * mesh1d.D) + kron(mesh1d.D * mesh1d.D, Iᵐ)
+# px = kron(mesh1d.M, Iⁿ) *  kron(Iᵐ, mesh1d.M)  * mesh.Ω[1].D[1] * mesh.Ω[1].D[1]
+###
 
-px = kron(mesh1d.M, Iⁿ) *  kron(Iᵐ, mesh1d.M)  * mesh.Ω[1].D[1] * mesh.Ω[1].D[1]
+
+###
+# checking lift operator
+
+𝒢.Ω[1].ℰ * e1
+
 ###

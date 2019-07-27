@@ -1,7 +1,7 @@
 include("grid2D.jl")
 include("dg_advection2D.jl")
 include("dg_helmholtz2D.jl")
-include("../src/CuthillMckee.jl")
+#include("../src/CuthillMckee.jl")
 
 using BandedMatrices
 using LinearAlgebra
@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 1
+N = 2
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)

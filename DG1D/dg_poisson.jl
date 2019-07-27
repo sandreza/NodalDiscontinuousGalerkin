@@ -70,12 +70,14 @@ function dg_poisson!(u̇, u, params, t)
     @. dq = 0 #reset dq
     @. dq = diffs
     #impose neumann boundary conditions for q
+    #=
     if !periodic
         qin  = q[𝒢.vmapI]
         qout = q[𝒢.vmapO]
         dq[𝒢.mapI]  =  @. (q[𝒢.vmapI] - qin) / 2
         dq[𝒢.mapO]  =  @. (q[𝒢.vmapO] - qout) / 2
     end
+    =#
     #modify with τ
     fluxq = @. (dq / 2 + τ * 𝒢.normals * ι.flux)
     # solve for u̇

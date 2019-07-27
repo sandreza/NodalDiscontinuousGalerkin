@@ -103,6 +103,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
     @. ϕ.Δu = ϕ.u[𝒢.nodes⁻] - 1//2 * (ϕ.u[𝒢.nodes⁻] + ϕ.u[𝒢.nodes⁺])
 
     # Choose boundary condition type, dirichlet
+
     if BCᵈ != nothing
         dirichlet!(ϕ, BCᵈ)
     end
@@ -129,7 +130,6 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             # first get ∇q + flux terms
             ∇!(φˣ, φʸ, u, Ωᵏ)
             @. φˣ -= liftˣ
-            @. φʸ -= liftʸ
         end
     end
 
@@ -176,7 +176,8 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             @. u̇ = ∇u - lift - γ * u
 
             # multiply by J * M for cholesky stuff
-            u̇ = Ωᵏ.J .* (Ωᵏ.M * u̇)
+            tmp =  Ωᵏ.J .* (Ωᵏ.M * u̇)
+            @. u̇ = tmp
         end
     end
 

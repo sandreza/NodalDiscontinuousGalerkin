@@ -175,7 +175,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             # combine the terms
             @. u̇ = ∇u - lift - γ * u
 
-            # multiply by J * M for cholesky stuff
+            # multiply by J * M for making it symmetric
             tmp =  Ωᵏ.J .* (Ωᵏ.M * u̇)
             @. u̇ = tmp
         end

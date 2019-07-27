@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 1
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -91,7 +91,7 @@ end
 Δu = -(frhs - b)
 
 # now to compute the solution
-∇² = cholesky(-∇²)
+∇² = lu(-∇²)
 u = ∇² \ Δu
 
 # modify for neumann

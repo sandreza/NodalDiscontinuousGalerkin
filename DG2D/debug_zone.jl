@@ -1,7 +1,6 @@
 
 # plot the boundary nodes
 # scatter(mesh.x[mesh.nodesᴮ,1], mesh.x[mesh.nodesᴮ,2] , legend = false)
-mesh = 𝒢
 
 #=
 for i in 1:length(mesh.nodesᴮ)
@@ -23,7 +22,7 @@ end
 =#
 
 # set number of DG elements and poly order
-N = 3
+N = 2
 const debug = false
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -50,7 +49,7 @@ params = [τ, γ]
 
 # for the first helmholtz equation
 # may take a while for larger matrices
-@. mesh.Ω[1].ℰ = 0.0
+@. 𝒢.Ω[1].ℰ = 0.0
 ∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ);
 interior = setdiff(collect(1:length(mesh.x[:,1])), mesh.nodesᴮ);
 check = ∇²[interior, interior] - (∇²[interior, interior] + ∇²[interior, interior]') ./ 2;

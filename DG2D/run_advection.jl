@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 5
+n = 3
 timings = false
 gradients_check = false
 solve_ode = false
@@ -18,7 +18,7 @@ forward_and_backwards = true
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
 #in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]
-FileName = "Maxwell025.neu"
+FileName = "Maxwell0125.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = periodic_triangle(n, filename)

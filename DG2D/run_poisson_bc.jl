@@ -12,13 +12,13 @@ include("../DG2D/dg_poisson.jl")
 include("../src/CuthillMckee.jl")
 
 
-timings = false
+timings = true
 plotting_matrix = true
 check_correctness = true
 plotting_solution = false
 # simulation parameters and grid
 n = 1
-FileName = "Maxwell025.neu"
+FileName = "Maxwell0125.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -29,8 +29,8 @@ field = dg_garbage_triangle(mesh)
 bc = (mesh.vmapB, mesh.mapB)
 bc = ([],[])
 # location of boundary grid points for neumann bc
-dbc = ([],[])
-dbc = (mesh.vmapB, mesh.mapB)
+#dbc = ([],[])
+#dbc = (mesh.vmapB, mesh.mapB)
 
 #compute tau
 τ = compute_τ(mesh)
@@ -79,6 +79,7 @@ for loop in 1:length(i)
     end
 end
 dropzeros!(∇²)
+∇² -= I
 i,j = findnz(∇²)
 println("now it is $(length(i))")
 
@@ -111,8 +112,8 @@ if check_correctness
 
     # evaluate at grid points with given values for α and β
     # odd for dirichlet, even for neumann
-    α = 2
-    β = 2
+    α = 1
+    β = 1
     frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
     #@. frhs[mesh.vmapB] = (x[mesh.vmapB])^2 + (y[mesh.vmapB])^2
 

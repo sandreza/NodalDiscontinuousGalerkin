@@ -61,7 +61,7 @@ function dg_poisson!(u̇, u, params, t)
     # rhs of the semi-discerte PDE, ∂ᵗu = ∂ˣq, ∂ˣq  = u
     #first solve for q
     mul!(q, 𝒢.D, u)
-    @. q *= 𝒢.rx
+    @. q *= 𝒢.rx # scale factor for differentiation matrix
     lift = 𝒢.lift * (𝒢.fscale .* 𝒢.normals .* ι.flux )
     @. q -= lift
     # Form field differences at faces for q

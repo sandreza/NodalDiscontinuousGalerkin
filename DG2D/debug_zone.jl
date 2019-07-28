@@ -1,7 +1,13 @@
 
 # plot the boundary nodes
-# scatter(mesh.x[mesh.nodesᴮ,1], mesh.x[mesh.nodesᴮ,2] , legend = false)
+#=
 
+ scatter(mesh.x[mesh.nodesᴮ,1], mesh.x[mesh.nodesᴮ,2] , legend = false)
+scatter!(mesh.x[mesh.nodes⁻,1], mesh.x[mesh.nodes⁻,2] , legend = false)
+scatter!(mesh.x[mesh.nodes⁺,1], mesh.x[mesh.nodes⁺,2] , legend = false)
+#scatter(mesh.Ω[1].x[:,1], mesh.Ω[1].x[:,2] , legend = false)
+#scatter(mesh.Ω[2].x[:,1], mesh.Ω[2].x[:,2] , legend = false)
+=#
 #=
 for i in 1:length(mesh.nodesᴮ)
     ind1 = mesh.nodesᴮ[i]
@@ -11,18 +17,48 @@ for i in 1:length(mesh.nodesᴮ)
     println("is $(mesh.Ω[1].n̂[ind2,:])")
     println("----------")
 end
+
+for i in 1:length(mesh.nodes⁻)
+    println("----------")
+    println("node $(𝒢.nodes⁻[i]) is connected to $(𝒢.nodes⁺[i])")
+    println("----------")
+end
+
+
 =#
 
 #=
 for i in 1:length(mesh.x[:,1])
     println("----------")
+    println("the point $(mesh.x[i,:]) is $(i)")
+    println("----------")
+end
+
+local ordering in an element
+for i in 1:length(mesh.Ω[1].x[:,1])
+    println("----------")
     println("the point $(mesh.Ω[1].x[i,:]) is $(i)")
     println("----------")
 end
+
+for i in 1:length(mesh.Ω[2].x[:,1])
+    println("----------")
+    println("the point $(mesh.Ω[2].x[i,:]) is $(i)")
+    println("----------")
+end
+
+local ordering in an element
 =#
 
 # set number of DG elements and poly order
 N = 2
+K = 2
+L = 2
+xmin = -2.0
+ymin = -2.0
+xmax = 2.0
+ymax = 2.0
+ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 const debug = false
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -32,11 +68,15 @@ ỹ = 𝒢.x[:,2]
 dof = 𝒢.nGL
 println("The degrees of freedom are $dof")
 # plotgrid2D(𝒢)
-
+# 𝒢.nodes⁻'
 # make field objects
 ϕ = Field2D(𝒢)
-
 # Boundary conditions
+#hacks for making independent
+#@. 𝒢.nodes⁺ = 𝒢.nodes⁻
+#BCᵈ = DirichletBC(𝒢.nodes⁻, collect(1:length(𝒢.nodes⁻)), 0.0)
+#BCᵈ = nothing
+# real bc
 BCᵈ = DirichletBC(𝒢.nodesᴮ, 𝒢.mapᴮ, 0.0)
 # BCᵈ = nothing
 # BCⁿ = NeumannBC2D(𝒢.nodesᴮ, 𝒢.mapᴮ, 0.0, 0.0)
@@ -44,19 +84,12 @@ BCⁿ = nothing
 
 #compute tau and define γ
 γ = 00.0
-τ = 0000.0
+τ = -0001.0 #should be negative tau
 params = [τ, γ]
 
 # for the first helmholtz equation
 # may take a while for larger matrices
 #@. 𝒢.Ω[1].ℰ = 0.0
-m,n  = size(𝒢.Ω[1].ℰ )
-e1 = zeros(n)
-e1[1] = 1.0
-e1[12] = 1.0
-e3 = zeros(n)
-e3[3] = 1.0
-e3[3] = 1.0
 ∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ);
 interior = setdiff(collect(1:length(mesh.x[:,1])), mesh.nodesᴮ);
 check = ∇²[interior, interior] - (∇²[interior, interior] + ∇²[interior, interior]') ./ 2;
@@ -65,6 +98,8 @@ display(Array(∇²[interior, interior]))
 println("check full")
 display(Array(∇²))
 
+#=
+# single element
 #scale factors
 rˣ,sˣ,rʸ,sʸ = partials(mesh.Ω[1].rˣ)
 #manually constructed laplacian
@@ -76,10 +111,21 @@ tmp = sparse(tmp)
 dropϵzeros!(tmp)
 
 display(rel_error(md1,∇²) )
+=#
 asym =  ∇² - ∇²'
 dropϵzeros!(asym)
-println("The asymmetry is ")
+println("The asymmetry is $(maximum(abs.(asym)))")
 display(Array(asym))
+#=
+mi = inv(mesh.Ω[1].M)
+tmp = similar(∇²)
+@. tmp *= 0
+@. tmp[1:9,1:9] = mi
+@. tmp[10:18,10:18] = mi
+check = tmp * ∇²
+println("check on the lift operator")
+display(Array(check[:,1]))
+=#
 ###
 # load the 1D operator for checking
 
@@ -148,7 +194,20 @@ rel_error(Δ1D , tmp)
 
 ###
 # checking lift operator
-
+e1 = zeros(12)
+e1[1] = 1
+e1[end] = 12
 𝒢.Ω[1].ℰ * e1
+
+###
+
+
+###
+helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+###
+
+###
+newnodes = copy(𝒢.nodes⁻' )
+oldnodes
 
 ###

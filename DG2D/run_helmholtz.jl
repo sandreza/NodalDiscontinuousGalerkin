@@ -1,9 +1,9 @@
 # run_helmholtz_bc
 
-using BandedMatrices
+#using BandedMatrices
 using BenchmarkTools
 using LinearAlgebra
-using Plots
+#using Plots
 
 include("mesh2D.jl")
 include("dg_advection.jl")
@@ -19,7 +19,7 @@ include("../src/CuthillMckee.jl")
 # ideally there would be a switch case that examines this more thoroughly
 
 timings = false
-plotting_matrix = true
+plotting_matrix = false
 check_correctness = true
 plotting_solution = false
 # simulation parameters and grid

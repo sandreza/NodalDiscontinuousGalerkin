@@ -62,7 +62,8 @@ function rectangle(index, vertices, N, M, vmap)
 
     # lift matrix and normals
     ℰ = liftSQ(a, b, fmask)
-    n̂,Jˢ = normalsSQ(n, m)
+    n̂, Jˢ = normalsSQ(n, m)
+    #n̂, Jˢ = normalsRE(n, m, xmin, xmax, ymin, ymax)
 
     # construct element
     rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
@@ -255,8 +256,7 @@ normalsSQ(n, m)
 function normalsSQ(n, m)
     # empty vectors of right length
     n̂  = zeros(n+m+n+m, 2)
-    Jˢ = ones(n+m+n+m) # squares don't need to worry about this
-
+    Jˢ = ones(n+m+n+m) # should be size two?
     # ending index for each face
     nf1 = n
     nf2 = n+m
@@ -270,6 +270,55 @@ function normalsSQ(n, m)
     @. n̂[nf3+1:nf4, 1] = -1 # normal is ( 1,  0) along fourth face
 
     return n̂,Jˢ
+end
+
+"""
+normalsRE(n, m)
+
+# Description
+
+    Return the normals for the 2D ideal square
+
+# Arguments
+
+-   `xmin`: minimum of x on rectangle
+-   `xmax`: maximum of x on rectangle
+-   `ymin`: minimum of y on rectangle
+-   `ymax`: maximum of y on rectangle
+
+-   `n`: number of GL points along the first axis
+-   `m`: number of GL points along the second axis
+
+# Return Values
+
+-   `nˣ`: first coordinate of the normal vector
+-   `nʸ`: second coordinate of the normal vector
+
+# Example
+
+"""
+
+function normalsRE(n, m, xmin, xmax, ymin, ymax)
+    # empty vectors of right length
+    n̂  = zeros(n+m+n+m, 2)
+    Jˢ = ones(n+m+n+m) # yes they do
+    @. Jˢ[1:n] = xmax - xmin
+    @. Jˢ[n+1:n+m] = ymax - ymin
+    @. Jˢ[n+m+1:n+m+n] = xmax - xmin
+    @. Jˢ[n+m+n+1:n+m+n+m] = ymax - ymin
+    # ending index for each face
+    nf1 = n
+    nf2 = n+m
+    nf3 = n+m+n
+    nf4 = n+m+n+m
+
+    # set values of normals
+    @. n̂[    1:nf1, 2] = -1 # normal is ( 0, -1) along first face
+    @. n̂[nf1+1:nf2, 1] =  1 # normal is (-1,  0) along second face
+    @. n̂[nf2+1:nf3, 2] =  1 # normal is ( 0,  1) along third face
+    @. n̂[nf3+1:nf4, 1] = -1 # normal is ( 1,  0) along fourth face
+
+    return n̂, Jˢ
 end
 
 """

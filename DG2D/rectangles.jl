@@ -62,10 +62,10 @@ function rectangle(index, vertices, N, M, vmap)
 
     # lift matrix and normals
     ∮ = liftSQ(a, b, fmask)
-    n̂,Jˢ = normalsSQ(n, m)
+    nˣ,nʸ,Jˢ = normalsSQ(n, m, xmax-xmin, ymax-ymin)
 
     # construct element
-    rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,∮)
+    rect = Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
 
     return rect
 end
@@ -252,9 +252,10 @@ normalsSQ(n, m)
 
 """
 
-function normalsSQ(n, m)
+function normalsSQ(n, m, xwidth, ywidth)
     # empty vectors of right length
-    n̂  = zeros(n+m+n+m, 2)
+    nˣ = zeros(n+m+n+m)
+    nʸ = zeros(n+m+n+m)
     Jˢ = ones(n+m+n+m) # squares don't need to worry about this
 
     # ending index for each face
@@ -264,12 +265,16 @@ function normalsSQ(n, m)
     nf4 = n+m+n+m
 
     # set values of normals
-    @. n̂[    1:nf1, 2] = -1 # normal is ( 0, -1) along first face
-    @. n̂[nf1+1:nf2, 1] =  1 # normal is (-1,  0) along second face
-    @. n̂[nf2+1:nf3, 2] =  1 # normal is ( 0,  1) along third face
-    @. n̂[nf3+1:nf4, 1] = -1 # normal is ( 1,  0) along fourth face
+    @. nʸ[    1:nf1] = -1 * xwidth/2 # normal is ( 0, -1) along first face
+    @. nˣ[nf1+1:nf2] =  1 * ywidth/2# normal is (-1,  0) along second face
+    @. nʸ[nf2+1:nf3] =  1 * xwidth/2# normal is ( 0,  1) along third face
+    @. nˣ[nf3+1:nf4] = -1 * ywidth/2# normal is ( 1,  0) along fourth face
 
-    return n̂,Jˢ
+    @. Jˢ = sqrt(nˣ^2 + nʸ^2)
+    @. nˣ *= 1/Jˢ
+    @. nʸ *= 1/Jˢ
+
+    return nˣ,nʸ,Jˢ
 end
 
 """

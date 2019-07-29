@@ -58,23 +58,10 @@ function helmholtz_setup(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{Dirichl
     b  = copy(ϕ.u)
 
     # affine part of operator
-    if debug
-    println("------")
-    println("--before--")
-    println(q)
-    println("------")
-    end
     dg_helmholtz!(b, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
-    if debug
-    println("--after--")
-    println(q)
-    println("------")
-    end
     @. q = 0.0
-    #now construct linear part
-    #mylist = [7]
-    mylist = 1:𝒢.nGL
-    for i in mylist #1:𝒢.nGL
+
+    for i in 1:𝒢.nGL
         q[i] = 1.0
         dg_helmholtz!(Δq, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
         @. L[:,i] = Δq[:] - b[:]
@@ -111,28 +98,13 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
     γ = params[2]
 
     @. ϕ.u = U
-    if debug
-    println("in the lloop")
-    println("the value of U is $(U)")
-    end
+
     # Form q-flux differences at faces
     @. ϕ.Δu = ϕ.u[𝒢.nodes⁻] - 1//2 * (ϕ.u[𝒢.nodes⁻] + ϕ.u[𝒢.nodes⁺])
-    if debug
-    println("---------")
-    println("the value of Δu is ")
-    println(ϕ.Δu)
-    println("the value of Δu is ")
-    end
+
     # Choose boundary condition type, dirichlet
     if BCᵈ != nothing
         dirichlet!(ϕ, BCᵈ)
-    end
-    if debug
-    println("------")
-    println("after enforcing bc")
-    println(ϕ.Δu)
-    println(U)
-    println("-------------")
     end
 
     # compute fluxes for each element
@@ -150,8 +122,8 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             φʸ = view(ϕ.φʸ, GLᵏ)
             Δu = view(ϕ.Δu, BPᵏ)
 
-            liftˣ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.n̂[:,1] .* Δu)
-            liftʸ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.n̂[:,2] .* Δu)
+            liftˣ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
+            liftʸ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
@@ -160,31 +132,11 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             @. φʸ -= liftʸ
         end
     end
-    #=
-    println("------")
-    println("the fluxes")
-    println(ϕ.φˣ)
-    println(ϕ.φʸ)
-    println("-------------")
-    =#
+
     # Form field differences at faces for x and y partial derivatives
     @. ϕ.fˣ = ϕ.φˣ[𝒢.nodes⁻] - 1//2 * (ϕ.φˣ[𝒢.nodes⁺] + ϕ.φˣ[𝒢.nodes⁻])
     @. ϕ.fʸ = ϕ.φʸ[𝒢.nodes⁻] - 1//2 * (ϕ.φʸ[𝒢.nodes⁺] + ϕ.φʸ[𝒢.nodes⁻])
 
-
-    #debug zone
-    #=
-    @. ϕ.Δu[𝒢.nodes⁻] = 0.0
-    @. ϕ.fˣ = 0.0
-    @. ϕ.fʸ = 0.0
-    =#
-    #=
-    println("------")
-    println("the fluxes 2")
-    println(ϕ.fˣ)
-    println(ϕ.fʸ)
-    println("-------------")
-    =#
     # enfore boundary conditions for flux (neumann)
     if BCⁿ != nothing
         neumann!(ϕ, BCⁿ)
@@ -214,7 +166,7 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             r  = view(ϕ.r,  GLᵏ)
 
             # modify with τ, remember fⁿ is field differences at face points
-            @. fⁿ = Ωᵏ.n̂[:,1] * fˣ + Ωᵏ.n̂[:,2] * fʸ + τ * Δu
+            @. fⁿ = Ωᵏ.nˣ * fˣ + Ωᵏ.nʸ * fʸ + τ * Δu
 
             # compute divergence of flux, volume term
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
@@ -226,7 +178,8 @@ function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{D
             @. r = ∇u - lift - γ * u
 
             # multiply by J * M for making it symmetric
-            @. u̇ = Ωᵏ.J .* (Ωᵏ.M * u̇)
+            mul!(u̇, Ωᵏ.M, r)
+            @. u̇ *= Ωᵏ.J
         end
     end
 

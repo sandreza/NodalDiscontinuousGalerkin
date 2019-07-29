@@ -39,15 +39,16 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     # boundary information
     nBP::S    # number of points on the boundary
     fmask::W  # mapping of GL points to faces
-    n̂::U      # normal vectors
+    nˣ::X     # normal vectors
+    nʸ::X     # normal vectors
     ∮::U   # lift matrix
 
     # geometric factors
-    rˣ::X     # jacobian matrix from ideal to physical space
-    J::Y      # magnitude of the jacobian
-    volume::Y # size of the element in physical space
+    rˣ::Y     # jacobian matrix from ideal to physical space
+    J::X      # magnitude of the jacobian
+    volume::X # size of the element in physical space
 
-    function Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,∮)
+    function Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
         # number of points on the boundary
         nFPᵏ,nFaces = size(fmask)
         nBP = nFPᵏ * nFaces
@@ -77,7 +78,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
 
         #### add nodes⁻ and nodes⁺ as struct members
 
-        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(r̃ˣ),typeof(volume)}(index,vertices, nGL,x̃,D,M, nBP,fmask,n̂,∮, r̃ˣ,J,volume)
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(volume),typeof(r̃ˣ)}(index,vertices, nGL,x̃,D,M, nBP,fmask,nˣ,nʸ,∮, r̃ˣ,J,volume)
     end
 end
 

@@ -54,16 +54,11 @@ function triangle(index, vertices, N, vmap)
     end
 
     # construct normals
-    nx, ny, Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
+    nˣ,nʸ,Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
     Jˢ = reshape(Jˢ, length(Jˢ))
 
-    n̂ = zeros(length(nx), 2)
-    for (i, (x,y)) in enumerate(zip(nx,ny))
-        n̂[i,:] = [x y]
-    end
-
     # construct element
-    tri = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,∮)
+    tri = Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
 
     return tri
 end

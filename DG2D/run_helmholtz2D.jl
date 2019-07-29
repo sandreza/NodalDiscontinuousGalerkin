@@ -7,7 +7,7 @@ using LinearAlgebra
 using Plots
 
 # make mesh
-scale = 1
+scale = 3
 K = 1 * scale
 L = 1 * scale
 xmin = ymin = -1.0 * scale
@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 3
+N = 8
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -50,31 +50,6 @@ params = [τ, γ]
 
 display(Array(∇²))
 
-Ω = 𝒢.Ω[1]
-u = Float64.(Matrix(I, Ω.nGL, Ω.nGL))
-ux = zeros(Ω.nGL)
-uy = zeros(Ω.nGL)
-∇²u = similar(u)
-for i in 1:Ω.nGL
-    ∇!(ux, uy, u[:,i], Ω)
-    ∇⨀!(view(∇²u, :, i), ux, uy, Ω)
-end
-∇²u = Ω.M * ∇²u
-@. ∇²u *= Ω.J
-display(∇²u)
-
-r = jacobiGL(0, 0, N)
-V = vandermonde(r, 0, 0, N)
-D = dmatrix(r, 0, 0, N)
-M = inv(V * V')
-uˣˣ = M * D * D
-display(uˣˣ)
-i = Matrix(I, N+1, N+1)
-∇²u = kron(i, uˣˣ) + kron(uˣˣ, i)
-display(∇²u)
-
-error()
-
 # make sure its numericall symmetric
 symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))
 if symmetric_check > eps(1.0)
@@ -91,10 +66,10 @@ println("The bandwidth of the matrix is $(maximum(i-j)+1)")
 println("The sparsity is $(length(nonzeros(∇²)) / length(∇²))")
 
 # first create an exact solution
-exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β)
+exact(x, y, α, β) = cos(π/2 * x * α) * cos(π/2 * y * β)
 
 # then create a forcing function
-forcing(x,y,α,β) = -((α * π/2)^2 + (β * π/2)^2 + γ) * cos(π/2 * x * α) * cos(π/2 * y * β)
+forcing(x, y, α, β) = -((α * π/2)^2 + (β * π/2)^2 + γ) * cos(π/2 * x * α) * cos(π/2 * y * β)
 
 # evaluate at grid points with given values for α and β
 # odd for dirichlet, even for neumann

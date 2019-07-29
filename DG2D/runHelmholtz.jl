@@ -6,9 +6,9 @@ using LinearAlgebra
 using Plots
 
 include("grid2D.jl")
-include("dg_advection.jl")
+include("solveAdvection.jl")
 include("triangles.jl")
-include("dg_helmholtz.jl")
+include("solveHelmholtz.jl")
 include("../src/CuthillMckee.jl")
 
 
@@ -40,7 +40,7 @@ dbc = ([],[])
 
 #compute tau and define γ
 γ = 10.0
-τ = 1 # compute_τ(mesh)
+τ = 1 # computeTau(mesh)
 params = [τ, γ]
 #for the first helmholtz equation
 #dirichlet, remember to change α and β
@@ -59,12 +59,12 @@ end
 # check that it doesn't crash
 Δu = similar(field.u)
 u = similar(field.u)
-#dg_helmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+#solveHelmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 #( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
 
 # may take a while for larger matrices
-∇², b = helmholtz_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+∇², b = constructHelmholtzOperator(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 display(Array(∇²))
 
@@ -134,7 +134,7 @@ if check_correctness
     @. e1 = 0.0
     e1[2] = 0.0
     # @. u = e1
-    dg_helmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    solveHelmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
     w2inf_Δ = maximum(abs.(Δu .- frhs_with_affine )) / maximum(abs.(frhs))
     cc = ∇² * u[:]
     ctmp = frhs[:]
@@ -178,7 +178,7 @@ if timings
     #for comparison
     println("------------")
     println("evaluating the second derivative takes")
-    @btime dg_helmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    @btime solveHelmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     # now for timings,
     #these are somewhat irrelevant hence the commenting

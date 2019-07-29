@@ -1,7 +1,7 @@
-include("dg1D.jl")
-include("dg_poisson.jl")
-include("dg_heat.jl")
-include("dg_advection.jl")
+include("field1D.jl")
+include("solvePoisson.jl")
+include("solveHeat.jl")
+include("solveAdvection.jl")
 
 using Plots
 using BenchmarkTools
@@ -32,7 +32,7 @@ xmax = L
 𝒢 = Mesh(K, n, xmin, xmax)
 
 # generate internal variables
-ι = dg(𝒢)
+ι = Field1D(𝒢)
 
 # set external parameters
 ϰ = 1.0   #
@@ -56,7 +56,7 @@ sol = -sin.(α * x)
 
 params = (𝒢, ι, ε, periodic, q, dq, τ)
 
-∇² = poisson_setup(𝒢, periodic, τ)
+∇² = constructLaplacian(𝒢, periodic, τ)
 
 ∇² = Symmetric(∇²)
 display(∇²)

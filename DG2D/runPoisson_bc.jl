@@ -6,9 +6,9 @@ using LinearAlgebra
 using Plots
 
 include("mesh2D.jl")
-include("dg_advection.jl")
+include("solveAdvection.jl")
 include("../DG2D/triangles.jl")
-include("../DG2D/dg_poisson.jl")
+include("../DG2D/solvePoisson.jl")
 include("../src/CuthillMckee.jl")
 
 
@@ -33,7 +33,7 @@ dbc = ([],[])
 dbc = (mesh.vmapB, mesh.mapB)
 
 #compute tau
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 params = [τ]
 #for the first poisson equation
 #dirichlet
@@ -52,12 +52,12 @@ end
 # check that it doesn't crash
 Δu = similar(field.u)
 u = similar(field.u)
-#dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+#solvePoisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 #( (mesh.x[bc[1]])^2 + (mesh.y[bc[1]])^2)*1
 
 # may take a while for larger matrices
-∇², b = poisson_setup_bc(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+∇², b = constructLaplacian_bc(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 # make sure its numericall symmetric
 symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))
 if symmetric_check > eps(1.0)
@@ -129,7 +129,7 @@ if check_correctness
     @. e1 = 0.0
     e1[2] = 0.0
     # @. u = e1
-    dg_poisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    solvePoisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
     w2inf_Δ = maximum(abs.(Δu .- frhs_with_affine)) / maximum(abs.(frhs))
     cc = ∇² * u[:]
     ctmp = frhs[:]
@@ -173,7 +173,7 @@ if timings
     #for comparison
     println("------------")
     println("evaluating the second derivative takes")
-    @btime dg_poisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    @btime solvePoisson_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     # now for timings,
     #these are somewhat irrelevant hence the commenting

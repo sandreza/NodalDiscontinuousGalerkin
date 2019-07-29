@@ -1,4 +1,4 @@
-include("dg1D.jl")
+include("field1D.jl")
 
 """
 material_params{T}
@@ -19,7 +19,7 @@ struct material_params{T}
 end
 
 """
-dg_maxwell!(u̇, u, params, t)
+solveMaxwell!(u̇, u, params, t)
 
 # Description
 
@@ -33,7 +33,7 @@ dg_maxwell!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function dg_maxwell!(fields, params)
+function solveMaxwell!(fields, params)
     # unpack fields
     E   = fields[1] # internal parameters for E
     H   = fields[2] # internal parameters for H

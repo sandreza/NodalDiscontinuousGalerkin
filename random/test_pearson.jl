@@ -1,7 +1,7 @@
 # To make easy comparisons to the Matlab code
 
 include("../DG2D/dg_navier_stokes.jl")
-include("../DG2D/dg_poisson.jl")
+include("../DG2D/solvePoisson.jl")
 include("../DG2D/triangles.jl")
 include("../DG2D/mesh2D.jl")
 
@@ -85,7 +85,7 @@ end
 bc = ([vmapI vmapO][:], [mapI mapO][:], pbc)
 # location of boundary grid points for neumann bc
 dbc = ([], [], pbc)
-Δᵖ, bᵖ = poisson_setup_bc(ι.p, params, mesh, bc_p!, bc, bc_∇p!, dbc)
+Δᵖ, bᵖ = constructLaplacian_bc(ι.p, params, mesh, bc_p!, bc, bc_∇p!, dbc)
 Δᵖ = cholesky(Δᵖ)
 
 # set up u-velocity laplacian
@@ -153,7 +153,7 @@ struct dg_field{T}
 
     # Description
 
-        initialize dg struct
+        initialize Field1D struct
 
     # Arguments
 
@@ -200,7 +200,7 @@ struct ns_fields{T}
 
     # Description
 
-        initialize dg struct
+        initialize Field1D struct
 
     # Arguments
 
@@ -311,11 +311,11 @@ bc = (mesh.vmapB, mesh.mapB, dirichlet_pressure_bc)
 dbc = ([],[],0.0,0.0)
 
 # set up τ matrix
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 params = [τ]
 
 # set up matrix and affine component
-Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+Δᵖ, bᵖ = constructLaplacian_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
 
 # set up appropriate rhs
 frhsᵖ = mesh.J .* (mesh.M * rhs) - bᵖ
@@ -352,7 +352,7 @@ dirichlet_v_bc = v_exact[mesh.vmapB];
 bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
 dbc_v = ([],[],0.0,0.0)
 
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 γ = 1 / (ν * Δt)
 params_vel = [τ, γ]
 Hᵘ, bᵘ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
@@ -386,8 +386,8 @@ dbc_v = ([],[],0.0,0.0)
 # get affine part of operator
 zero_value = 0.0 * u_exact
 
-dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
-dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+solveHelmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+solveHelmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
 
 # now set up pressure
 # location of boundary grid points for dirichlet bc
@@ -399,12 +399,12 @@ dbc_wierd = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
 
 
 # set up τ matrix
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 params = [τ]
 
 # set up matrix and affine component
-Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
-sΔᵖ, sbᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+Δᵖ, bᵖ = constructLaplacian_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
+sΔᵖ, sbᵖ = constructLaplacian_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
 #slight regularization
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)

@@ -2,7 +2,7 @@ include("field2D.jl")
 include("utils2D.jl")
 
 """
-dg_maxwell!(u̇, u, params)
+solveMaxwell!(u̇, u, params)
 
 # Description
 
@@ -15,7 +15,7 @@ dg_maxwell!(u̇, u, params)
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 
 """
-function dg_advection2D!(U̇, U, params, t)
+function solveAdvection2D!(U̇, U, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     α = params[2]

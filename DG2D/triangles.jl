@@ -1352,7 +1352,7 @@ struct dg_garbage_triangle{T}
 
     # Description
 
-        initialize dg struct
+        initialize Field1D struct
 
     # Arguments
 

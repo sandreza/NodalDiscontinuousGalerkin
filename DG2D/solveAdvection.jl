@@ -172,7 +172,7 @@ end
 
 # currently just central difference right now
 
-function dg_upwind_2D!(u̇, u, params, t)
+function solveAdvection_2D!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ι = params[2] # internal parameters
@@ -204,7 +204,7 @@ end
 
 
 
-function dg_upwind_sym_2D!(u̇, u, params, t)
+function solveAdvection_sym_2D!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ι = params[2] # internal parameters

@@ -1,12 +1,12 @@
 include("grid2D.jl")
-include("dg_advection2D.jl")
+include("solveAdvection2D.jl")
 
 using Plots
 using OrdinaryDiffEq
 
 # make mesh
-K = 4
-L = 4
+K = 2
+L = 2
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
@@ -17,13 +17,13 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 10
+N = 2
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
-# plotgrid2D(𝒢)
+plotgrid2D(𝒢)
 
 # display(𝒢.Ω[1].rˣ[1, :, :])
 # println(𝒢.Ω[1].volume)
@@ -44,7 +44,7 @@ println("Time step is $dt")
 u = Field2D(𝒢)
 
 # initialize conditions
-σ = 100.0
+σ = 10.0
 x⁰ = 0.0
 y⁰ = 0.0
 u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) # * cos(π/2 * x) * cos(π/2 * y)
@@ -53,7 +53,7 @@ u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) # * cos(π/2 * x)
 @. u.u = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 # parameters
-α  = 0. # determine upwind or central flux
+α  = 1. # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
 @. vˣ = 1.0
@@ -68,8 +68,8 @@ fields = [u]
 params = (𝒢, α, vˣ, vʸ, u)
 tspan = (0.0, stoptime)
 
-# solutions = rk_solver!(dg_advection2D!, fields, params, dt, Nsteps)
-problem = ODEProblem(dg_advection2D!, u.u, tspan, params);
+# solutions = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
+problem = ODEProblem(solveAdvection2D!, u.u, tspan, params);
 solutions = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
 Nsteps = floor(Int, length(solutions.u))
@@ -77,3 +77,5 @@ step = maximum([floor(Int, Nsteps / 50), 1])
 times = 1:step:Nsteps
 # times = 1:100
 plotfield2D(times, [solutions.u], x̃, ỹ)
+wrong = rel_error(solutions.u[1], solutions.u[end])
+println("The relative error of the solution is $wrong")

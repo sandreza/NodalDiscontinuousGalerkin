@@ -1,6 +1,6 @@
 include("grid2D.jl")
-include("dg_advection2D.jl")
-include("dg_helmholtz2D.jl")
+include("solveAdvection2D.jl")
+include("solveHelmholtz2D.jl")
 #include("../src/CuthillMckee.jl")
 
 using LinearAlgebra
@@ -46,7 +46,7 @@ params = [τ, γ]
 
 # for the first helmholtz equation
 # may take a while for larger matrices
-∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+∇², b = constructHelmholtzOperator(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
 
 display(Array(∇²))
 

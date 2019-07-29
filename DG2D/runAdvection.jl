@@ -1,6 +1,6 @@
 # first define the stream function
 include("grid2D.jl")
-include("dg_advection.jl")
+include("solveAdvection.jl")
 include("triangles.jl")
 using Plots
 using BenchmarkTools
@@ -96,9 +96,9 @@ tspan = (0.0, 8.0)
 𝒢 = mesh
 #rhs! = dg_central_2D!
 #rhs! = dg_rusonov_2D!
-#rhs! = dg_upwind_2D!
+#rhs! = solveAdvection_2D!
 # to reduce aliasing errors
-#rhs! = dg_upwind_sym_2D!
+#rhs! = solveAdvection_sym_2D!
 rhs! = dg_central_sym_2D!
 #rhs! = dg_central_rand_2D!
 #rhs! = dg_central_switch_2D!
@@ -123,7 +123,7 @@ if timings
     println("central")
     @btime dg_central_2D!(u̇, u, params, 0);
     println("upwind")
-    @btime dg_upwind_2D!(u̇, u, params, 0);
+    @btime solveAdvection_2D!(u̇, u, params, 0);
     println("divergence")
     @btime ∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢);
     println("compare to 1 matrix multiplications (should compare to about 4)")
@@ -131,7 +131,7 @@ if timings
     println("lift")
     @btime lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ);
     println("symmetrized upwind ")
-    @btime dg_upwind_sym_2D!(u̇, u, params, 0)
+    @btime solveAdvection_sym_2D!(u̇, u, params, 0)
     println("symmetrized central ")
     @btime dg_central_sym_2D!(u̇, u, params, 0)
 end

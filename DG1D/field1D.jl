@@ -5,11 +5,11 @@ using BenchmarkTools
 
 
 """
-dg(mesh)
+Field1D(mesh)
 
 # Description
 
-    initialize dg struct
+    initialize Field1D struct
 
 # Arguments
 
@@ -22,13 +22,13 @@ dg(mesh)
 -   `flux`: the numerical flux for the computation
 
 """
-struct dg{T}
+struct Field1D{T}
     u::T
     u̇::T
     flux::T
     r::T
 
-    function dg(mesh)
+    function Field1D(mesh)
         # set up the solution
         u    = copy(mesh.x)
         u̇    = copy(mesh.x)

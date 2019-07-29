@@ -4,8 +4,8 @@ include("../DG2D/dg_navier_stokes.jl")
 include("../DG2D/mesh2D.jl")
 include("../DG2D/utils2D.jl")
 include("../random/navier_stokes_structs.jl")
-include("../DG2D/dg_poisson.jl")
-include("../DG2D/dg_helmholtz.jl")
+include("../DG2D/solvePoisson.jl")
+include("../DG2D/solveHelmholtz.jl")
 include("../DG2D/triangles.jl")
 
 
@@ -83,7 +83,7 @@ bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
 dbc_v = ([],[],0.0,0.0)
 #dbc_v = (mesh.vmapB, mesh.mapB, neumann_v_bcx, neumann_v_bcy) #for testing
 
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 γ = 1 / (ν * Δt)
 params_vel = [τ, γ]
 Hᵘ, bᵘ = helmholtz_setup_bc(field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
@@ -117,8 +117,8 @@ dbc_v = ([],[],0.0,0.0)
 # get affine part of operator
 zero_value = 0.0 * u_exact
 
-dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
-dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+solveHelmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+solveHelmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
 
 # now set up pressure
 # location of boundary grid points for dirichlet bc
@@ -130,12 +130,12 @@ dbc = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
 
 
 # set up τ matrix
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 params = [τ]
 
 # set up matrix and affine component
-#Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
-Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
+#Δᵖ, bᵖ = constructLaplacian_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
+Δᵖ, bᵖ = constructLaplacian_bc(field, params, mesh, bc!, bc, bc_∇!, dbc)
 #slight regularization
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)
@@ -170,7 +170,7 @@ dbc = (mesh.vmapB, mesh.mapB, ∂pˣ[mesh.vmapB], ∂pʸ[mesh.vmapB])
 =#
 bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
 dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
-dg_poisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
+solvePoisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
 
 # take the divergence of the solution
 rhsᵖ = similar(ι.p.ϕ)
@@ -200,8 +200,8 @@ bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
 dbc_v = ([],[],0.0,0.0)
 
 # set up affine part
-dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
-dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+solveHelmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+solveHelmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
 
 #
 rhsᵘ = -1 .* mesh.J .* (mesh.M * ũ ./ (ν*Δt) ) - bᵘ

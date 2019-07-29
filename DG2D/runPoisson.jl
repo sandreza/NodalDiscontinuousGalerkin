@@ -4,9 +4,9 @@ using LinearAlgebra
 using Plots
 
 include("mesh2D.jl")
-include("dg_advection.jl")
+include("solveAdvection.jl")
 include("../DG2D/triangles.jl")
-include("../DG2D/dg_poisson.jl")
+include("../DG2D/solvePoisson.jl")
 include("../src/CuthillMckee.jl")
 
 
@@ -27,7 +27,7 @@ bc = (mesh.vmapB, mesh.mapB)
 dbc = ([],[])
 
 #compute tau
-τ = compute_τ(mesh)
+τ = computeTau(mesh)
 params = [τ]
 #for the first poisson equation
 #homogenous dirichlet
@@ -45,11 +45,11 @@ end
 # check that it doesn't crash
 Δu = similar(field.u)
 u = similar(field.u)
-#dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+#solvePoisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 # may take a while for larger matrices
-∇² = poisson_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+∇² = constructLaplacian(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 # make sure its symmetric
 ∇² = (∇² + ∇²')/2
 
@@ -89,7 +89,7 @@ if check_correctness
     # chech, W^{2,∞} error
     println("----------------")
     @. u = fsol
-    dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    solvePoisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
     w2inf = maximum(abs.(Δu .- frhs)) / maximum(abs.(frhs))
     println("The relative error in computing the second derivative is $(w2inf)")
     println("This is a lower estimate since its on the grid points")
@@ -130,7 +130,7 @@ if timings
     #for comparison
     println("------------")
     println("evaluating the second derivative takes")
-    @btime dg_poisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    @btime solvePoisson!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     # now for timings,
     #these are somewhat irrelevant hence the commenting

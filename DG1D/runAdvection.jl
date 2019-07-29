@@ -1,5 +1,5 @@
-include("dg1D.jl")
-include("dg_advection.jl")
+include("field1D.jl")
+include("solveAdvection.jl")
 include("mesh.jl")
 
 using Plots
@@ -35,7 +35,7 @@ dt  = CFL * Δx / v
 dt *= 0.5 / 1
 
 # set up solution
-ι = dg(𝒢)
+ι = Field1D(𝒢)
 u = ι.u
 if periodic
     # initial condition for periodic problem
@@ -49,12 +49,12 @@ end
 # run code
 tspan  = (0.0, 2.0)
 params = (𝒢, ι, ε, periodic)
-rhs! = dg_upwind!
+rhs! = solveAdvection!
 
 prob = ODEProblem(rhs!, u, tspan, params);
 sol  = solve(prob, Tsit5(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5(), Heun()
-# @code_warntype dg_upwind!(ι.u̇, ι.u, params, 0)
-# @btime dg_upwind!(ι.u̇, ι.u, params, 0)
+# @code_warntype solveAdvection!(ι.u̇, ι.u, params, 0)
+# @btime solveAdvection!(ι.u̇, ι.u, params, 0)
 # @btime sol = solve(prob, Tsit5(), dt=dt, adaptive = false);
 
 # plotting
@@ -80,7 +80,7 @@ println(wrongness)
 
 println("To find where the computational bottleneck is")
 println("Evaluating the right hand side takes")
-@btime dg_upwind!(ι.u̇, ι.u, params, 0)
+@btime solveAdvection!(ι.u̇, ι.u, params, 0)
 
 println("Performing a matrix multiplication")
 @btime mul!(ι.u̇, 𝒢.D, ι.u)

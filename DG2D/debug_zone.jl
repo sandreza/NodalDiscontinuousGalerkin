@@ -90,7 +90,7 @@ params = [τ, γ]
 # for the first helmholtz equation
 # may take a while for larger matrices
 #@. 𝒢.Ω[1].ℰ = 0.0
-∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ);
+∇², b = constructHelmholtzOperator(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ);
 interior = setdiff(collect(1:length(mesh.x[:,1])), mesh.nodesᴮ);
 check = ∇²[interior, interior] - (∇²[interior, interior] + ∇²[interior, interior]') ./ 2;
 println("check symmetry of interior nodes")
@@ -129,10 +129,10 @@ display(Array(check[:,1]))
 ###
 # load the 1D operator for checking
 
-include("../DG1D/dg1D.jl")
-include("../DG1D/dg_poisson.jl")
-include("../DG1D/dg_heat.jl")
-include("../DG1D/dg_advection.jl")
+include("../DG1D/field1D.jl")
+include("../DG1D/solvePoisson.jl")
+include("../DG1D/solveHeat.jl")
+include("../DG1D/solveAdvection.jl")
 
 using Plots
 using BenchmarkTools
@@ -162,7 +162,7 @@ xmax = L
 𝒢1 = Mesh(K, n, xmin, xmax)
 mesh1d = Mesh(K, n, xmin, xmax)
 # generate internal variables
-ι = dg(𝒢1)
+ι = Field1D(𝒢1)
 
 # set external parameters
 ϰ = 1.0   #
@@ -180,7 +180,7 @@ dq = copy(ι.flux)
 
 params = (𝒢1, ι, ε, periodic, q, dq, τ)
 
-d1∇² = poisson_setup(𝒢1, periodic, τ)
+d1∇² = constructLaplacian(𝒢1, periodic, τ)
 
 # construct identity matrices
 Iⁿ = Matrix(I, n+1, n+1)
@@ -203,7 +203,7 @@ e1[end] = 12
 
 
 ###
-helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+constructHelmholtzOperator(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
 ###
 
 ###

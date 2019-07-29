@@ -3,7 +3,7 @@ include("utils2D.jl")
 include("boundaryConditions2D.jl")
 
 """
-compute_τ(𝒢::Grid2D)
+computeTau(𝒢::Grid2D)
 
 # Description
 
@@ -18,7 +18,7 @@ compute_τ(𝒢::Grid2D)
 
 -   `τ`: the value of τ at every grid point. (in the code could be either)
 """
-function compute_τ(𝒢::Grid2D)
+function computeTau(𝒢::Grid2D)
     mat⁻ = @. 𝒢.J[𝒢.nodes⁻] / 𝒢.sJ[:]
     mat⁺ = @. 𝒢.J[𝒢.nodes⁺] / 𝒢.sJ[:]
 
@@ -49,7 +49,7 @@ end
 
 # builds the affine operator (one column at a time) (sparse matrix)
 # here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
-function helmholtz_setup(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
+function constructHelmholtzOperator(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
     L = spzeros(𝒢.nGL, 𝒢.nGL)
 
     @. ϕ.u = 0.0
@@ -58,12 +58,12 @@ function helmholtz_setup(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{Dirichl
     b  = copy(ϕ.u)
 
     # affine part of operator
-    dg_helmholtz!(b, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+    solveHelmholtz!(b, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
     @. q = 0.0
 
     for i in 1:𝒢.nGL
         q[i] = 1.0
-        dg_helmholtz!(Δq, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+        solveHelmholtz!(Δq, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
         @. L[:,i] = Δq[:] - b[:]
         q[i] = 0.0
     end
@@ -74,7 +74,7 @@ function helmholtz_setup(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{Dirichl
 end
 
 """
-dg_helmholtz!(Δu, u, ϕ::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC, BCⁿ::NeumannBC2D)
+solveHelmholtz!(Δu, u, ϕ::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC, BCⁿ::NeumannBC2D)
 
 
 # Description
@@ -92,7 +92,7 @@ dg_helmholtz!(Δu, u, ϕ::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC, 
 - `dbc` : boundary condition tuple with indices
 
 """
-function dg_helmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
+function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
     # unpack parameters
     τ = params[1]
     γ = params[2]

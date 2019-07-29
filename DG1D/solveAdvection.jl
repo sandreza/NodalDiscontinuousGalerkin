@@ -1,4 +1,4 @@
-include("dg1D.jl")
+include("field1D.jl")
 
 """
 external_params{T,S}
@@ -19,7 +19,7 @@ struct external_params{T,S}
 end
 
 """
-dg_upwind!(u̇, u, params, t)
+solveAdvection!(u̇, u, params, t)
 
 # Example
 
@@ -32,7 +32,7 @@ println( (n+1)*K)
 xmin = 0.0
 xmax = 2π
 
-par_i = dg(K, n, xmin, xmax)
+par_i = Field1D(K, n, xmin, xmax)
 par_e = external_params(1.0, 1.0)
 periodic = false
 params = (par_i, par_e, periodic)
@@ -43,12 +43,12 @@ u = par_i.u
 @. u = sin(par_i.x) # initial condition
 u̇ = par_i.u̇
 
-@btime dg_upwind!(u̇, u, params, t)
+@btime solveAdvection!(u̇, u, params, t)
 scatter!(x,u, leg = false)
 
-maybe define a function that acts on dg structs?
+maybe define a function that acts on Field1D structs?
 """
-function dg_upwind!(u̇, u, params, t)
+function solveAdvection!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ι = params[2] # internal parameters

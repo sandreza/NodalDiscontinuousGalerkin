@@ -266,9 +266,9 @@ function normalsSQ(n, m, xwidth, ywidth)
 
     # set values of normals
     @. nʸ[    1:nf1] = -1 * xwidth/2 # normal is ( 0, -1) along first face
-    @. nˣ[nf1+1:nf2] =  1 * ywidth/2# normal is (-1,  0) along second face
-    @. nʸ[nf2+1:nf3] =  1 * xwidth/2# normal is ( 0,  1) along third face
-    @. nˣ[nf3+1:nf4] = -1 * ywidth/2# normal is ( 1,  0) along fourth face
+    @. nˣ[nf1+1:nf2] =  1 * ywidth/2 # normal is (-1,  0) along second face
+    @. nʸ[nf2+1:nf3] =  1 * xwidth/2 # normal is ( 0,  1) along third face
+    @. nˣ[nf3+1:nf4] = -1 * ywidth/2 # normal is ( 1,  0) along fourth face
 
     @. Jˢ = sqrt(nˣ^2 + nʸ^2)
     @. nˣ *= 1/Jˢ

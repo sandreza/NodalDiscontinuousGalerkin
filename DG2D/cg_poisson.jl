@@ -33,7 +33,7 @@ end
 
 
 #builds the matrix (one column at a time) (sparse matrix)
-function cg_poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function cg_constructLaplacian(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -45,7 +45,7 @@ function cg_poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # first construct second derivative matrix
     for j in 1:length(mesh.x)
         q[j] = 1.0
-        dg_poisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        solvePoisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         q[j] = 0.0
         L[:,j] =  Δq[:]
     end

@@ -1,6 +1,6 @@
 # builds the 2D poisson matrix
 """
-dg_poisson!(Δu, u, params, t)
+solvePoisson!(Δu, u, params, t)
 
 
 # Description
@@ -19,7 +19,7 @@ dg_poisson!(Δu, u, params, t)
 
 
 """
-function dg_poisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function solvePoisson!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # unpack parameters
     τ = params[1]
 
@@ -65,7 +65,7 @@ end
 
 
 """
-dg_poisson_bc!(Δu, u, params, t)
+solvePoisson_bc!(Δu, u, params, t)
 
 
 # Description
@@ -84,7 +84,7 @@ dg_poisson_bc!(Δu, u, params, t)
 
 
 """
-function dg_poisson_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function solvePoisson_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # unpack parameters
     τ = params[1]
 
@@ -133,7 +133,7 @@ end
 
 
 #builds the matrix (one column at a time) (sparse matrix)
-function poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function constructLaplacian(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -141,7 +141,7 @@ function poisson_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. q = 0
     for i in 1:length(mesh.x)
         q[i] = 1.0
-        dg_poisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        solvePoisson!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:]
         q[i] = 0.0
     end
@@ -152,7 +152,7 @@ end
 
 # builds the affine operator (one column at a time) (sparse matrix)
 # here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
-function poisson_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function constructLaplacian_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -161,11 +161,11 @@ function poisson_setup_bc(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. q = 0
     @. b = 0
     # affine part of operator
-    dg_poisson_bc!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    solvePoisson_bc!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     #now construct linear part
     for i in 1:length(mesh.x)
         q[i] = 1.0
-        dg_poisson_bc!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        solvePoisson_bc!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:] - b[:]
         q[i] = 0.0
     end
@@ -175,7 +175,7 @@ end
 
 
 """
-compute_τ(mesh)
+computeTau(mesh)
 
 # Description
 
@@ -189,7 +189,7 @@ compute_τ(mesh)
 
 - `τ` : the value of τ at every grid point. (in the code could be either)
 """
-function compute_τ(mesh)
+function computeTau(mesh)
     matP = mesh.J[mesh.vmapP] ./ mesh.sJ[:]
     matM = mesh.J[mesh.vmapM] ./ mesh.sJ[:]
     hmin = zeros(length(matP))

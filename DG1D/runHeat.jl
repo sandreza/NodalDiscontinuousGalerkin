@@ -1,5 +1,5 @@
-include("dg1D.jl")
-include("dg_heat.jl")
+include("field1D.jl")
+include("solveHeat.jl")
 include("../utils.jl")
 
 using Plots
@@ -25,7 +25,7 @@ xmax = L
 𝒢 = mesh(K, n, xmin, xmax)
 
 # generate internal variables
-ι = dg(𝒢)
+ι = Field1D(𝒢)
 
 # set external parameters
 ϰ = 1.0   # diffusivity constant, doesnt actually enter in for now
@@ -59,12 +59,12 @@ end
 tspan  = (0.0, 2.0)
 
 params = (𝒢, ι, ε, periodic, q, dq, τ)
-rhs! = dg_heat!
+rhs! = solveHeat!
 
 prob = ODEProblem(rhs!, u, tspan, params);
 sol  = solve(prob, Tsit5(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5(), Heun()
-# @code_warntype dg_upwind!(ι.u̇, ι.u, params, 0)
-# @btime dg_upwind!(ι.u̇, ι.u, params, 0)
+# @code_warntype solveAdvection!(ι.u̇, ι.u, params, 0)
+# @btime solveAdvection!(ι.u̇, ι.u, params, 0)
 # @btime sol = solve(prob, Tsit5(), dt=dt, adaptive = false);
 
 # plotting

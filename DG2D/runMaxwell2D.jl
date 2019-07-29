@@ -1,5 +1,5 @@
 include("grid2D.jl")
-include("dg_maxwell2D.jl")
+include("solveMaxwell2D.jl")
 
 using Plots
 
@@ -50,7 +50,7 @@ Nsteps = ceil(Int, stoptime / dt)
 fields = (Hˣ, Hʸ, Eᶻ)
 α = 1 # determine upwind or central flux
 params = (𝒢, α)
-rhs! = dg_maxwell2D!
+rhs! = solveMaxwell2D!
 
 # exact solutions
 ω = π/sqrt(m^2 + n^2)
@@ -71,7 +71,7 @@ for t in times
     push!(exacts[3], tẼᶻ)
 end
 
-solutions = rk_solver!(dg_maxwell2D!, fields, params, dt, Nsteps)
+solutions = rk_solver!(solveMaxwell2D!, fields, params, dt, Nsteps)
 
 gr()
 step = floor(Int, Nsteps / 50)

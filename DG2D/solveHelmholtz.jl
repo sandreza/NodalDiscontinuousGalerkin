@@ -1,6 +1,6 @@
 # builds the 2D helmholtz matrix
 """
-dg_helmholtz!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+solveHelmholtz!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 # Description
@@ -21,7 +21,7 @@ dg_helmholtz!(Hu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
 
 """
-function dg_helmholtz!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function solveHelmholtz!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     # unpack parameters
     τ = params[1]
     γ = params[2]
@@ -74,7 +74,7 @@ end
 
 # builds the affine operator (one column at a time) (sparse matrix)
 # here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
-function helmholtz_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+function constructHelmholtzOperator(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     L = spzeros(length(mesh.x), length(mesh.x))
     @. ι.u = 0.0
     Δq = copy(ι.u)
@@ -84,12 +84,12 @@ function helmholtz_setup(ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. b = 0
 
     # affine part of operator
-    dg_helmholtz!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    solveHelmholtz!(b, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     #now construct linear part
     for i in 1:length(mesh.x)
         q[i] = 1.0
-        dg_helmholtz!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
+        solveHelmholtz!(Δq, q, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
         @. L[:,i] = Δq[:] - b[:]
         q[i] = 0.0
     end
@@ -99,7 +99,7 @@ end
 
 
 """
-compute_τ(mesh)
+computeTau(mesh)
 
 # Description
 
@@ -113,7 +113,7 @@ compute_τ(mesh)
 
 - `τ` : the value of τ at every grid point. (in the code could be either)
 """
-function compute_τ(mesh)
+function computeTau(mesh)
     matP = mesh.J[mesh.vmapP] ./ mesh.sJ[:]
     matM = mesh.J[mesh.vmapM] ./ mesh.sJ[:]
     hmin = zeros(length(matP))

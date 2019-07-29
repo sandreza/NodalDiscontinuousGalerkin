@@ -1,5 +1,5 @@
-include("dg1D.jl")
-include("dg_maxwell.jl")
+include("field1D.jl")
+include("solveMaxwell.jl")
 
 using Plots
 
@@ -30,8 +30,8 @@ CFL = 1.0
 dt  = CFL * Δx / vmax
 
 # initial conditions
-E = dg(𝒢)
-H = dg(𝒢)
+E = Field1D(𝒢)
+H = Field1D(𝒢)
 @. E.u = sin(π*x) * (x < 0)
 @. H.u = 0*x
 
@@ -39,13 +39,13 @@ H = dg(𝒢)
 tmax = 10.0
 Nsteps = ceil(Int, tmax / dt)
 params = (𝒢, ext)
-rhs! = dg_maxwell!
+rhs! = solveMaxwell!
 
 fields = (E, H)
 
-# dg_maxwell!(u̇, u, params, 0)
+# solveMaxwell!(u̇, u, params, 0)
 
-sol = rk_solver!(dg_maxwell!, fields, params, dt, Nsteps)
+sol = rk_solver!(solveMaxwell!, fields, params, dt, Nsteps)
 
 nt = Nsteps
 num = 100

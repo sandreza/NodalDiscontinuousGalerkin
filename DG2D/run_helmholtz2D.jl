@@ -1,7 +1,7 @@
 include("grid2D.jl")
 include("dg_advection2D.jl")
 include("dg_helmholtz2D.jl")
-include("../src/CuthillMckee.jl")
+#include("../src/CuthillMckee.jl")
 
 using LinearAlgebra
 using Plots
@@ -40,8 +40,8 @@ BCᵈ = DirichletBC(𝒢.nodesᴮ, 𝒢.mapᴮ, 0.0)
 BCⁿ = nothing
 
 #compute tau and define γ
-γ = 0.0
-τ = 0
+γ = 10.0
+τ = 1
 params = [τ, γ]
 
 # for the first helmholtz equation
@@ -116,8 +116,8 @@ end
 Δu = -(frhs - b)
 
 # now to compute the solution
-∇² = cholesky(-∇²)
-u = ∇² \ Δu
+lu_∇² = cholesky(-∇²)
+u = lu_∇² \ Δu
 
 # modify for neumann
 u = u .- sum(u)/length(u) .+ sum(fsol)/length(fsol)
@@ -126,3 +126,4 @@ u = u .- sum(u)/length(u) .+ sum(fsol)/length(fsol)
 w2inf = rel_error(u, fsol)
 println("The relative error in computing the solution is $(w2inf)")
 println("----------------")
+spy(∇²)

@@ -3,11 +3,10 @@ include("dg_advection2D.jl")
 
 using Plots
 using OrdinaryDiffEq
-using ReverseDiff
 
 # make mesh
-K = 2
-L = 2
+K = 1
+L = 1
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
@@ -18,7 +17,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 20
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
@@ -45,7 +44,7 @@ println("Time step is $dt")
 u = Field2D(𝒢)
 
 # initialize conditions
-σ = 1000.0
+σ = 100.0
 x⁰ = 0.0
 y⁰ = 0.0
 u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) # * cos(π/2 * x) * cos(π/2 * y)
@@ -54,11 +53,11 @@ u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) # * cos(π/2 * x)
 @. u.u = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 # parameters
-α  = 1. # determine upwind or central flux
+α  = 0. # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
-@. vˣ = 1.
-@. vʸ = 0.
+@. vˣ = 1.0
+@. vʸ = 1.0
 
 # solve equations
 stoptime = 2.

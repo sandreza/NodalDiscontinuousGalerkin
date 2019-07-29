@@ -208,9 +208,10 @@ function liftSQ(r, s, fmask)
     # empty matrix
     ∮ = spzeros(n*m, 2*(n+m))
 
-    # get 1D mass matrices matrices
-    Vʳ = vandermonde(r, 0, 0, n)
-    Vˢ = vandermonde(s, 0, 0, m)
+    # get 1D mass matrices matrices,
+    # need the minus 1 to get it to be the correct size
+    Vʳ = vandermonde(r, 0, 0, n-1)
+    Vˢ = vandermonde(s, 0, 0, m-1)
 
     Mʳ = inv(Vʳ * Vʳ')
     Mˢ = inv(Vˢ * Vˢ')

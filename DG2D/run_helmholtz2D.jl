@@ -3,15 +3,15 @@ include("dg_advection2D.jl")
 include("dg_helmholtz2D.jl")
 #include("../src/CuthillMckee.jl")
 
-using BandedMatrices
 using LinearAlgebra
 using Plots
 
 # make mesh
-K = 1
-L = 2
-xmin = ymin = -1.0
-xmax = ymax = 1.0
+scale = 3
+K = 1 * scale
+L = 1 * scale
+xmin = ymin = -1.0 * scale
+xmax = ymax =  1.0 * scale
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 filename = "Maxwell2.neu"
@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 8
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -41,7 +41,7 @@ BCⁿ = nothing
 
 #compute tau and define γ
 γ = 10.0
-τ = -1
+τ = 1
 params = [τ, γ]
 
 # for the first helmholtz equation
@@ -66,10 +66,10 @@ println("The bandwidth of the matrix is $(maximum(i-j)+1)")
 println("The sparsity is $(length(nonzeros(∇²)) / length(∇²))")
 
 # first create an exact solution
-exact(x,y,α,β) = cos(π/2 * x * α) * cos(π/2 * y * β)
+exact(x, y, α, β) = cos(π/2 * x * α) * cos(π/2 * y * β)
 
 # then create a forcing function
-forcing(x,y,α,β) = -((α * π/2)^2 + (β * π/2)^2 + γ) * cos(π/2 * x * α) * cos(π/2 * y * β)
+forcing(x, y, α, β) = -((α * π/2)^2 + (β * π/2)^2 + γ) * cos(π/2 * x * α) * cos(π/2 * y * β)
 
 # evaluate at grid points with given values for α and β
 # odd for dirichlet, even for neumann

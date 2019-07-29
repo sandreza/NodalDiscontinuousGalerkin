@@ -5,8 +5,8 @@ using Plots
 using OrdinaryDiffEq
 
 # make mesh
-K = 1
-L = 1
+K = 4
+L = 4
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
@@ -17,7 +17,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 20
+N = 10
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
@@ -68,16 +68,9 @@ fields = [u]
 params = (𝒢, α, vˣ, vʸ, u)
 tspan = (0.0, stoptime)
 
-"""
-dg_advection2D!(u.u̇, u.u, params, dt)
-Δ∇u = [∇u(x̃[i], ỹ[i]) - u.∇u[i] for i in 1:𝒢.nGL]
-println(Δ∇u)
-plot(surface(x̃[:], ỹ[:], Δ∇u, zlims = (0.0, 1.0), camera = (0, 90)))
-"""
-
 # solutions = rk_solver!(dg_advection2D!, fields, params, dt, Nsteps)
 problem = ODEProblem(dg_advection2D!, u.u, tspan, params);
-solutions = solve(problem, Euler(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+solutions = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
 Nsteps = floor(Int, length(solutions.u))
 step = maximum([floor(Int, Nsteps / 50), 1])

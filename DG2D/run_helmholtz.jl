@@ -1,4 +1,4 @@
-# run_helmholtz_bc
+# run_helmholtz
 
 using BandedMatrices
 using BenchmarkTools
@@ -23,8 +23,8 @@ plotting_matrix = true
 check_correctness = true
 plotting_solution = false
 # simulation parameters and grid
-n = 7
-FileName = "Maxwell025.neu"
+n = 3
+FileName = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -39,12 +39,12 @@ dbc = ([],[])
 #dbc = (mesh.vmapB, mesh.mapB)
 
 #compute tau and define γ
-γ = 010.0
-τ = compute_τ(mesh)
+γ = 10.0
+τ = 1 # compute_τ(mesh)
 params = [τ, γ]
 #for the first helmholtz equation
 #dirichlet, remember to change α and β
-const shift = 10.0
+const shift = 0.0 # 10.0
 function bc_u!(ι, mesh, bc)
     @. ι.fⁿ[bc[2]] = 1 * ι.u[bc[1]] - shift
     return nothing
@@ -65,6 +65,9 @@ u = similar(field.u)
 
 # may take a while for larger matrices
 ∇², b = helmholtz_setup(field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+
+display(Array(∇²))
+
 # make sure its numericall symmetric
 symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))
 if symmetric_check > eps(1.0)
@@ -131,7 +134,7 @@ if check_correctness
     @. e1 = 0.0
     e1[2] = 0.0
     # @. u = e1
-    dg_helmholtz_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    dg_helmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
     w2inf_Δ = maximum(abs.(Δu .- frhs_with_affine )) / maximum(abs.(frhs))
     cc = ∇² * u[:]
     ctmp = frhs[:]
@@ -175,7 +178,7 @@ if timings
     #for comparison
     println("------------")
     println("evaluating the second derivative takes")
-    @btime dg_helmholtz_bc!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
+    @btime dg_helmholtz!(Δu, u, field, params, mesh, bc_u!, bc, bc_φ!, dbc)
 
     # now for timings,
     #these are somewhat irrelevant hence the commenting

@@ -30,10 +30,11 @@ function triangle(index, vertices, N, vmap)
     # build reference elements and matrices
     V = vandermonde2D(N, r, s)
     D = dmatrices2D(N, r, s, V)
+    M = inv(V * V')
 
     # create fmask
     fmask = create_fmask(r, s)
-    lift = lift_tri(N, fmask, r, s, V)
+    ∮     = lift_tri(N, fmask, r, s, V)
 
     # get physical vertices
     x1 = vmap[vertices[1], 1]
@@ -53,16 +54,11 @@ function triangle(index, vertices, N, vmap)
     end
 
     # construct normals
-    nx, ny, Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
+    nˣ,nʸ,Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
     Jˢ = reshape(Jˢ, length(Jˢ))
 
-    n̂ = zeros(length(nx), 2)
-    for (i, (x,y)) in enumerate(zip(nx,ny))
-        n̂[i,:] = [x y]
-    end
-
     # construct element
-    tri = Element2D(index,vertices, x̃, fmask,n̂,Jˢ, D,lift)
+    tri = Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
 
     return tri
 end
@@ -414,32 +410,30 @@ function lift_tri(n, fmask, r, s, V)
     nGL = Int( (n+1) * (n+2) /2 )
     nFP = n+1
     nFaces = 3 #it's a triangle
-    ℰ = zeros(nGL, nFaces*nFP)
+    ∮ = zeros(nGL, nFaces*nFP)
 
     #face 1
     edge1_mask = fmask[:,1]
     faceR = r[edge1_mask];
     v = vandermonde(faceR, 0, 0, n)
     mass_edge_1 = inv(v * v')
-    ℰ[edge1_mask, 1:nFP] = mass_edge_1
+    ∮[edge1_mask, 1:nFP] = mass_edge_1
 
     #face 2
     edge2_mask = fmask[:,2]
     faceR = r[edge2_mask];
     v = vandermonde(faceR, 0, 0, n)
     mass_edge_2 = inv(v * v')
-    ℰ[edge2_mask, (nFP+1):(2*nFP)] = mass_edge_2
+    ∮[edge2_mask, (nFP+1):(2*nFP)] = mass_edge_2
 
     #face 3
     edge3_mask = fmask[:,3]
     faceS = s[edge3_mask];
     v = vandermonde(faceS, 0, 0, n)
     mass_edge_3 = inv(v * v')
-    ℰ[edge3_mask, (2*nFP+1):(3*nFP)] = mass_edge_3
+    ∮[edge3_mask, (2*nFP+1):(3*nFP)] = mass_edge_3
 
-    #compute lift
-    lift = V * (V' * ℰ)
-    return lift
+    return ∮
 end
 
 
@@ -1216,7 +1210,7 @@ struct garbage_triangle3{T, S, U, W, V}
     fscale::T
 
     function garbage_triangle3(n, filename)
-        Nv, VX, VY, K, EtoV = meshreader_gambit2D(filename)
+        ℳ = meshreader_gambit2D(filename)
 
         #get number of points
         nfp = n+1
@@ -1236,26 +1230,27 @@ struct garbage_triangle3{T, S, U, W, V}
         Dʳ, Dˢ = dmatrices2D(n , r, s, V)
 
         # build global grid
-        x,y = global_grid(r, s, EtoV, VX, VY)
+        x,y = global_grid(r, s, ℳ.EtoV, ℳ.vertices[:,1], ℳ.vertices[:,2])
 
         # create fmask
         fmask = create_fmask(r, s)
         edge_x, edge_y = find_edge_nodes(fmask, x, y)
         lift = lift_tri(n, fmask, r, s, V)
+        lift = Mi * lift
 
         rx, sx, ry, sy, J = geometricfactors2D(x, y, Dʳ, Dˢ)
 
-        nx, ny, sJ = normals2D(x, y, Dʳ, Dˢ, fmask, nfp, K)
+        nx, ny, sJ = normals2D(x, y, Dʳ, Dˢ, fmask, nfp, ℳ.K)
         fscale = sJ ./ J[fmask[:],:]
 
         #EtoE, EtoF = connect2D(EtoV)
-        EtoE, EtoF = triangle_connect2D(EtoV)
+        EtoE, EtoF = triangle_connect2D(ℳ.EtoV)
 
-        vmapM, vmapP, vmapB, mapB = buildmaps2D(K, np, nfp, nFaces, fmask, EtoE, EtoF, EtoV, x, y, VX, VY)
+        vmapM, vmapP, vmapB, mapB = buildmaps2D(ℳ.K, np, nfp, nFaces, fmask, EtoE, EtoF, ℳ.EtoV, x, y, ℳ.vertices[:,1], ℳ.vertices[:,2])
         Vr, Vs = dvandermonde2D(n,r,s)
         Drw = (V*Vr') / (V*V')
         Dsw = (V*Vs') / (V*V')
-        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nFaces, K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
+        return new{typeof(x),typeof(K),typeof(r),typeof(vmapP),typeof(filename)}(n, filename, nfp, nFaces, ℳ.K, r,s, x,y, vmapM,vmapP,vmapB,mapB, J, sJ, Dʳ, Dˢ, Drw, Dsw, M, Mi, lift, rx, ry, sx, sy, nx, ny, fscale)
     end
 end
 

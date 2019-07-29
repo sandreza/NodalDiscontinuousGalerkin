@@ -22,7 +22,6 @@ function dg_advection2D!(U̇, U, params, t)
     h = params[end]
 
     @. h.u = U
-    @. h.u̇ = U̇
 
     # define field differences at faces
     @. h.Δu = h.u[𝒢.nodes⁻] - h.u[𝒢.nodes⁺]
@@ -51,16 +50,14 @@ function dg_advection2D!(U̇, U, params, t)
             f  = view(h.fⁿ, BPᵏ)
 
             # evaluate flux
-            n̂ˣ = Ωᵏ.n̂[:,1]
-            n̂ʸ = Ωᵏ.n̂[:,2]
-            vⁿ̂ = @. n̂ˣ * vˣ[Ωᵏ.fmask][:] + n̂ʸ * vʸ[Ωᵏ.fmask][:]
-            @. f = 1//2 * (vⁿ̂ - α * abs(vⁿ̂)) * Δu
+            vⁿ = @. Ωᵏ.nˣ * vˣ[Ωᵏ.fmask][:] + Ωᵏ.nʸ * vʸ[Ωᵏ.fmask][:]
+            @. f = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
 
             # local derivatives of the fields
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
 
             # compute RHS of PDE's
-            lift = inv(Ωᵏ.M) * Ωᵏ.ℰ * (Ωᵏ.volume .* f)
+            lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* f)
             @. u̇ = -∇u + lift
         end
     end

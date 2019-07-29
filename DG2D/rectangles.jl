@@ -61,12 +61,11 @@ function rectangle(index, vertices, N, M, vmap)
     fmask = fmaskSQ(r̃[:,1], r̃[:,2])
 
     # lift matrix and normals
-    ℰ = liftSQ(a, b, fmask)
-    n̂, Jˢ = normalsSQ(n, m)
-    #n̂, Jˢ = normalsRE(n, m, xmin, xmax, ymin, ymax)
+    ∮ = liftSQ(a, b, fmask)
+    nˣ,nʸ,Jˢ = normalsSQ(n, m, xmax-xmin, ymax-ymin)
 
     # construct element
-    rect = Element2D(index,vertices, x̃,D,M, fmask,n̂,Jˢ,ℰ)
+    rect = Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
 
     return rect
 end
@@ -207,7 +206,7 @@ function liftSQ(r, s, fmask)
     m = length(s)
 
     # empty matrix
-    ℰ = spzeros(n*m, 2*(n+m))
+    ∮ = spzeros(n*m, 2*(n+m))
 
     # get 1D mass matrices matrices,
     # need the minus 1 to get it to be the correct size
@@ -223,13 +222,13 @@ function liftSQ(r, s, fmask)
     nf3 = n+m+n
     nf4 = n+m+n+m
 
-    # fill ℰ matrix with mass matrices
-    @. ℰ[fmask[:,1],     1:nf1] = Mʳ
-    @. ℰ[fmask[:,2], nf1+1:nf2] = Mˢ
-    @. ℰ[fmask[:,3], nf2+1:nf3] = Mʳ
-    @. ℰ[fmask[:,4], nf3+1:nf4] = Mˢ
+    # fill ∮ matrix with mass matrices
+    @. ∮[fmask[:,1],     1:nf1] = Mʳ
+    @. ∮[fmask[:,2], nf1+1:nf2] = Mˢ
+    @. ∮[fmask[:,3], nf2+1:nf3] = Mʳ
+    @. ∮[fmask[:,4], nf3+1:nf4] = Mˢ
 
-    return ℰ
+    return ∮
 end
 
 """
@@ -253,10 +252,12 @@ normalsSQ(n, m)
 
 """
 
-function normalsSQ(n, m)
+function normalsSQ(n, m, xwidth, ywidth)
     # empty vectors of right length
-    n̂  = zeros(n+m+n+m, 2)
-    Jˢ = ones(n+m+n+m) # should be size two?
+    nˣ = zeros(n+m+n+m)
+    nʸ = zeros(n+m+n+m)
+    Jˢ = ones(n+m+n+m) # squares don't need to worry about this
+
     # ending index for each face
     nf1 = n
     nf2 = n+m
@@ -264,12 +265,16 @@ function normalsSQ(n, m)
     nf4 = n+m+n+m
 
     # set values of normals
-    @. n̂[    1:nf1, 2] = -1 # normal is ( 0, -1) along first face
-    @. n̂[nf1+1:nf2, 1] =  1 # normal is (-1,  0) along second face
-    @. n̂[nf2+1:nf3, 2] =  1 # normal is ( 0,  1) along third face
-    @. n̂[nf3+1:nf4, 1] = -1 # normal is ( 1,  0) along fourth face
+    @. nʸ[    1:nf1] = -1 * xwidth/2 # normal is ( 0, -1) along first face
+    @. nˣ[nf1+1:nf2] =  1 * ywidth/2# normal is (-1,  0) along second face
+    @. nʸ[nf2+1:nf3] =  1 * xwidth/2# normal is ( 0,  1) along third face
+    @. nˣ[nf3+1:nf4] = -1 * ywidth/2# normal is ( 1,  0) along fourth face
 
-    return n̂,Jˢ
+    @. Jˢ = sqrt(nˣ^2 + nʸ^2)
+    @. nˣ *= 1/Jˢ
+    @. nʸ *= 1/Jˢ
+
+    return nˣ,nʸ,Jˢ
 end
 
 """

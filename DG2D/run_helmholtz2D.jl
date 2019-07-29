@@ -7,16 +7,17 @@ using LinearAlgebra
 using Plots
 
 # make mesh
-K = 2
-L = 2
-xmin = ymin = -1.0
-xmax = ymax = 1.0
-# ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
+scale = 1
+K = 1 * scale
+L = 1 * scale
+xmin = ymin = -1.0 * scale
+xmax = ymax =  1.0 * scale
+ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 filename = "Maxwell2.neu"
 filepath = "./DG2D/grids/"
 filename = filepath * filename
-ℳ = meshreader_gambit2D(filename)
+# ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
 N = 3
@@ -39,8 +40,8 @@ BCᵈ = DirichletBC(𝒢.nodesᴮ, 𝒢.mapᴮ, 0.0)
 BCⁿ = nothing
 
 #compute tau and define γ
-γ = 10.0
-τ = 1
+γ = 0.0
+τ = 0
 params = [τ, γ]
 
 # for the first helmholtz equation
@@ -48,6 +49,31 @@ params = [τ, γ]
 ∇², b = helmholtz_setup(ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
 
 display(Array(∇²))
+
+Ω = 𝒢.Ω[1]
+u = Float64.(Matrix(I, Ω.nGL, Ω.nGL))
+ux = zeros(Ω.nGL)
+uy = zeros(Ω.nGL)
+∇²u = similar(u)
+for i in 1:Ω.nGL
+    ∇!(ux, uy, u[:,i], Ω)
+    ∇⨀!(view(∇²u, :, i), ux, uy, Ω)
+end
+∇²u = Ω.M * ∇²u
+@. ∇²u *= Ω.J
+display(∇²u)
+
+r = jacobiGL(0, 0, N)
+V = vandermonde(r, 0, 0, N)
+D = dmatrix(r, 0, 0, N)
+M = inv(V * V')
+uˣˣ = M * D * D
+display(uˣˣ)
+i = Matrix(I, N+1, N+1)
+∇²u = kron(i, uˣˣ) + kron(uˣˣ, i)
+display(∇²u)
+
+error()
 
 # make sure its numericall symmetric
 symmetric_check = sum(abs.(∇² .- (∇² + ∇²')./2)) / length(∇²) / maximum(abs.(∇²))

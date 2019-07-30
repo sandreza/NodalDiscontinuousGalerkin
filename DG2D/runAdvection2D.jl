@@ -17,7 +17,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2
+N = 2^4
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
@@ -47,7 +47,7 @@ u = Field2D(𝒢)
 σ = 10.0
 x⁰ = 0.0
 y⁰ = 0.0
-u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) # * cos(π/2 * x) * cos(π/2 * y)
+u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) * cos(π/2 * x) * cos(π/2 * y)
 # u⁰(x, y) = 10*(y-y⁰)^2 # 10*(x-x⁰)^2
 # ∇u(x, y) = 20*(x-x⁰)   # - 20*(y-y⁰)
 @. u.u = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
@@ -70,12 +70,20 @@ tspan = (0.0, stoptime)
 
 # solutions = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
 problem = ODEProblem(solveAdvection2D!, u.u, tspan, params);
-solutions = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+forward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
-Nsteps = floor(Int, length(solutions.u))
+@. vˣ = -vˣ
+@. vʸ = -vʸ
+
+problem = ODEProblem(solveAdvection2D!, u.u, tspan, params);
+backward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+
+solutions = [forward.u; backward.u]
+
+Nsteps = floor(Int, length(solutions))
 step = maximum([floor(Int, Nsteps / 50), 1])
 times = 1:step:Nsteps
 # times = 1:100
-plotfield2D(times, [solutions.u], x̃, ỹ)
-wrong = rel_error(solutions.u[1], solutions.u[end])
+plotfield2D(times, [solutions], x̃, ỹ)
+wrong = rel_error(solutions[1], solutions[end])
 println("The relative error of the solution is $wrong")

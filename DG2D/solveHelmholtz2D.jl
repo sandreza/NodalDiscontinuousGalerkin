@@ -122,8 +122,8 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             φʸ = view(ϕ.φʸ, GLᵏ)
             Δu = view(ϕ.Δu, BPᵏ)
 
-            liftˣ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
-            liftʸ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
+            liftˣ = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
+            liftʸ = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
@@ -172,7 +172,7 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
 
             # compute surface term
-            lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
+            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
 
             # combine the terms
             @. r = ∇u - lift - γ * u

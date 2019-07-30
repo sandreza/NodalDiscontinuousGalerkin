@@ -35,6 +35,7 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
     x::U   # physical coordinates
     D::V   # differentiation matrices
     M::U   # mass matrix
+    M⁺::U  # inverse of mass matrix
 
     # boundary information
     nBP::S    # number of points on the boundary
@@ -76,9 +77,12 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
         # volume of element
         volume = @. Jˢ / J[fmask][:]
 
+        # inverse of mass Matrix
+        M⁺ = inv(M)
+
         #### add nodes⁻ and nodes⁺ as struct members
 
-        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(volume),typeof(r̃ˣ)}(index,vertices, nGL,x̃,D,M, nBP,fmask,nˣ,nʸ,∮, r̃ˣ,J,volume)
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(volume),typeof(r̃ˣ)}(index,vertices, nGL,x̃,D,M,M⁺, nBP,fmask,nˣ,nʸ,∮, r̃ˣ,J,volume)
     end
 end
 

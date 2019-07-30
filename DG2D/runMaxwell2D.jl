@@ -2,21 +2,22 @@ include("grid2D.jl")
 include("solveMaxwell2D.jl")
 
 using Plots
+using JLD2, FileIO
 
 # make mesh
-K = 2^3
-L = 2^3
+K = 2^2
+L = 2^2
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
-filename = "Maxwell1.neu"
-filepath = "./DG2D/grids/"
-filename = filepath * filename
-# ℳ = meshreader_gambit2D(filename)
+name = "Maxwell1.neu"
+path = "./DG2D/grids/"
+name = path * name
+# ℳ = meshreader_gambit2D(name)
 
 # set number of DG elements and poly order
-N = 4
+N = 2^3
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -45,7 +46,7 @@ n = m = 1
 @. Hʸ.u = 0.0
 
 # solve equations
-stoptime = 0.5
+stoptime = 6.0
 Nsteps = ceil(Int, stoptime / dt)
 fields = (Hˣ, Hʸ, Eᶻ)
 α = 1 # determine upwind or central flux
@@ -74,6 +75,7 @@ end
 solutions = rk_solver!(solveMaxwell2D!, fields, params, dt, Nsteps)
 
 gr()
+theme(:default)
 step = floor(Int, Nsteps / 50)
 
 fieldNames = [ "H^{x}", "H^{y}", "E^{z}"]
@@ -81,8 +83,10 @@ fieldNames = [ "H^{x}", "H^{y}", "E^{z}"]
 @animate for t in 1:step:Nsteps
     plots = []
     for (i, sol) in enumerate(solutions)
-        ploti = surface(x[:],y[:],sol[t][:], title = fieldNames[i], camera = (15,60))
+        ploti = surface(x[:],y[:],sol[t][:], title = fieldNames[i], camera = (30,45))
         push!(plots, ploti)
     end
     display(plot(plots...))
 end
+
+@save "maxwell2D_2x2x16.jld2" solutions

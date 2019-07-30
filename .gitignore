@@ -1,0 +1,5 @@
+#### Julia storage files
+*.jld2
+
+#### emacs book keeping
+*~

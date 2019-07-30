@@ -62,29 +62,27 @@ function solveMaxwell2D!(fields, params)
             ΔHʸ = view(Hʸ.Δu, nBPᵏ)
             ΔEᶻ = view(Eᶻ.Δu, nBPᵏ)
 
-            fHˣ = view(Hˣ.f, nBPᵏ)
-            fHʸ = view(Hʸ.f, nBPᵏ)
-            fEᶻ = view(Eᶻ.f, nBPᵏ)
+            fHˣ = view(Hˣ.fⁿ, nBPᵏ)
+            fHʸ = view(Hʸ.fⁿ, nBPᵏ)
+            fEᶻ = view(Eᶻ.fⁿ, nBPᵏ)
 
             # evaluate upwind fluxes
-            n̂ˣ = Ωᵏ.n̂[:,1]
-            n̂ʸ = Ωᵏ.n̂[:,2]
-            n̂ˣΔH = @. (n̂ˣ * ΔHˣ + n̂ʸ * ΔHʸ) * n̂ˣ
-            n̂ʸΔH = @. (n̂ˣ * ΔHˣ + n̂ʸ * ΔHʸ) * n̂ʸ
+            nˣΔH = @. Ωᵏ.nˣ * (Ωᵏ.nˣ * ΔHˣ + Ωᵏ.nʸ * ΔHʸ)
+            nʸΔH = @. Ωᵏ.nʸ * (Ωᵏ.nˣ * ΔHˣ + Ωᵏ.nʸ * ΔHʸ)
 
             # minus isn't defined for these fluxes?????
-            @. fHˣ =      n̂ʸ * ΔEᶻ + α * (n̂ˣΔH + (-1 * ΔHˣ))
-            @. fHʸ = -1 * n̂ˣ * ΔEᶻ + α * (n̂ʸΔH + (-1 * ΔHʸ))
-            @. fEᶻ = -1 * n̂ˣ * ΔHʸ + n̂ʸ * ΔHˣ + (-1 * α * ΔEᶻ)
+            @. fHˣ =      Ωᵏ.nʸ * ΔEᶻ + α * (nˣΔH + (-1 * ΔHˣ))
+            @. fHʸ = -1 * Ωᵏ.nˣ * ΔEᶻ + α * (nʸΔH + (-1 * ΔHʸ))
+            @. fEᶻ = -1 * Ωᵏ.nˣ * ΔHʸ + Ωᵏ.nʸ * ΔHˣ + (-1 * α * ΔEᶻ)
 
             # local derivatives of the fields
             ∇!(∇Hʸ, ∇Hˣ, uEᶻ, Ωᵏ)
             ∇⨂!(∇Eᶻ, uHˣ, uHʸ, Ωᵏ)
 
             # compute RHS of PDE's
-            liftHˣ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHˣ)
-            liftHʸ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fHʸ)
-            liftEᶻ = 1//2 * Ωᵏ.lift * (Ωᵏ.volume .* fEᶻ)
+            liftHˣ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fHˣ)
+            liftHʸ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fHʸ)
+            liftEᶻ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fEᶻ)
 
             @. u̇Hˣ = -∇Hˣ + liftHˣ
             @. u̇Hʸ =  ∇Hʸ + liftHʸ

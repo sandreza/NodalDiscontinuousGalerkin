@@ -470,7 +470,7 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps)
             push!(solutions[i], uᵗ)
         end
 
-        if (tstep % 10000) == 0
+        if (tstep % 1000) == 0
             println( string(tstep, " / ", Nsteps))
         end
     end

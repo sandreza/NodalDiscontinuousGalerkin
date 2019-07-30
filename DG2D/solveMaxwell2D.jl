@@ -2,7 +2,7 @@ include("field2D.jl")
 include("utils2D.jl")
 
 """
-solveMaxwell!(u̇, u, params)
+solveMaxwell!(fields, params)
 
 # Description
 
@@ -10,9 +10,8 @@ solveMaxwell!(u̇, u, params)
 
 # Arguments
 
--   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
--   `u  = (E , H )`: container for starting field values
--   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
+-   `fields = (Hˣ, Hʸ, Eᶻ)`: fields to compute
+-   `params = (𝒢, α)`: parameters needed for computation
 
 """
 function solveMaxwell2D!(fields, params)

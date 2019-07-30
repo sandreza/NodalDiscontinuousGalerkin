@@ -49,15 +49,17 @@ function solveAdvection2D!(U̇, U, params, t)
             Δu = view(h.Δu, BPᵏ)
             f  = view(h.fⁿ, BPᵏ)
 
+            # local derivatives of the fields
+            ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
+
             # evaluate flux
             vⁿ = @. Ωᵏ.nˣ * vˣ[Ωᵏ.fmask][:] + Ωᵏ.nʸ * vʸ[Ωᵏ.fmask][:]
             @. f = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
 
-            # local derivatives of the fields
-            ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
+            # compute surface term
+            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* f)
 
             # compute RHS of PDE's
-            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* f)
             @. u̇ = -∇u + lift
         end
     end

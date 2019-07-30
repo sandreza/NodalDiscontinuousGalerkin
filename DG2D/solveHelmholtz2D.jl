@@ -122,14 +122,14 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             φʸ = view(ϕ.φʸ, GLᵏ)
             Δu = view(ϕ.Δu, BPᵏ)
 
-            liftˣ = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
-            liftʸ = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
+            ∮ˣu = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
+            ∮ʸu = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
             ∇!(φˣ, φʸ, u, Ωᵏ)
-            @. φˣ -= liftˣ
-            @. φʸ -= liftʸ
+            @. φˣ -= ∮ˣu
+            @. φʸ -= ∮ʸu
         end
     end
 
@@ -159,17 +159,16 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             φʸ = view(ϕ.φʸ, GLᵏ)
 
             Δu = view(ϕ.Δu, BPᵏ)
-            # the bug is here
             fˣ = view(ϕ.fˣ, BPᵏ)
             fʸ = view(ϕ.fʸ, BPᵏ)
             fⁿ = view(ϕ.fⁿ, BPᵏ)
             r  = view(ϕ.r,  GLᵏ)
 
-            # modify with τ, remember fⁿ is field differences at face points
-            @. fⁿ = Ωᵏ.nˣ * fˣ + Ωᵏ.nʸ * fʸ + τ * Δu
-
             # compute divergence of flux, volume term
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
+
+            # modify with τ, remember fⁿ is field differences at face points
+            @. fⁿ = Ωᵏ.nˣ * fˣ + Ωᵏ.nʸ * fʸ + τ * Δu
 
             # compute surface term
             lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)

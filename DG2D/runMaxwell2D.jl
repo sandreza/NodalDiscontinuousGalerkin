@@ -11,7 +11,7 @@ xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
-name = "Maxwell1.neu"
+name = "Maxwell05.neu"
 path = "./DG2D/grids/"
 name = path * name
 # ℳ = meshreader_gambit2D(name)

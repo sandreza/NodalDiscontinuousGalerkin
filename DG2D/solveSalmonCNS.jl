@@ -18,8 +18,8 @@ solveSalmonCNS!(fields, params)
 """
 function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BCⁿ = [nothing, nothing, nothing])
     # unpack parameters
-    𝒢 = params[1]
-    ν = params[2]
+    𝒢  = params[1]
+    ν  = params[2]
     c² = params[3]
 
     for (ϕ, D) in zip(fields, BCᵈ)

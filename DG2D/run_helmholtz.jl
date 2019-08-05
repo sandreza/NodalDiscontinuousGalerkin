@@ -21,10 +21,10 @@ include("../src/CuthillMckee.jl")
 timings = false
 plotting_matrix = false
 check_correctness = true
-plotting_solution = false
+plotting_solution = true
 # simulation parameters and grid
-n = 3
-FileName = "Maxwell2.neu"
+n = 7
+FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -118,8 +118,14 @@ if check_correctness
 
     # evaluate at grid points with given values for α and β
     # odd for dirichlet, even for neumann
-    α = 1
-    β = 1
+    # choose
+    # smallest resolvable wavelength
+    sm1 , sm2 = size(∇²)
+    λ = Int(floor(sqrt(sm1)/2))
+    println("We have roughly gridpoints in each direction $(sqrt(sm1)) ")
+    println("The smallest resolvable scale is roughly $(λ) oscillations in the domain")
+    α = 15
+    β = 15
     frhs = [forcing(x[i,j],y[i,j],α,β) for i in 1:length(x[:,1]), j in 1:length(y[1,:])]
     #@. frhs[mesh.vmapB] = (x[mesh.vmapB])^2 + (y[mesh.vmapB])^2
 

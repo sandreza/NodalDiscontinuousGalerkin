@@ -11,11 +11,11 @@ include("../DG2D/triangles.jl")
 
 
 # define polynomial order
-n = 20
+n = 7
 
 # load grids
 FileName = "pvortex4A01.neu"
-#FileName = "Maxwell025.neu"
+FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -57,7 +57,7 @@ println("------------")
 
 # compute operators for helmholtz
 t = 0
-Δt = 1e-1
+Δt = 1e-2
 
 u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
@@ -102,10 +102,12 @@ v⁰ = eval_grid(v_analytic, mesh, 0)
 @. ι.v.ϕ = v⁰
 
 # compute boundary conditions for u and v
-t += Δt
+#t += Δt
 
 u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
+px_exact = eval_grid(∂ˣp_analytic, mesh, t)
+py_exact = eval_grid(∂ʸp_analytic, mesh, t)
 
 dirichlet_u_bc = u_exact[mesh.vmapB];
 bc_u = (mesh.vmapB, mesh.mapB, dirichlet_u_bc)
@@ -122,8 +124,8 @@ dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, 
 
 # now set up pressure
 # location of boundary grid points for dirichlet bc
-bc = ([],[],0.0)
-dbc = (mesh.vmapB, mesh.mapB, 0.0, 0.0)
+#bc = ([],[],0.0)
+#dbc = (mesh.vmapB, mesh.mapB, 0.0, 0.0)
 
 bc = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
 dbc = (mesh.vmapB[2:end], mesh.mapB[2:end], 0.0, 0.0)
@@ -140,41 +142,59 @@ params = [τ]
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)
 chol_Δᵖ = cholesky(-Δᵖ)
-#Δᵖ  = lu(-Δᵖ)
+#chol_Δᵖ  = lu(-Δᵖ)
 
 
 # this is where the method actually starts
 # prior to this is set up
 
 # step 1, compute the advection step
+
+# compute u,v surface contributions
+compute_ghost_points!(ι, bc_u, bc_v, mesh)
+compute_surface_fluxes!(ι, mesh)
+maxvel = compute_maximum_face_velocity(ι, mesh)
+∮u, ∮v = compute_lift_terms(ι, mesh, maxvel)
+
+# now compute contributions fo each field
 # first u
 sym_advec!(ι.u.φⁿ, u⁰, v⁰, u⁰, mesh)
+@. ι.u.φⁿ += ∮u
 @. ι.u.φⁿ *= -Δt
 @. ι.u.φⁿ += u⁰
 # then v
 sym_advec!(ι.v.φⁿ, u⁰, v⁰, v⁰, mesh)
+@. ι.u.φⁿ += ∮v
 @. ι.v.φⁿ *= -Δt
 @. ι.v.φⁿ += v⁰
+
+#compute appropriate lift! (multiplied by Δt)
 
 # step two, project
 #first compute boundary conditions for pressure
 fu¹ = fv¹ = 0.0
 
-∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t-Δt, mesh)
+∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t, mesh)
+println("The relative error of the pressure terms are $(rel_error(px_exact, ∂pˣ)) ")
+println("The relative error of the pressure terms are $(rel_error(py_exact, ∂pʸ)) ")
 
-#@. ∂pˣ *= 0.0
-#@. ∂pʸ *= 0.0
-#=
-bc = ([],[],0.0)
-dbc = (mesh.vmapB, mesh.mapB, ∂pˣ[mesh.vmapB], ∂pʸ[mesh.vmapB])
-=#
+
+@. ∂pˣ *= 0.0
+@. ∂pʸ *= 0.0
+
+#bc = ([],[],0.0)
+#dbc = (mesh.vmapB, mesh.mapB, ∂pˣ[mesh.vmapB], ∂pʸ[mesh.vmapB])
+
 bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
 dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
 dg_poisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
 
 # take the divergence of the solution
 rhsᵖ = similar(ι.p.ϕ)
-∇⨀!(rhsᵖ , ι.u.φⁿ, ι.v.φⁿ, mesh)
+∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
+#construct appropriate lift!
+rhs_s = compute_div_lift_terms(ι, mesh)
+@. rhsᵖ += rhs_s
 
 # construct the right hand side for poissons equation
 frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
@@ -190,6 +210,8 @@ ṽ = ι.v.φⁿ - ι.p.∂ʸ
 # now for the diffusive step
 
 # get bc
+t += Δt
+println("t is now $(t)")
 u_exact = eval_grid(u_analytic, mesh, t)
 v_exact = eval_grid(v_analytic, mesh, t)
 dirichlet_u_bc = u_exact[mesh.vmapB];
@@ -276,3 +298,55 @@ divu = similar(mesh.x)
 ∇⨀!(divu, u¹, v¹, mesh)
 p3 = surface(x[:],y[:], divu[:], camera = (camera_side,camera_top))
 =#
+
+
+###
+using LinearAlgebra
+using BenchmarkTools
+using StaticArrays
+
+
+#=
+
+n = 7;
+a = randn(n,n)
+b = randn(n,n)
+c = randn(n,n)
+as = @SMatrix randn(n,n)
+bs = @SMatrix randn(n,n)
+cs = @SMatrix randn(n,n)
+
+am = @MMatrix randn(n,n)
+bm = @MMatrix randn(n,n)
+cm = @MMatrix randn(n,n)
+
+function do_add(cm,am)
+    for i in 1:length(cm)
+    cm[i] += am[i]
+    end
+    return nothing
+end
+
+function do_stuff(cm,am,bm)
+    cm += am*bm
+    return nothing
+end
+@btime mul!(a,bs,cs);
+@btime mul!(am,bs,cs);
+@btime mul!(a,b,c);
+@btime mul!(am,bm,cm);
+
+@btime do_stuff(a,b,c)
+@btime do_stuff(am,bm,cm)
+=#
+@btime mul!(a,b,c)
+
+
+A = kron(a,b)
+B = copy(b[:])
+C = copy(c[:])
+@btime mul!(c, a, b);
+@btime mul!(C, A, B);
+@btime(inv(A))
+@btime(inv(a))
+###

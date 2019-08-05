@@ -11,6 +11,8 @@ include("../DG2D/utils2D.jl")
 
 struct dg_field{T}
     ϕ::T
+    ϕ⁺::T
+    ϕ⁻::T
     ϕ̇::T
     ∂ˣ::T
     ∂ʸ::T
@@ -21,6 +23,10 @@ struct dg_field{T}
     fˣ::T
     fʸ::T
     fⁿ::T
+    fx⁺::T
+    fx⁻::T
+    fy⁺::T
+    fy⁻::T
     """
     dg_field(mesh)
 
@@ -35,6 +41,8 @@ struct dg_field{T}
     # Return Values:
 
     -   `ϕ` : the field to be computed,
+    -   `ϕ⁺` : the field to be computed, exterior nodes
+    -   `ϕ⁻` : the field to be computed, interior nodes
     -   `ϕ̇`: numerical solutions for the field
     -   `∂ˣ`: x-component of derivative
     -   `∂ʸ`: y-component of derivative
@@ -42,9 +50,13 @@ struct dg_field{T}
     -   `φˣ`: x-component of flux
     -   `φʸ`: y-component of flux
     -   `φⁿ`: normal component of flux
-    -   `fˣ`: the numerical flux on face in the x-direction for the computation
-    -   `fʸ`: the numerical flux on face in the y-direction for the computation
-    -   `fⁿ`: the numerical flux on face in the normal direction for the computation
+    -   `fˣ`: the numerical jump in flux on face in the x-direction for the computation
+    -   `fʸ`: the numerical jump in flux on face in the y-direction for the computation
+    -   `fx⁺`: the numerical flux on interior face in the x-direction for the computation
+    -   `fy⁺`: the numerical flux on interior face in the y-direction for the computation
+    -   `fx⁻`: the numerical flux on interior face in the x-direction for the computation
+    -   `fy⁻`: the numerical flux on exterior face in the y-direction for the computation
+    -   `fⁿ`: the numerical jump in flux on face in the normal direction for the computation
 
     """
     function dg_field(mesh)
@@ -60,7 +72,13 @@ struct dg_field{T}
         fˣ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
         fʸ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
         fⁿ  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
-        return new{typeof(ϕ)}(ϕ, ϕ̇, ∂ˣ, ∂ʸ, ∂ⁿ, φˣ, φʸ, φⁿ, fˣ, fʸ, fⁿ)
+        ϕ⁺  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        ϕ⁻  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fx⁺  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fx⁻  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fy⁺  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        fy⁻  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
+        return new{typeof(ϕ)}(ϕ, ϕ⁺, ϕ⁻, ϕ̇, ∂ˣ, ∂ʸ, ∂ⁿ, φˣ, φʸ, φⁿ, fˣ, fʸ, fⁿ, fx⁺, fx⁻, fy⁺, fy⁻)
     end
 end
 
@@ -163,6 +181,121 @@ function compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t⁰, mesh)
     px = @. ∂ᵗu¹ + 𝒩u + tmpu - fu¹
     py = @. ∂ᵗv¹ + 𝒩v + tmpv - fv¹
     return -px, -py
+end
+
+function compute_ghost_points!(ns, bc_u, bc_v, mesh)
+    # compute interior and exterior points for u
+    @. ns.u.ϕ⁺[:] = ns.u.ϕ[mesh.vmapP]
+    @. ns.u.ϕ⁻[:] = ns.u.ϕ[mesh.vmapM]
+    # set the external flux equal to the boundary condition flux
+    # this is because we are using a rusonov flux
+    @. ns.u.ϕ⁺[mesh.mapB] = bc_u[3]
+    # compute interior and exterior points for v
+    @. ns.v.ϕ⁺[:] = ns.v.ϕ[mesh.vmapP]
+    @. ns.v.ϕ⁻[:] = ns.v.ϕ[mesh.vmapM]
+    # set the external flux equal to the boundary condition flux
+    # this is because we are using a rusonov flux
+    @. ns.v.ϕ⁺[mesh.mapB] = bc_v[3]
+    return nothing
+end
+
+function compute_surface_fluxes!(ns, mesh)
+    # exterior fluxes for u
+    @. ns.u.fx⁺ = ns.u.ϕ⁺ * ns.u.ϕ⁺
+    @. ns.u.fy⁺ = ns.v.ϕ⁺ * ns.u.ϕ⁺
+    # interior fluxes for u
+    @. ns.u.fx⁻ = ns.u.ϕ⁻ * ns.u.ϕ⁻
+    @. ns.u.fy⁻ = ns.v.ϕ⁻ * ns.u.ϕ⁻
+    # exterior fluxes for v
+    @. ns.v.fx⁺ = ns.u.ϕ⁺ * ns.v.ϕ⁺
+    @. ns.v.fy⁺ = ns.v.ϕ⁺ * ns.v.ϕ⁺
+    # interior fluxes for v
+    @. ns.v.fx⁻ = ns.u.ϕ⁻ * ns.v.ϕ⁻
+    @. ns.v.fy⁻ = ns.v.ϕ⁻ * ns.v.ϕ⁻
+
+    return nothing
+end
+
+function compute_maximum_face_velocity(ns, mesh)
+    # compute normal velocities
+    tmp⁺ = abs.( mesh.nx .* ns.u.ϕ⁺ + mesh.ny .* ns.v.ϕ⁺ )
+    tmp⁻ = abs.( mesh.nx .* ns.u.ϕ⁻ + mesh.ny .* ns.v.ϕ⁻ )
+    maxtmp = [ maximum([tmp⁻[i] tmp⁺[i]]) for i in 1:length(tmp⁺) ]
+    maxface = maximum(reshape(maxtmp,mesh.nfp, mesh.nFaces *  mesh.K), dims = 1);
+    maxtmp = reshape(maxtmp, mesh.nfp, mesh.nFaces * mesh.K)
+    for j in 1:(mesh.nFaces * mesh.K)
+            @. maxtmp[:, j] = maxface[j]
+    end
+    return reshape(maxtmp, size(ns.u.ϕ⁺))
+end
+
+function compute_lift_terms(ns, mesh, maxvel)
+    # compute surface flux for u
+    @. ns.u.fⁿ = mesh.nx * ( ns.u.fx⁺ - ns.u.fx⁻) + mesh.ny * ( ns.u.fy⁺ - ns.u.fy⁻) + maxvel * (ns.u.ϕ⁻ - ns.u.ϕ⁺)
+    # compute lift term for u
+    tmpu = mesh.lift * ( mesh.fscale .* ns.u.fⁿ) * 0.5
+    # compute surface flux for v
+    @. ns.v.fⁿ = mesh.nx * ( ns.v.fx⁺ - ns.v.fx⁻) + mesh.ny * ( ns.v.fy⁺ - ns.v.fy⁻) + maxvel * (ns.v.ϕ⁻ - ns.v.ϕ⁺)
+    tmpv = mesh.lift * ( mesh.fscale .* ns.v.fⁿ) * 0.5
+    return tmpu, tmpv
+end
+
+function compute_div_lift_terms(ns, mesh)
+    # compute surface flux for u
+    diffs = @. mesh.nx[:] * (ι.u.φⁿ[mesh.vmapP]-ι.u.φⁿ[mesh.vmapM]) + mesh.ny[:] * (ι.v.φⁿ[mesh.vmapP]-ι.v.φⁿ[mesh.vmapM])
+    diffs = reshape(diffs, mesh.nFaces *mesh.nfp, mesh.K)
+    # compute lift term
+    div_lift = mesh.lift * ( mesh.fscale .* diffs) * 0.5
+
+    return div_lift
+end
+
+
+#these enter in as a right hand side to the appropriate equations
+function calculate_pearson_bc_vel(mesh, t)
+    # it is assumed that t refers to time t¹
+
+    # compute u and v boundary conditions (since it is time dependent)
+    u_exact = eval_grid(u_analytic, mesh, t)
+    v_exact = eval_grid(v_analytic, mesh, t)
+    dirichlet_u_bc = u_exact[mesh.vmapB];
+    bc_u = (mesh.vmapB, mesh.mapB, dirichlet_u_bc)
+    dbc_u = ([],[],0.0,0.0)
+    dirichlet_v_bc = v_exact[mesh.vmapB];
+    bc_v = (mesh.vmapB, mesh.mapB, dirichlet_v_bc)
+    dbc_v = ([],[],0.0,0.0)
+
+    return bc_u, dbc_u, bc_v, dbc_v
+end
+
+function calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
+    # it is assumed that t refers to time t¹
+
+    # compute pressure boundary conditions
+    # note that this is a computation over the entire domain
+    # we can use this to form the residual to see how well we are satisfying the PDE
+
+    ∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t-Δt, mesh)
+    # just to make invertible
+    bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
+    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
+    return bc_p, dbc_p
+end
+
+function calculate_pearson_bc_p(mesh)
+    # it is assumed that t refers to time t¹
+
+    # compute pressure boundary conditions
+    # note that this is a computation over the entire domain
+    # we can use this to form the residual to see how well we are satisfying the PDE
+
+    #∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t-Δt, mesh)
+    ∂pˣ = zeros(size(mesh.x))
+    ∂pʸ = zeros(size(mesh.x))
+    # just to make invertible
+    bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
+    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
+    return bc_p, dbc_p
 end
 
 #stuff I probably won't need

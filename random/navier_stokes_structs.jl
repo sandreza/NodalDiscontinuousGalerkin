@@ -278,7 +278,7 @@ function calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
     ∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t-Δt, mesh)
     # just to make invertible
     bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
-    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
+    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], Δt .* ∂pˣ[mesh.vmapB[2:end]], Δt .* ∂pʸ[mesh.vmapB[2:end]])
     return bc_p, dbc_p
 end
 
@@ -296,6 +296,141 @@ function calculate_pearson_bc_p(mesh)
     bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
     dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
     return bc_p, dbc_p
+end
+
+
+function ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    # compute u,v surface contributions
+    compute_ghost_points!(ι, bc_u, bc_v, mesh)
+    compute_surface_fluxes!(ι, mesh)
+    maxvel = compute_maximum_face_velocity(ι, mesh)
+    ∮u, ∮v = compute_lift_terms(ι, mesh, maxvel)
+
+    # now compute contributions fo each field
+    # first u
+    sym_advec!(ι.u.φⁿ, u⁰, v⁰, u⁰, mesh)
+    @. ι.u.φⁿ += ∮u
+    @. ι.u.φⁿ *= -Δt
+    @. ι.u.φⁿ += u⁰
+    # then v
+    sym_advec!(ι.v.φⁿ, u⁰, v⁰, v⁰, mesh)
+    @. ι.u.φⁿ += ∮v
+    @. ι.v.φⁿ *= -Δt
+    @. ι.v.φⁿ += v⁰
+    return nothing
+end
+
+function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    zero_value = zeros(size(mesh.x))
+    dg_poisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
+
+    # take the divergence of the solution
+    rhsᵖ = similar(ι.p.ϕ)
+    ∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
+    #construct appropriate lift!
+    ∮∇⨀u = compute_div_lift_terms(ι, mesh)
+    @. rhsᵖ += ∮∇⨀u
+
+    # construct the right hand side for poissons equation
+    frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
+    @. frhsᵖ *= -1.0
+    # solve the linear system
+    p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
+    # compute the gradient
+    ∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
+    # project
+    @. ũ = ι.u.φⁿ - ι.p.∂ˣ
+    @. ṽ = ι.v.φⁿ - ι.p.∂ʸ
+    return nothing
+end
+
+function ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, params_vel)
+    zero_value = zeros(size(mesh.x))
+    # set up affine part
+    dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+    dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+    #
+    rhsᵘ = -1 .* mesh.J .* (mesh.M * ũ ./ (ν*Δt) ) - bᵘ
+    rhsᵘ *= -1.0 #cholesky nonsense
+    # then v
+    rhsᵛ = -1 .* mesh.J .* (mesh.M * ṽ ./ (ν*Δt)) - bᵛ
+    rhsᵛ *= -1.0 #cholesky nonsense
+
+    # step one solve helmholtz equation for velocity field
+    tmpu¹ = reshape(chol_Hᵘ \ rhsᵘ[:], size(mesh.x) )
+    tmpv¹ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
+    @. u¹ = tmpu¹
+    @. v¹ = tmpv¹
+    return nothing
+end
+
+function ns_pearson_check(ι, mesh, t, u¹, v¹, ũ, ṽ)
+    println("-------------------------")
+    u_exact = eval_grid(u_analytic, mesh, t)
+    v_exact = eval_grid(v_analytic, mesh, t)
+    px_exact = eval_grid(∂ˣp_analytic, mesh, t)
+    py_exact = eval_grid(∂ʸp_analytic, mesh, t)
+
+    println("before satisfying boundary conditions")
+    u_error = rel_error(u_exact, ũ)
+    v_error = rel_error(v_exact, ṽ)
+    println("The relative error is $(u_error)")
+    println("The relative error is $(v_error)")
+    println("with satisfying boudnary conditions")
+    u_error = rel_error(u_exact, u¹)
+    v_error = rel_error(v_exact, v¹)
+    println("The relative error is $(u_error)")
+    println("The relative error is $(v_error)")
+
+    println("with bc and 1 norm")
+    u_error = rel_1_error(u_exact, u¹)
+    v_error = rel_1_error(v_exact, v¹)
+    println("The relative error is $(u_error)")
+    println("The relative error is $(v_error)")
+
+    println("relative error in boundary conditions")
+    println("before")
+    println(rel_error(u_exact[mesh.vmapB], ũ[mesh.vmapB]))
+    println("after")
+    println(rel_error(u_exact[mesh.vmapB], u¹[mesh.vmapB]))
+    tmp = similar(u¹)
+    ∇⨀!(tmp , u¹, v¹, mesh)
+    println("The maximum incompressibility is now $(maximum(abs.(tmp)))")
+    ∇⨀!(tmp , ũ, ṽ, mesh)
+    println("The maximum incompressibility before it was $(maximum(abs.(tmp)))")
+
+    println("the relative error in computing the pressure gradient is ")
+    px_error = rel_error(px_exact, ι.p.∂ˣ ./ Δt)
+    py_error = rel_error(py_exact, ι.p.∂ʸ ./ Δt)
+    println("The px relative error is $(px_error)")
+    println("The py relative error is $(py_error)")
+    println(" ")
+    println("-------------------------")
+    return nothing
+end
+
+function ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    t = t_list[1]
+    # step 1: Advection
+    @. ι.u.ϕ = u⁰
+    @. ι.v.ϕ = v⁰
+    bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+    ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    # step 2: Pressure projection
+    bc_p, dbc_p = calculate_pearson_bc_p(mesh)
+    ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    # now consider next time-step
+    @. t_list += Δt
+    t = t_list[1]
+    # step 3: Diffuse
+    bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+    ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+
+    # step 4: set new value of velocity
+    @. u⁰ = u¹
+    @. v⁰ = v¹
+    return nothing
 end
 
 #stuff I probably won't need

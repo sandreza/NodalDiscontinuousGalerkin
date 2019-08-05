@@ -1,4 +1,4 @@
-using Plots
+#using Plots
 using BenchmarkTools
 include("../DG2D/dg_navier_stokes.jl")
 include("../DG2D/mesh2D.jl")
@@ -10,14 +10,16 @@ include("../DG2D/triangles.jl")
 
 
 
-# define polynomial order
-n = 3
+# define polynomial order, n=11 is about the right size
+n = 11
 
 # load grids
 # FileName = "pvortex4A01.neu"
 FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
+
+# set up structs
 mesh = garbage_triangle3(n, filename)
 field = dg_garbage_triangle(mesh)
 ι = ns_fields(mesh)
@@ -27,7 +29,8 @@ Nv, VX, VY, K, EtoV, bctype, bc_name = meshreader_gambit_bc_2D(filename)
 mapT, vmapT, bc_label = build_bc_maps(mesh, bctype, bc_name)
 
 # set time and time step and viscocity
-t = 0
+t = 0.0
+t_list = [t]
 const Δt = 1e-2
 const ν  = 1e-2
 
@@ -55,7 +58,80 @@ params = [τ]
 # set up matrix and affine component
 #Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
 Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_p, bc_∇!, dbc_p)
-#slight regularization
+# make it symmetric, depending on how Δᵖ is defined it won't be
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)
 chol_Δᵖ = cholesky(-Δᵖ)
+
+
+
+###
+# now that the problem has been set up
+# we set up the initial condition
+u⁰ = eval_grid(u_analytic, mesh, t)
+v⁰ = eval_grid(v_analytic, mesh, t)
+# projection velocities
+ũ = similar(u⁰)
+ṽ = similar(v⁰)
+# velocity at the next time-step
+u¹ = similar(u⁰)
+v¹ = similar(v⁰)
+
+# storing right hand sides
+bᵘ = similar(u⁰)
+bᵛ = similar(u⁰)
+bᵖ = similar(u⁰)
+
+
+####
+# main loop
+# step 1: Advection
+@. ι.u.ϕ = u⁰
+@. ι.v.ϕ = v⁰
+bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+
+# step 2: Pressure projection
+bc_p, dbc_p = calculate_pearson_bc_p(mesh)
+ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+tmp = copy(ṽ)
+# now consider next time-step
+t += Δt
+# step 3: Diffuse
+bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+
+# step 4: set new value of velocity
+@. u⁰ = u¹
+@. v⁰ = v¹
+
+# check correctness
+ns_pearson_check(ι, mesh, t, u¹, v¹, ũ, ṽ)
+
+####
+
+# WARNING lift may have wrong sign in the velocity equation
+t = 0.0
+t_list = [t]
+# we set up the initial condition
+u⁰ = eval_grid(u_analytic, mesh, t)
+v⁰ = eval_grid(v_analytic, mesh, t)
+# projection velocities
+ũ = similar(u⁰)
+ṽ = similar(v⁰)
+# velocity at the next time-step
+u¹ = similar(u⁰)
+v¹ = similar(v⁰)
+
+# storing right hand sides
+bᵘ = similar(u⁰)
+bᵛ = similar(u⁰)
+bᵖ = similar(u⁰)
+
+# check the timestep
+times = 1:5
+for i in times
+ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+println("time is $(t_list[1])")
+ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
+end

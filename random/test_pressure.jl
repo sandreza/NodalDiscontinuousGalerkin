@@ -14,10 +14,11 @@ include("../DG2D/triangles.jl")
 # The previous way of solving for pressure was wrong
 # Need something that handles neumann boundary conditions
 # one way is to assume that the solution is mean zero
+# need to include lift terms for the pressure gradient
 
 # define polynomial order, n=11 is about the right size
-n = 7
-neumann = true
+n = 9
+neumann = false
 wierd = false
 plotting = false
 timing = false
@@ -183,13 +184,157 @@ end
 
 # now check to see if the pressure solve can eliminate the gradient of a potential
 ϕ_analytic(x,y,t) = 1 / (2*π) * sin(2 * π * y ) * sin(2 * π * x)
-ϕ = eval_grid(ϕ_analytic, mesh, t)
+ϕ_exact = eval_grid(ϕ_analytic, mesh, t)
 # compute the gradient
 # x-component
 ∂ˣϕ_analytic(x,y,t) = sin(2 * π * y ) * cos(2 * π * x)
-∂ˣϕ = eval_grid(∂ˣϕ_analytic, mesh, t)
+∂ˣϕ_exact = eval_grid(∂ˣϕ_analytic, mesh, t)
 # y-component
 ∂ʸϕ_analytic(x,y,t) = cos(2 * π * y ) * sin(2 * π * x)
-∂ʸϕ = eval_grid(∂ʸϕ_analytic, mesh, t)
+∂ʸϕ_exact = eval_grid(∂ʸϕ_analytic, mesh, t)
+
+# Δ
+Δϕ_analytic(x,y,t) = - ( (2π) + (2π) ) * sin(2 * π * y ) * sin(2 * π * x)
+Δϕ_exact = eval_grid(Δϕ_analytic, mesh, t)
+
+# set new boundary conditions
+# dirichlet
+bc_p = (mesh.vmapB[1:end], mesh.mapB[1:end], ϕ_exact[mesh.vmapB[1:end]])
+dbc_p = ([],[], 0.0, 0.0)
+# neumann, with normal
+if neumann
+    bc_p = ( [], [], 0.0 )
+    dbc_p = (mesh.vmapB[1:end], mesh.mapB[1:end], ∂ˣϕ_exact[mesh.vmapB[1:end]], ∂ʸϕ_exact[mesh.vmapB[1:end]])
+elseif wierd
+    bc_p =  ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0 )
+    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂ˣϕ_exact[mesh.vmapB[2:end]], ∂ʸϕ_exact[mesh.vmapB[2:end]])
+end
+
+Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_p, bc_∇!, dbc_p)
+if neumann
+    m,n = size(Δᵖ)
+    nΔᵖ = spzeros(m+1,n+1)
+    @. nΔᵖ[1:n, 1:m] = Δᵖ
+    @. nΔᵖ[1:n,m+1] = 1.0
+    @. nΔᵖ[n+1,1:m] = 1.0
+    #nΔᵖ[1,m+1] = -1.0
+    #nΔᵖ[n+1,1] = -1.0
+    dropϵzeros!(nΔᵖ)
+    maximum(abs.((nΔᵖ - nΔᵖ' ) ./ 2))
+    nΔᵖ = (nΔᵖ + nΔᵖ' ) ./ 2
+    dropϵzeros!(nΔᵖ)
+    eigvals(Array(nΔᵖ))
+    chol_Δᵖ = lu(-nΔᵖ)
+else
+    Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
+    dropϵzeros!(Δᵖ)
+    chol_Δᵖ = cholesky(-Δᵖ)
+end
 
 # now compute the divergence of the test solution
+fx = u_exact - ∂ˣϕ_exact
+fy = v_exact - ∂ʸϕ_exact
+
+∇⨀ũ = similar(fy)
+∇⨀!(∇⨀ũ, fx, fy, mesh)
+@. ∇⨀ũ *= 1.0
+Δ_error = rel_error(-Δϕ_exact, ∇⨀ũ)
+
+
+# now solve
+println("Now we test the project part of the operator a little differently")
+println("The error in computing the second derivative is $(Δ_error )")
+if neumann
+    m = length(bᵖ)+1;
+    rhs_p = zeros(m)
+    tmp = mesh.J .* ( mesh.M * ( ∇⨀ũ   ) ) + bᵖ
+    @. rhs_p[1:(m-1)] = tmp[:]
+    p̃ = reshape( (chol_Δᵖ \ rhs_p[:])[1:(m-1)], size(∇⨀ũ))
+    gauge = sum(p_exact) / length(p_exact)
+    @. p̃ += gauge
+    error_p = rel_error(ϕ_exact, p̃)
+    println("The relative error for the pressure solve is $(error_p)")
+    if timing
+        @btime p̃ = reshape( (chol_Δᵖ \ rhs_p[:])[1:(m-1)], size(∇⨀ũ));
+    end
+elseif wierd
+    rhs_p = mesh.J .* ( mesh.M * ( ∇⨀ũ   ) ) + bᵖ
+    p̃ = reshape( (chol_Δᵖ \ rhs_p[:]) , size(∇⨀ũ) )
+    gauge = sum(p_exact - p̃) / length(p_exact)
+    @. p̃ += gauge
+    error_p = rel_error(ϕ_exact, p̃)
+    println("The relative error for the pressure solve is $(error_p)")
+    if timing
+        @btime p̃ = reshape( (chol_Δᵖ \ rhs_p[:]) , size(∇⨀ũ) );
+    end
+else
+    rhs_p = mesh.J .* ( mesh.M * ( ∇⨀ũ   ) ) + bᵖ
+    p̃ = reshape( (chol_Δᵖ \ rhs_p[:]) , size(∇⨀ũ) )
+
+    error_p = rel_error(ϕ_exact, p̃)
+    println("The relative error for the pressure solve using Dirichlet bc is $(error_p)")
+end
+
+# check if new field is incompressible
+∂ˣp̃ = similar(p̃)
+∂ʸp̃ = similar(p̃)
+∇!(∂ˣp̃, ∂ʸp̃,  p̃, mesh)
+
+#include lift terms for DG consistency
+xlift = @. mesh.nx[:] * (p̃[mesh.vmapP]-p̃[mesh.vmapM])
+ylift = @. mesh.ny[:] * (p̃[mesh.vmapP]-p̃[mesh.vmapM])
+
+xlift = reshape(xlift, mesh.nFaces * mesh.nfp, mesh.K)
+ylift = reshape(ylift, mesh.nFaces * mesh.nfp, mesh.K)
+
+fx = u_exact - ∂ˣϕ_exact + ∂ˣp̃ + mesh.lift * ( mesh.fscale .* xlift) * 0.5
+fy = v_exact - ∂ʸϕ_exact + ∂ʸp̃ + mesh.lift * ( mesh.fscale .* ylift) * 0.5
+
+∇⨀!(∇⨀ũ , fx, fy, mesh)
+incomp = maximum(abs.(∇⨀ũ ))
+println("The maximum incompressibility of the new solution is $(incomp)")
+
+xlift = @. mesh.nx[:] * (fx[mesh.vmapP]-fx[mesh.vmapM])
+ylift = @. mesh.ny[:] * (fy[mesh.vmapP]-fy[mesh.vmapM])
+xlift = reshape(xlift, mesh.nFaces * mesh.nfp, mesh.K)
+ylift = reshape(ylift, mesh.nFaces * mesh.nfp, mesh.K)
+
+w∇⨀ũ = ∇⨀ũ + mesh.lift * ( mesh.fscale .* xlift) * 0.5 + mesh.lift * ( mesh.fscale .* ylift) * 0.5
+incomp = maximum(abs.(w∇⨀ũ ))
+println("The maximum incompressibility (in the weak sense) of the new solution is $(incomp)")
+
+
+relx = rel_error(∂ˣϕ_exact , ∂ˣp̃ + mesh.lift * ( mesh.fscale .* xlift) * 0.5 )
+println("The error in the x-derivative is $(relx)")
+
+rely = rel_error(∂ʸϕ_exact , ∂ʸp̃ + mesh.lift * ( mesh.fscale .* ylift) * 0.5)
+println("The error in the y-derivative is $(rely)")
+
+discontinuity_error = maximum(abs.(p̃[mesh.vmapP] - p̃[mesh.vmapM]))
+println("The maximum discontinuity in p is $(discontinuity_error)")
+
+discontinuity_error = maximum(abs.(∂ˣp̃[mesh.vmapP] - ∂ˣp̃[mesh.vmapM]))
+println("The maximum discontinuity in px is $(discontinuity_error)")
+
+discontinuity_error = maximum(abs.(∂ʸp̃[mesh.vmapP] - ∂ʸp̃[mesh.vmapM]))
+println("The maximum discontinuity in py is $(discontinuity_error)")
+
+∂ˣq = ∂ˣp̃ + mesh.lift * ( mesh.fscale .* xlift) * 0.5
+∂ʸq = ∂ʸp̃ + mesh.lift * ( mesh.fscale .* ylift) * 0.5
+
+discontinuity_error = maximum(abs.(∂ˣq[mesh.vmapP] - ∂ˣq[mesh.vmapM]))
+println("The maximum discontinuity in qx is $(discontinuity_error)")
+
+discontinuity_error = maximum(abs.(∂ʸq[mesh.vmapP] - ∂ʸq[mesh.vmapM]))
+println("The maximum discontinuity in qy is $(discontinuity_error)")
+
+#=
+thing = abs.(f)
+thing = log.(abs.(- ∂ˣϕ_exact + ∂ˣp̃))
+thing = log.(abs.( - ∂ʸϕ_exact + ∂ʸp̃ ))
+p3 = surface(mesh.x[:],mesh.y[:], thing , camera = (0,90))
+display(p3)
+=#
+
+
+###

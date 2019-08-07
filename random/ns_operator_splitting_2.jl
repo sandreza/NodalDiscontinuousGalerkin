@@ -11,11 +11,12 @@ include("../DG2D/triangles.jl")
 
 
 # define polynomial order, n=11 is about the right size
-n = 11
-
+n = 10
+plotting = false
+const debug = true
 # load grids
-# FileName = "pvortex4A01.neu"
-FileName = "Maxwell025.neu"
+FileName = "pvortex4A01.neu"
+#FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 
@@ -31,7 +32,7 @@ mapT, vmapT, bc_label = build_bc_maps(mesh, bctype, bc_name)
 # set time and time step and viscocity
 t = 0.0
 t_list = [t]
-const Δt = 1e-2
+const Δt = 1e-3
 const ν  = 1e-2
 
 # set up the Helmholtz and Poisson operators
@@ -59,6 +60,7 @@ params = [τ]
 #Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
 Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_p, bc_∇!, dbc_p)
 # make it symmetric, depending on how Δᵖ is defined it won't be
+# not really sure why this makes sense but it does work
 Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
 dropϵzeros!(Δᵖ)
 chol_Δᵖ = cholesky(-Δᵖ)
@@ -82,6 +84,9 @@ bᵘ = similar(u⁰)
 bᵛ = similar(u⁰)
 bᵖ = similar(u⁰)
 
+∇⨀!(bᵖ, u⁰, v⁰, mesh)
+println("The analytically computed divergence is ")
+println(maximum(abs.(bᵖ)))
 
 ####
 # main loop
@@ -129,9 +134,21 @@ bᵛ = similar(u⁰)
 bᵖ = similar(u⁰)
 
 # check the timestep
-times = 1:5
+times = 1:10
 for i in times
-ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
-println("time is $(t_list[1])")
-ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
+    #ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    println("time is $(t_list[1])")
+    if plotting
+        divu = similar(mesh.x)
+        ∇⨀!(divu, u¹, v¹, mesh)
+        thing = log.( abs.(u¹[:]))
+        u_exact = eval_grid(u_analytic, mesh, t_list[1])
+        thing = log.(abs.(u¹[:] - u_exact[:]))
+        p3 = surface(mesh.x[:],mesh.y[:], thing , camera = (0,90))
+        #surface(mesh.x[:],mesh.y[:], px_exact - ι.p.∂ˣ ./ Δt  , camera = (0,90))
+        display(p3)
+        sleep(0.1)
+    end
+    ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
 end

@@ -275,7 +275,9 @@ function calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
     # note that this is a computation over the entire domain
     # we can use this to form the residual to see how well we are satisfying the PDE
 
-    ∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t-Δt, mesh)
+    ∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t, mesh)
+    @. ∂pˣ *= Δt
+    @. ∂pʸ *= Δt
     # just to make invertible
     bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
     dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], Δt .* ∂pˣ[mesh.vmapB[2:end]], Δt .* ∂pʸ[mesh.vmapB[2:end]])
@@ -336,6 +338,7 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     @. frhsᵖ *= -1.0
     # solve the linear system
     p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
+    @. ι.p.ϕ = p
     # compute the gradient
     ∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
     # project
@@ -398,7 +401,7 @@ function ns_pearson_check(ι, mesh, t, u¹, v¹, ũ, ṽ)
     ∇⨀!(tmp , u¹, v¹, mesh)
     println("The maximum incompressibility is now $(maximum(abs.(tmp)))")
     ∇⨀!(tmp , ũ, ṽ, mesh)
-    println("The maximum incompressibility before it was $(maximum(abs.(tmp)))")
+    println("The maximum incompressibility before was $(maximum(abs.(tmp)))")
 
     println("the relative error in computing the pressure gradient is ")
     px_error = rel_error(px_exact, ι.p.∂ˣ ./ Δt)
@@ -406,6 +409,16 @@ function ns_pearson_check(ι, mesh, t, u¹, v¹, ũ, ṽ)
     println("The px relative error is $(px_error)")
     println("The py relative error is $(py_error)")
     println(" ")
+
+    println("the maximum discontinuity across gridpoints for u is ")
+    jump_max = maximum(abs.(ι.u.ϕ[mesh.vmapP] .- ι.u.ϕ[mesh.vmapM]))
+    println(jump_max)
+    println("the maximum discontinuity across gridpoints for p is ")
+    jump_max = maximum(abs.(ι.p.ϕ[mesh.vmapP] .- ι.p.ϕ[mesh.vmapM]))
+    println(jump_max)
+    println("the maximum discontinuity across gridpoints for v is ")
+    jump_max = maximum(abs.(ι.v.ϕ[mesh.vmapP] .- ι.v.ϕ[mesh.vmapM]))
+    println(jump_max)
     println("-------------------------")
     return nothing
 end
@@ -417,12 +430,57 @@ function ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, b
     @. ι.v.ϕ = v⁰
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    # if you mess up the boundary values you get errors
+    if debug
+        @. ι.u.φⁿ = u⁰ + 0*Δt*(mesh.x -1) + 0*(mesh.x + 1)
+        @. ι.v.φⁿ = v⁰ + 0*Δt*(mesh.y -1) + 0*(mesh.y + 1)
+    end
     # step 2: Pressure projection
     bc_p, dbc_p = calculate_pearson_bc_p(mesh)
     ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # now consider next time-step
     @. t_list += Δt
     t = t_list[1]
+    if debug
+        #@. ũ= u⁰
+        #@. ṽ = v⁰
+    end
+    # step 3: Diffuse
+    bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+    ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+
+    # step 4: set new value of velocity
+    @. u⁰ = u¹
+    @. v⁰ = v¹
+    return nothing
+end
+
+
+function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    t = t_list[1]
+    # step 1: Advection
+    @. ι.u.ϕ = u⁰
+    @. ι.v.ϕ = v⁰
+    bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
+    ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    # if you mess up the boundary values you get errors
+    if debug
+        @. ι.u.φⁿ = u⁰ + 0*(mesh.x -1) * (mesh.x + 1)
+        @. ι.v.φⁿ = v⁰ + 0*(mesh.y -1) * (mesh.y + 1)
+    end
+    # step 2: Pressure projection
+    bc_p, dbc_p = calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
+    fu¹ = 0.0
+    fv¹ = 0.0
+    compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t, mesh)
+    ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    # now consider next time-step
+    @. t_list += Δt
+    t = t_list[1]
+    if debug
+        #@. ũ= u⁰
+        #@. ṽ = v⁰
+    end
     # step 3: Diffuse
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)

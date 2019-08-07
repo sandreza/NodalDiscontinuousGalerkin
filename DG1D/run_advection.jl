@@ -2,7 +2,7 @@ include("dg1D.jl")
 include("dg_advection.jl")
 include("mesh.jl")
 
-using Plots
+#using Plots
 using BenchmarkTools
 using DifferentialEquations
 
@@ -47,7 +47,7 @@ else
 end
 
 # run code
-tspan  = (0.0, 2.0)
+tspan  = (0.0, 1.0)
 params = (𝒢, ι, ε, periodic)
 rhs! = dg_upwind!
 

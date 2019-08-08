@@ -20,7 +20,7 @@ include("../DG2D/triangles.jl")
 # stoke's equations directly
 
 # define polynomial order, n=11 is about the right size
-n = 9
+n = 13
 neumann = false
 wierd = false
 plotting = false
@@ -30,8 +30,8 @@ const debug = true
 const ν = 1e-2
 
 # load grids
-#FileName = "pvortex4A01.neu"
-FileName = "Maxwell025.neu"
+FileName = "pvortex4A01.neu"
+#FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 
@@ -237,16 +237,19 @@ end
 # now compute the divergence of the test solution
 fx = u_exact - ∂ˣϕ_exact
 fy = v_exact - ∂ʸϕ_exact
+#@. fx = tmpfx # for debugging ns_operator_splitting_2.jl
+#@. fy = tmpfy # for debugging ns_operator_splitting_2.jl
 
 ∇⨀ũ = similar(fy)
 ∇⨀!(∇⨀ũ, fx, fy, mesh)
 @. ∇⨀ũ *= 1.0
 Δ_error = rel_error(-Δϕ_exact, ∇⨀ũ)
-
+max_inc = maximum(abs.(∇⨀ũ))
 
 # now solve
 println("Now we test the project part of the operator a little differently")
 println("The error in computing the second derivative is $(Δ_error )")
+println("The maximum incompressibility beforehand is $(max_inc)")
 if neumann
     m = length(bᵖ)+1;
     rhs_p = zeros(m)
@@ -290,8 +293,8 @@ ylift = @. mesh.ny[:] * (p̃[mesh.vmapP]-p̃[mesh.vmapM])
 xlift = reshape(xlift, mesh.nFaces * mesh.nfp, mesh.K)
 ylift = reshape(ylift, mesh.nFaces * mesh.nfp, mesh.K)
 
-fx = u_exact - ∂ˣϕ_exact + ∂ˣp̃ + mesh.lift * ( mesh.fscale .* xlift) * 0.5
-fy = v_exact - ∂ʸϕ_exact + ∂ʸp̃ + mesh.lift * ( mesh.fscale .* ylift) * 0.5
+fx = fx + ∂ˣp̃ + mesh.lift * ( mesh.fscale .* xlift) * 0.5
+fy = fy + ∂ʸp̃ + mesh.lift * ( mesh.fscale .* ylift) * 0.5
 
 ∇⨀!(∇⨀ũ , fx, fy, mesh)
 incomp = maximum(abs.(∇⨀ũ ))

@@ -11,12 +11,12 @@ include("../DG2D/triangles.jl")
 
 
 # define polynomial order, n=11 is about the right size
-n = 10
+n = 11
 plotting = false
-const debug = true
+const debug = false
 # load grids
 FileName = "pvortex4A01.neu"
-#FileName = "Maxwell025.neu"
+#FileName = "Maxwell0125.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 
@@ -59,11 +59,10 @@ params = [τ]
 # set up matrix and affine component
 #Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_wierd, bc_∇!, dbc_wierd)
 Δᵖ, bᵖ = poisson_setup_bc(field, params, mesh, bc!, bc_p, bc_∇!, dbc_p)
-# make it symmetric, depending on how Δᵖ is defined it won't be
-# not really sure why this makes sense but it does work
-Δᵖ = (Δᵖ + Δᵖ' ) ./ 2
-dropϵzeros!(Δᵖ)
-chol_Δᵖ = cholesky(-Δᵖ)
+# augments for neumann boundary conditions to make solution unique
+chol_Δᵖ = modify_pressure_Δ(Δᵖ)
+#this is actually the LU factorization, misnamed for sure...
+#lu makes things about a factor of 60 slower ...
 
 
 
@@ -134,10 +133,11 @@ bᵛ = similar(u⁰)
 bᵖ = similar(u⁰)
 
 # check the timestep
-times = 1:10
+times = 1:4
 for i in times
-    #ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
-    ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    # pressure on lin 293 and 294 is multiplied by zero for bc
+    ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    #ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
     println("time is $(t_list[1])")
     if plotting
         divu = similar(mesh.x)
@@ -152,3 +152,5 @@ for i in times
     end
     ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
 end
+#tmpfx = copy(ι.u.φⁿ)
+#tmpfy = copy(ι.v.φⁿ)

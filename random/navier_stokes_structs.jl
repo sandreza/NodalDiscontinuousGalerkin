@@ -240,7 +240,7 @@ function compute_lift_terms(ns, mesh, maxvel)
     return tmpu, tmpv
 end
 
-function compute_div_lift_terms(ns, mesh)
+function compute_div_lift_terms(ι, mesh)
     # compute surface flux for u
     diffs = @. mesh.nx[:] * (ι.u.φⁿ[mesh.vmapP]-ι.u.φⁿ[mesh.vmapM]) + mesh.ny[:] * (ι.v.φⁿ[mesh.vmapP]-ι.v.φⁿ[mesh.vmapM])
     diffs = reshape(diffs, mesh.nFaces *mesh.nfp, mesh.K)
@@ -248,6 +248,20 @@ function compute_div_lift_terms(ns, mesh)
     div_lift = mesh.lift * ( mesh.fscale .* diffs) * 0.5
 
     return div_lift
+end
+
+function compute_pressure_lift_terms(ι, mesh)
+    # compute surface flux for u
+    diffsx = @. mesh.nx[:] * (ι.p.ϕ[mesh.vmapP]-ι.p.ϕ[mesh.vmapM])
+    diffsx = reshape(diffsx, mesh.nFaces *mesh.nfp, mesh.K)
+
+    diffsy = @. mesh.ny[:] * (ι.p.ϕ[mesh.vmapP]-ι.p.ϕ[mesh.vmapM])
+    diffsy = reshape(diffsy, mesh.nFaces *mesh.nfp, mesh.K)
+    # compute lift terms y
+    px_lift = mesh.lift * ( mesh.fscale .* diffsx) * 0.5
+    py_lift = mesh.lift * ( mesh.fscale .* diffsy) * 0.5
+
+    return px_lift, py_lift
 end
 
 
@@ -279,8 +293,8 @@ function calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
     @. ∂pˣ *= Δt
     @. ∂pʸ *= Δt
     # just to make invertible
-    bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
-    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], Δt .* ∂pˣ[mesh.vmapB[2:end]], Δt .* ∂pʸ[mesh.vmapB[2:end]])
+    bc_p = ([], [], 0.0)
+    dbc_p = (mesh.vmapB[1:end], mesh.mapB[1:end], ∂pˣ[mesh.vmapB[1:end]], ∂pʸ[mesh.vmapB[1:end]])
     return bc_p, dbc_p
 end
 
@@ -294,9 +308,9 @@ function calculate_pearson_bc_p(mesh)
     #∂pˣ, ∂pʸ = compute_pressure_terms(u⁰, v⁰, ν, 0.0, 0.0, t-Δt, mesh)
     ∂pˣ = zeros(size(mesh.x))
     ∂pʸ = zeros(size(mesh.x))
-    # just to make invertible
-    bc_p = ([mesh.vmapB[1]], [mesh.mapB[1]], 0.0)
-    dbc_p = (mesh.vmapB[2:end], mesh.mapB[2:end], ∂pˣ[mesh.vmapB[2:end]], ∂pʸ[mesh.vmapB[2:end]])
+    # nuemann boundary conditions for pressure
+    bc_p = ([], [], 0.0)
+    dbc_p = (mesh.vmapB[1:end], mesh.mapB[1:end], ∂pˣ[mesh.vmapB[1:end]], ∂pʸ[mesh.vmapB[1:end]])
     return bc_p, dbc_p
 end
 
@@ -329,6 +343,8 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # take the divergence of the solution
     rhsᵖ = similar(ι.p.ϕ)
     ∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
+    println("The maximum incompressibility of the nonlinear part is incompressibility is")
+    println(maximum(abs.(rhsᵖ)))
     #construct appropriate lift!
     ∮∇⨀u = compute_div_lift_terms(ι, mesh)
     @. rhsᵖ += ∮∇⨀u
@@ -336,14 +352,21 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # construct the right hand side for poissons equation
     frhsᵖ = mesh.J .* (mesh.M * rhsᵖ) - bᵖ
     @. frhsᵖ *= -1.0
+    # since we are imposing average of p is zero
+    rhs_p = zeros(length(frhsᵖ)+1)
+    tmp = length(frhsᵖ)
+    @. rhs_p[1:tmp] = frhsᵖ[:]
     # solve the linear system
-    p = reshape(chol_Δᵖ \ frhsᵖ[:], size(mesh.x));
+    p = reshape( (chol_Δᵖ \ rhs_p[:])[1:length(mesh.x)], size(mesh.x));
     @. ι.p.ϕ = p
     # compute the gradient
     ∇!(ι.p.∂ˣ,ι.p.∂ʸ, p, mesh)
+
+    # compute pressure lift terms
+    px_lift, py_lift = compute_pressure_lift_terms(ι, mesh)
     # project
-    @. ũ = ι.u.φⁿ - ι.p.∂ˣ
-    @. ṽ = ι.v.φⁿ - ι.p.∂ʸ
+    @. ũ = ι.u.φⁿ - ι.p.∂ˣ - px_lift
+    @. ṽ = ι.v.φⁿ - ι.p.∂ʸ - py_lift
     return nothing
 end
 
@@ -419,6 +442,22 @@ function ns_pearson_check(ι, mesh, t, u¹, v¹, ũ, ṽ)
     println("the maximum discontinuity across gridpoints for v is ")
     jump_max = maximum(abs.(ι.v.ϕ[mesh.vmapP] .- ι.v.ϕ[mesh.vmapM]))
     println(jump_max)
+
+
+
+    xlift = @. mesh.nx[:] * (ι.p.∂ˣ[mesh.vmapP]-ι.p.∂ˣ[mesh.vmapM])
+    ylift = @. mesh.ny[:] * (ι.p.∂ʸ[mesh.vmapP]-ι.p.∂ʸ[mesh.vmapM])
+    xlift = reshape(xlift, mesh.nFaces * mesh.nfp, mesh.K)
+    ylift = reshape(ylift, mesh.nFaces * mesh.nfp, mesh.K)
+
+    ∂ˣq = ι.p.∂ˣ + mesh.lift * ( mesh.fscale .* xlift) * 0.5
+    ∂ʸq = ι.p.∂ʸ + mesh.lift * ( mesh.fscale .* ylift) * 0.5
+
+    discontinuity_error = maximum(abs.(∂ˣq[mesh.vmapP] - ∂ˣq[mesh.vmapM]))
+    println("The maximum discontinuity in qx is $(discontinuity_error)")
+
+    discontinuity_error = maximum(abs.(∂ʸq[mesh.vmapP] - ∂ʸq[mesh.vmapM]))
+    println("The maximum discontinuity in qy is $(discontinuity_error)")
     println("-------------------------")
     return nothing
 end
@@ -432,8 +471,8 @@ function ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, b
     ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     # if you mess up the boundary values you get errors
     if debug
-        @. ι.u.φⁿ = u⁰ + 0*Δt*(mesh.x -1) + 0*(mesh.x + 1)
-        @. ι.v.φⁿ = v⁰ + 0*Δt*(mesh.y -1) + 0*(mesh.y + 1)
+        @. ι.u.φⁿ = u⁰ + Δt*(mesh.x -1)*(mesh.x - 1)
+        @. ι.v.φⁿ = v⁰ + Δt*(mesh.y -1)*(mesh.y - 1)
     end
     # step 2: Pressure projection
     bc_p, dbc_p = calculate_pearson_bc_p(mesh)
@@ -465,8 +504,8 @@ function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, b
     ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     # if you mess up the boundary values you get errors
     if debug
-        @. ι.u.φⁿ = u⁰ + 0*(mesh.x -1) * (mesh.x + 1)
-        @. ι.v.φⁿ = v⁰ + 0*(mesh.y -1) * (mesh.y + 1)
+        #@. ι.u.φⁿ = u⁰ + 1*(mesh.x -1) * (mesh.x - 1)
+        #@. ι.v.φⁿ = v⁰ + 1*(mesh.y -1) * (mesh.y - 1)
     end
     # step 2: Pressure projection
     bc_p, dbc_p = calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
@@ -489,6 +528,21 @@ function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, b
     @. u⁰ = u¹
     @. v⁰ = v¹
     return nothing
+end
+
+function modify_pressure_Δ(Δᵖ)
+    m,n = size(Δᵖ)
+    nΔᵖ = spzeros(m+1,n+1)
+    @. nΔᵖ[1:n, 1:m] = Δᵖ
+    # pad with enforcement of Lagrange multipliers
+    @. nΔᵖ[1:n,m+1] = 1.0
+    @. nΔᵖ[n+1,1:m] = 1.0
+    dropϵzeros!(nΔᵖ)
+    maximum(abs.((nΔᵖ - nΔᵖ' ) ./ 2))
+    nΔᵖ = (nΔᵖ + nΔᵖ' ) ./ 2
+    dropϵzeros!(nΔᵖ)
+    chol_Δᵖ = lu(-nΔᵖ)
+    return chol_Δᵖ
 end
 
 #stuff I probably won't need

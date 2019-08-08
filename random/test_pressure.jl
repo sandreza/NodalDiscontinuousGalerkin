@@ -15,6 +15,9 @@ include("../DG2D/triangles.jl")
 # Need something that handles neumann boundary conditions
 # one way is to assume that the solution is mean zero
 # need to include lift terms for the pressure gradient
+# most of the incompressibility error comes from the jump in q_x and q_y
+# this suggest that it is much better (for an incompressible model) to just solve
+# stoke's equations directly
 
 # define polynomial order, n=11 is about the right size
 n = 9

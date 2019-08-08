@@ -321,7 +321,7 @@ function ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     compute_surface_fluxes!(ι, mesh)
     maxvel = compute_maximum_face_velocity(ι, mesh)
     ∮u, ∮v = compute_lift_terms(ι, mesh, maxvel)
-
+    println("the jump in flux is $(maximum(abs.(∮u)))")
     # now compute contributions fo each field
     # first u
     sym_advec!(ι.u.φⁿ, u⁰, v⁰, u⁰, mesh)
@@ -330,7 +330,7 @@ function ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     @. ι.u.φⁿ += u⁰
     # then v
     sym_advec!(ι.v.φⁿ, u⁰, v⁰, v⁰, mesh)
-    @. ι.u.φⁿ += ∮v
+    @. ι.v.φⁿ += ∮v
     @. ι.v.φⁿ *= -Δt
     @. ι.v.φⁿ += v⁰
     return nothing
@@ -343,7 +343,7 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # take the divergence of the solution
     rhsᵖ = similar(ι.p.ϕ)
     ∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
-    println("The maximum incompressibility of the nonlinear part is incompressibility is")
+    println("The maximum incompressibility of the nonlinear part is")
     println(maximum(abs.(rhsᵖ)))
     #construct appropriate lift!
     ∮∇⨀u = compute_div_lift_terms(ι, mesh)

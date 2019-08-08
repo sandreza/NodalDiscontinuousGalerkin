@@ -11,7 +11,7 @@ include("../DG2D/triangles.jl")
 
 
 # define polynomial order, n=11 is about the right size
-n = 11
+n = 5
 plotting = false
 const debug = false
 # load grids
@@ -133,7 +133,7 @@ bᵛ = similar(u⁰)
 bᵖ = similar(u⁰)
 
 # check the timestep
-times = 1:4
+times = 1:1000
 for i in times
     # pressure on lin 293 and 294 is multiplied by zero for bc
     ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)

@@ -321,7 +321,7 @@ function ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     compute_surface_fluxes!(ι, mesh)
     maxvel = compute_maximum_face_velocity(ι, mesh)
     ∮u, ∮v = compute_lift_terms(ι, mesh, maxvel)
-    println("the jump in flux is $(maximum(abs.(∮u)))")
+    # println("the jump in flux is $(maximum(abs.(∮u)))")
     # now compute contributions fo each field
     # first u
     sym_advec!(ι.u.φⁿ, u⁰, v⁰, u⁰, mesh)
@@ -343,8 +343,8 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # take the divergence of the solution
     rhsᵖ = similar(ι.p.ϕ)
     ∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
-    println("The maximum incompressibility of the nonlinear part is")
-    println(maximum(abs.(rhsᵖ)))
+    # println("The maximum incompressibility of the nonlinear part is")
+    # println(maximum(abs.(rhsᵖ)))
     #construct appropriate lift!
     ∮∇⨀u = compute_div_lift_terms(ι, mesh)
     @. rhsᵖ += ∮∇⨀u
@@ -470,20 +470,14 @@ function ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, b
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     # if you mess up the boundary values you get errors
-    if debug
-        @. ι.u.φⁿ = u⁰ + Δt*(mesh.x -1)*(mesh.x - 1)
-        @. ι.v.φⁿ = v⁰ + Δt*(mesh.y -1)*(mesh.y - 1)
-    end
+
     # step 2: Pressure projection
     bc_p, dbc_p = calculate_pearson_bc_p(mesh)
     ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # now consider next time-step
     @. t_list += Δt
     t = t_list[1]
-    if debug
-        #@. ũ= u⁰
-        #@. ṽ = v⁰
-    end
+
     # step 3: Diffuse
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
@@ -503,10 +497,7 @@ function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, b
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     # if you mess up the boundary values you get errors
-    if debug
-        #@. ι.u.φⁿ = u⁰ + 1*(mesh.x -1) * (mesh.x - 1)
-        #@. ι.v.φⁿ = v⁰ + 1*(mesh.y -1) * (mesh.y - 1)
-    end
+
     # step 2: Pressure projection
     bc_p, dbc_p = calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
     fu¹ = 0.0
@@ -516,10 +507,7 @@ function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, b
     # now consider next time-step
     @. t_list += Δt
     t = t_list[1]
-    if debug
-        #@. ũ= u⁰
-        #@. ṽ = v⁰
-    end
+
     # step 3: Diffuse
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
     ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)

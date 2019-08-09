@@ -8,15 +8,18 @@ include("../DG2D/dg_poisson.jl")
 include("../DG2D/dg_helmholtz.jl")
 include("../DG2D/triangles.jl")
 
-
+# taking away the lift term in the pressure solve seems to increase accuracy
+# only for large elements actually, it seems like the lift operators are
+# super important when one has a large number of elements, less so with less elements
 
 # define polynomial order, n=11 is about the right size
-n = 5
+n = 8 #even good odd okay
 plotting = false
+timings = false
 const debug = false
 # load grids
 FileName = "pvortex4A01.neu"
-#FileName = "Maxwell0125.neu"
+#FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 
@@ -32,7 +35,7 @@ mapT, vmapT, bc_label = build_bc_maps(mesh, bctype, bc_name)
 # set time and time step and viscocity
 t = 0.0
 t_list = [t]
-const Δt = 1e-3
+const Δt = 1e-3 # 1e-3 seems good for convergence tests
 const ν  = 1e-2
 
 # set up the Helmholtz and Poisson operators
@@ -136,9 +139,10 @@ bᵖ = similar(u⁰)
 times = 1:1000
 for i in times
     # pressure on lin 293 and 294 is multiplied by zero for bc
-    ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
-    #ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
-    println("time is $(t_list[1])")
+    #ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
+    #println("time is $(t_list[1])")
+    #ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
     if plotting
         divu = similar(mesh.x)
         ∇⨀!(divu, u¹, v¹, mesh)
@@ -150,7 +154,26 @@ for i in times
         display(p3)
         sleep(0.1)
     end
-    ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
 end
+ns_pearson_check(ι, mesh, t_list[1], u¹, v¹, ũ, ṽ)
 #tmpfx = copy(ι.u.φⁿ)
 #tmpfy = copy(ι.v.φⁿ)
+
+if timings
+    println("computing one time-step takes (fully computing pressure bc)")
+    @btime ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list);
+    println("computing one time-step takes")
+    @btime ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list);
+    println("the pressure solve takes")
+    tmp = randn(length(mesh.x)+1);
+    @btime chol_Δᵖ \ tmp;
+    println("The diffusion solve takes")
+    tmp = randn(length(mesh.x));
+    @btime chol_Hᵘ \ tmp;
+    println("The advection step takes")
+    @btime ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt);
+    println("The pressure step takes")
+    @btime ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel);
+    println("The diffusion step takes")
+    @btime ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+end

@@ -13,13 +13,13 @@ include("../DG2D/triangles.jl")
 # super important when one has a large number of elements, less so with less elements
 
 # define polynomial order, n=11 is about the right size
-n = 8 #even good odd okay
+n = 1 #even good odd okay
 plotting = false
 timings = false
 const debug = false
 # load grids
-FileName = "pvortex4A01.neu"
-#FileName = "Maxwell025.neu"
+#FileName = "pvortex4A01.neu"
+FileName = "Maxwell025.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 

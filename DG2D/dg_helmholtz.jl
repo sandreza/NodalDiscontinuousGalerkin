@@ -115,7 +115,7 @@ function dg_helmholtz_bc!(Δu, u, ι, params, mesh, bc_u!, bc, bc_φ!, dbc)
     @. ι.fˣ[:] = ι.φˣ[mesh.vmapM] - (ι.φˣ[mesh.vmapP] + ι.φˣ[mesh.vmapM] )/2
     @. ι.fʸ[:] = ι.φʸ[mesh.vmapM] - (ι.φʸ[mesh.vmapP] + ι.φʸ[mesh.vmapM] )/2
 
-    #enfore boundary conditions for flux (neumann)
+    #enforce boundary conditions for flux (neumann)
     bc_φ!(ι, mesh, dbc)
 
     #modify with τ, remember fⁿ is field differences at face points

@@ -534,3 +534,34 @@ function dropϵzeros!(A, drop_criteria)
     end
     dropzeros!(A)
 end
+
+
+"""
+dropϵzeros!(sparseMatrix; drop_criteria::Int)
+
+# Description
+
+- Drops machine zeros in sparse matrix multiplies by factor
+
+# Arguments
+
+- `A`: a sparse matrix
+
+# keyword arguments
+- `factor`: criteria for dropping entries
+
+# return
+
+- nothing
+
+"""
+function dropϵzeros!(A; factor = 1)
+    i,j = findnz(A)
+    drop_criteria = eps(maximum(abs.(A))*factor)
+    for loop in 1:length(i)
+        if abs(A[i[loop],j[loop]]) < drop_criteria
+            A[i[loop],j[loop]] = 0.0
+        end
+    end
+    dropzeros!(A)
+end

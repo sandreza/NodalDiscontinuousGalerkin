@@ -27,6 +27,8 @@ struct dg_field{T}
     fx⁻::T
     fy⁺::T
     fy⁻::T
+    u::T
+    u̇::T
     """
     dg_field(mesh)
 
@@ -57,6 +59,8 @@ struct dg_field{T}
     -   `fx⁻`: the numerical flux on interior face in the x-direction for the computation
     -   `fy⁻`: the numerical flux on exterior face in the y-direction for the computation
     -   `fⁿ`: the numerical jump in flux on face in the normal direction for the computation
+    -   `u`: for interaction with old structs
+    -   `u̇`: for interaction with old structs
 
     """
     function dg_field(mesh)
@@ -78,7 +82,9 @@ struct dg_field{T}
         fx⁻  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
         fy⁺  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
         fy⁻  = zeros(mesh.nfp * mesh.nFaces, mesh.K)
-        return new{typeof(ϕ)}(ϕ, ϕ⁺, ϕ⁻, ϕ̇, ∂ˣ, ∂ʸ, ∂ⁿ, φˣ, φʸ, φⁿ, fˣ, fʸ, fⁿ, fx⁺, fx⁻, fy⁺, fy⁻)
+        u   = similar(mesh.x)
+        u̇   = similar(mesh.x)
+        return new{typeof(ϕ)}(ϕ, ϕ⁺, ϕ⁻, ϕ̇, ∂ˣ, ∂ʸ, ∂ⁿ, φˣ, φʸ, φⁿ, fˣ, fʸ, fⁿ, fx⁺, fx⁻, fy⁺, fy⁻, u, u̇)
     end
 end
 
@@ -529,9 +535,10 @@ function modify_pressure_Δ(Δᵖ)
     maximum(abs.((nΔᵖ - nΔᵖ' ) ./ 2))
     nΔᵖ = (nΔᵖ + nΔᵖ' ) ./ 2
     dropϵzeros!(nΔᵖ)
-    chol_Δᵖ = lu(-nΔᵖ)
-    return chol_Δᵖ
+    lu_Δᵖ = lu(-nΔᵖ)
+    return lu_Δᵖ
 end
+
 
 #stuff I probably won't need
 #=

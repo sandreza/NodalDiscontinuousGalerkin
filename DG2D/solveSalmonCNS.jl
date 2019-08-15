@@ -81,10 +81,10 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
             ∇!(vˣ, vʸ, v, Ωᵏ)
 
             # compute velocity fluxes
-            @. uˣ +=  c² / p * v * v + ν * (uˣ + ∮ˣu)
-            @. uʸ += -c² / p * v * u + ν * (uʸ + ∮ʸu)
-            @. vˣ += -c² / p * u * v + ν * (vˣ + ∮ˣv)
-            @. vʸ +=  c² / p * u * u + ν * (vʸ + ∮ʸv)
+            @. uˣ +=  c² / p * v * (vˣ + ∮ˣv) + ν * (uˣ + ∮ˣu)
+            @. uʸ += -c² / p * v * (uʸ + ∮ʸu) + ν * (uʸ + ∮ʸu)
+            @. vˣ += -c² / p * u * (vˣ + ∮ˣv) + ν * (vˣ + ∮ˣv)
+            @. vʸ +=  c² / p * u * (uʸ + ∮ʸu) + ν * (vʸ + ∮ʸv)
         end
     end
 

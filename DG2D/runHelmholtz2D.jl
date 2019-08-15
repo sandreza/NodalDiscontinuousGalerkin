@@ -7,11 +7,11 @@ using LinearAlgebra
 using Plots
 
 # make mesh
-scale = 3
+scale = 5
 K = 1 * scale
 L = 1 * scale
-xmin = ymin = -1.0 * scale
-xmax = ymax =  1.0 * scale
+xmin = ymin = -1.0
+xmax = ymax =  1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
 
 filename = "Maxwell2.neu"
@@ -20,7 +20,7 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 8
+N = 4
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)

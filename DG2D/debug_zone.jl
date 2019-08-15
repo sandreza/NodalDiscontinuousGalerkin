@@ -46,8 +46,11 @@ for i in 1:length(mesh.Ω[2].x[:,1])
     println("the point $(mesh.Ω[2].x[i,:]) is $(i)")
     println("----------")
 end
-
+mesh.Ω[1].volume
 local ordering in an element
+for i in 1:K*L
+@. mesh.Ω[i].volume = 1.0
+end
 =#
 
 # set number of DG elements and poly order
@@ -59,10 +62,12 @@ ymin = -2.0
 xmax = 2.0
 ymax = 2.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
+
 const debug = false
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
 mesh = 𝒢
+
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
 dof = 𝒢.nGL

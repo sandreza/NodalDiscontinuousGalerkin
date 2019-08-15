@@ -40,14 +40,14 @@ v = Field2D(𝒢)
 p = Field2D(𝒢)
 
 # initialize conditions
-@. u.u = 1.0
-@. v.u = 0.0
-@. p.u = 1.0
+@. u.ϕ = 1.0
+@. v.ϕ = 0.0
+@. p.ϕ = 1.0
 
 # parameters
 stoptime = 2.
-ν  = 10e-1
-c² = 1
+ν  = 1.0e-1
+c² = 1.0
 
 # solve equations
 fields = (u, v, p)

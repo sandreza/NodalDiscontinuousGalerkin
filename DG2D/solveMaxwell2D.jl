@@ -25,14 +25,14 @@ function solveMaxwell2D!(fields, params)
     Eᶻ = fields[3]
 
     # define field differences at faces
-    @. Hˣ.Δu = Hˣ.u[𝒢.nodes⁻] - Hˣ.u[𝒢.nodes⁺]
-    @. Hʸ.Δu = Hʸ.u[𝒢.nodes⁻] - Hʸ.u[𝒢.nodes⁺]
-    @. Eᶻ.Δu = Eᶻ.u[𝒢.nodes⁻] - Eᶻ.u[𝒢.nodes⁺]
+    @. Hˣ.Δϕ = Hˣ.ϕ[𝒢.nodes⁻] - Hˣ.ϕ[𝒢.nodes⁺]
+    @. Hʸ.Δϕ = Hʸ.ϕ[𝒢.nodes⁻] - Hʸ.ϕ[𝒢.nodes⁺]
+    @. Eᶻ.Δϕ = Eᶻ.ϕ[𝒢.nodes⁻] - Eᶻ.ϕ[𝒢.nodes⁺]
 
     # impose reflective BC
-    @. Hˣ.Δu[𝒢.mapᴮ] = 0
-    @. Hʸ.Δu[𝒢.mapᴮ] = 0
-    @. Eᶻ.Δu[𝒢.mapᴮ] = 2 * Eᶻ.u[𝒢.nodesᴮ]
+    @. Hˣ.Δϕ[𝒢.mapᴮ] = 0
+    @. Hʸ.Δϕ[𝒢.mapᴮ] = 0
+    @. Eᶻ.Δϕ[𝒢.mapᴮ] = 2 * Eᶻ.ϕ[𝒢.nodesᴮ]
 
     # perform calculations over elements
     let nGL = nBP = 0
@@ -45,21 +45,21 @@ function solveMaxwell2D!(fields, params)
             nBP += Ωᵏ.nBP
 
             # get views of computation elements
-            uHˣ = view(Hˣ.u, nGLᵏ)
-            uHʸ = view(Hʸ.u, nGLᵏ)
-            uEᶻ = view(Eᶻ.u, nGLᵏ)
+            uHˣ = view(Hˣ.ϕ, nGLᵏ)
+            uHʸ = view(Hʸ.ϕ, nGLᵏ)
+            uEᶻ = view(Eᶻ.ϕ, nGLᵏ)
 
-            u̇Hˣ = view(Hˣ.u̇, nGLᵏ)
-            u̇Hʸ = view(Hʸ.u̇, nGLᵏ)
-            u̇Eᶻ = view(Eᶻ.u̇, nGLᵏ)
+            ϕ̇Hˣ = view(Hˣ.ϕ̇, nGLᵏ)
+            ϕ̇Hʸ = view(Hʸ.ϕ̇, nGLᵏ)
+            ϕ̇Eᶻ = view(Eᶻ.ϕ̇, nGLᵏ)
 
-            ∇Hˣ = view(Hˣ.∇u, nGLᵏ)
-            ∇Hʸ = view(Hʸ.∇u, nGLᵏ)
-            ∇Eᶻ = view(Eᶻ.∇u, nGLᵏ)
+            ∇Hˣ = view(Hˣ.∇ϕ, nGLᵏ)
+            ∇Hʸ = view(Hʸ.∇ϕ, nGLᵏ)
+            ∇Eᶻ = view(Eᶻ.∇ϕ, nGLᵏ)
 
-            ΔHˣ = view(Hˣ.Δu, nBPᵏ)
-            ΔHʸ = view(Hʸ.Δu, nBPᵏ)
-            ΔEᶻ = view(Eᶻ.Δu, nBPᵏ)
+            ΔHˣ = view(Hˣ.Δϕ, nBPᵏ)
+            ΔHʸ = view(Hʸ.Δϕ, nBPᵏ)
+            ΔEᶻ = view(Eᶻ.Δϕ, nBPᵏ)
 
             fHˣ = view(Hˣ.fⁿ, nBPᵏ)
             fHʸ = view(Hʸ.fⁿ, nBPᵏ)
@@ -83,9 +83,9 @@ function solveMaxwell2D!(fields, params)
             liftHʸ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fHʸ)
             liftEᶻ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fEᶻ)
 
-            @. u̇Hˣ = -∇Hˣ + liftHˣ
-            @. u̇Hʸ =  ∇Hʸ + liftHʸ
-            @. u̇Eᶻ =  ∇Eᶻ + liftEᶻ
+            @. ϕ̇Hˣ = -∇Hˣ + liftHˣ
+            @. ϕ̇Hʸ =  ∇Hʸ + liftHʸ
+            @. ϕ̇Eᶻ =  ∇Eᶻ + liftEᶻ
         end
     end
 

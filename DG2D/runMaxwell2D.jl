@@ -41,9 +41,9 @@ Hʸ = Field2D(𝒢)
 
 # initialize conditions
 n = m = 1
-@. Eᶻ.u = sin(m*π*x) * sin(n*π*y)
-@. Hˣ.u = 0.0
-@. Hʸ.u = 0.0
+@. Eᶻ.ϕ = sin(m*π*x) * sin(n*π*y)
+@. Hˣ.ϕ = 0.0
+@. Hʸ.ϕ = 0.0
 
 # solve equations
 stoptime = 6.0

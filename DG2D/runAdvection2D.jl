@@ -50,7 +50,7 @@ y⁰ = 0.0
 u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) * cos(π/2 * x) * cos(π/2 * y)
 # u⁰(x, y) = 10*(y-y⁰)^2 # 10*(x-x⁰)^2
 # ∇u(x, y) = 20*(x-x⁰)   # - 20*(y-y⁰)
-@. u.u = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
+@. u.ϕ = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 # parameters
 α  = 1. # determine upwind or central flux
@@ -69,13 +69,13 @@ params = (𝒢, α, vˣ, vʸ, u)
 tspan = (0.0, stoptime)
 
 # solutions = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
-problem = ODEProblem(solveAdvection2D!, u.u, tspan, params);
+problem = ODEProblem(solveAdvection2D!, u.ϕ, tspan, params);
 forward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
 @. vˣ = -vˣ
 @. vʸ = -vʸ
 
-problem = ODEProblem(solveAdvection2D!, u.u, tspan, params);
+problem = ODEProblem(solveAdvection2D!, u.ϕ, tspan, params);
 backward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
 
 solutions = [forward.u; backward.u]

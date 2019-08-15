@@ -22,29 +22,31 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
     ν  = params[2]
     c² = params[3]
 
-    for (ϕ, D) in zip(fields, BCᵈ)
+    for (𝑓, D) in zip(fields, BCᵈ)
         # define field differences at faces
-        @. ϕ.Δu = ϕ.u[𝒢.nodes⁻] - ϕ.u[𝒢.nodes⁺]
+        @. 𝑓.Δϕ = 𝑓.ϕ[𝒢.nodes⁻] - 𝑓.ϕ[𝒢.nodes⁺]
 
         # apply dirichlet boundary conditions
         if D != nothing
-            dirichlet!(ϕ, D)
+            dirichlet!(𝑓, D)
         end
     end
 
     # unpack fields
-    ϕᵘ = fields[1]
-    ϕᵛ = fields[2]
-    ϕᵖ = fields[3]
+    𝑓ᵘ = fields[1]
+    𝑓ᵛ = fields[2]
+    𝑓ᵖ = fields[3]
 
     # compute pressure fluxes
     # might need to initialize all fluxes to zero first
-    @. ϕᵖ.φˣ[𝒢.nodes⁻] = c² * ϕᵘ.Δu
-    @. ϕᵖ.φʸ[𝒢.nodes⁻] = c² * ϕᵛ.Δu
+    @. 𝑓ᵖ.φˣ[𝒢.nodes⁻] = c² * 𝑓ᵘ.Δϕ
+    @. 𝑓ᵖ.φʸ[𝒢.nodes⁻] = c² * 𝑓ᵛ.Δϕ
 
     # start with pressure jump for appropriate velocity fluxes
-    @. ϕᵘ.φˣ[𝒢.nodes⁻] = -ϕᵖ.Δu
-    @. ϕᵛ.φʸ[𝒢.nodes⁻] = -ϕᵖ.Δu
+    @. 𝑓ᵘ.φˣ[𝒢.nodes⁻] = -𝑓ᵖ.Δϕ
+    @. 𝑓ᵘ.φʸ[𝒢.nodes⁻] = 0
+    @. 𝑓ᵛ.φˣ[𝒢.nodes⁻] = 0
+    @. 𝑓ᵛ.φʸ[𝒢.nodes⁻] = -𝑓ᵖ.Δϕ
 
     # compute velocity fluxes for each element
     let nGL = nBP = 0
@@ -56,17 +58,17 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
             nBP += Ωᵏ.nBP
 
             # get views of computation elements
-            u  = view(ϕᵘ.u,  GLᵏ)
-            uˣ = view(ϕᵘ.φˣ, GLᵏ)
-            uʸ = view(ϕᵘ.φʸ, GLᵏ)
-            Δu = view(ϕᵘ.Δu, BPᵏ)
+            u  = view(𝑓ᵘ.ϕ,  GLᵏ)
+            uˣ = view(𝑓ᵘ.φˣ, GLᵏ)
+            uʸ = view(𝑓ᵘ.φʸ, GLᵏ)
+            Δu = view(𝑓ᵘ.Δϕ, BPᵏ)
 
-            v  = view(ϕᵛ.u,  GLᵏ)
-            vˣ = view(ϕᵛ.φˣ, GLᵏ)
-            vʸ = view(ϕᵛ.φʸ, GLᵏ)
-            Δv = view(ϕᵛ.Δu, BPᵏ)
+            v  = view(𝑓ᵛ.ϕ,  GLᵏ)
+            vˣ = view(𝑓ᵛ.φˣ, GLᵏ)
+            vʸ = view(𝑓ᵛ.φʸ, GLᵏ)
+            Δv = view(𝑓ᵛ.Δϕ, BPᵏ)
 
-            p  = view(ϕᵖ.u,  GLᵏ)
+            p  = view(𝑓ᵖ.ϕ,  GLᵏ)
 
             # compute surface integrals
             ∮ˣu = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
@@ -80,20 +82,20 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
 
             # compute velocity fluxes
             @. uˣ +=  c² / p * v * v + ν * (uˣ + ∮ˣu)
-            @. uʸ  = -c² / p * v * u + ν * (uʸ + ∮ʸu)
-            @. vˣ  = -c² / p * u * v + ν * (vˣ + ∮ˣv)
+            @. uʸ += -c² / p * v * u + ν * (uʸ + ∮ʸu)
+            @. vˣ += -c² / p * u * v + ν * (vˣ + ∮ˣv)
             @. vʸ +=  c² / p * u * u + ν * (vʸ + ∮ʸv)
         end
     end
 
-    for (ϕ, N) in zip(fields, BCⁿ)
+    for (𝑓, N) in zip(fields, BCⁿ)
         # Form field differences at faces for x and y partial derivatives
-        @. ϕ.fˣ = ϕ.φˣ[𝒢.nodes⁻] - 1//2 * (ϕ.φˣ[𝒢.nodes⁺] + ϕ.φˣ[𝒢.nodes⁻])
-        @. ϕ.fʸ = ϕ.φʸ[𝒢.nodes⁻] - 1//2 * (ϕ.φʸ[𝒢.nodes⁺] + ϕ.φʸ[𝒢.nodes⁻])
+        @. 𝑓.fˣ = 𝑓.φˣ[𝒢.nodes⁻] - 1//2 * (𝑓.φˣ[𝒢.nodes⁺] + 𝑓.φˣ[𝒢.nodes⁻])
+        @. 𝑓.fʸ = 𝑓.φʸ[𝒢.nodes⁻] - 1//2 * (𝑓.φʸ[𝒢.nodes⁺] + 𝑓.φʸ[𝒢.nodes⁻])
 
         # enfore boundary conditions for flux (neumann)
         if N != nothing
-            neumann!(ϕ, N)
+            neumann!(𝑓, N)
         end
     end
 
@@ -107,20 +109,20 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
             nBP += Ωᵏ.nBP
 
             # get views of computation elements
-            u  = view(ϕᵘ.u,  GLᵏ)
-            uˣ = view(ϕᵘ.φˣ, GLᵏ)
-            uʸ = view(ϕᵘ.φʸ, GLᵏ)
-            ∇u = view(ϕᵘ.∇u, GLᵏ)
+            u  = view(𝑓ᵘ.ϕ,  GLᵏ)
+            uˣ = view(𝑓ᵘ.φˣ, GLᵏ)
+            uʸ = view(𝑓ᵘ.φʸ, GLᵏ)
+            ∇u = view(𝑓ᵘ.∇ϕ, GLᵏ)
 
-            v  = view(ϕᵛ.u,  GLᵏ)
-            vˣ = view(ϕᵛ.φˣ, GLᵏ)
-            vʸ = view(ϕᵛ.φʸ, GLᵏ)
-            ∇v = view(ϕᵛ.∇u, GLᵏ)
+            v  = view(𝑓ᵛ.ϕ,  GLᵏ)
+            vˣ = view(𝑓ᵛ.φˣ, GLᵏ)
+            vʸ = view(𝑓ᵛ.φʸ, GLᵏ)
+            ∇v = view(𝑓ᵛ.∇ϕ, GLᵏ)
 
-            p  = view(ϕᵖ.u,  GLᵏ)
-            pˣ = view(ϕᵖ.φˣ, GLᵏ)
-            pʸ = view(ϕᵖ.φʸ, GLᵏ)
-            ∇p = view(ϕᵖ.∇u, GLᵏ)
+            p  = view(𝑓ᵖ.ϕ,  GLᵏ)
+            pˣ = view(𝑓ᵖ.φˣ, GLᵏ)
+            pʸ = view(𝑓ᵖ.φʸ, GLᵏ)
+            ∇p = view(𝑓ᵖ.∇ϕ, GLᵏ)
 
             # compute laplacian
             ∇⨀!(∇u, uˣ, uʸ, Ωᵏ) #### must come before gradient
@@ -138,15 +140,15 @@ function solveSalmonCNS!(fields, params; BCᵈ = [nothing, nothing, nothing], BC
             ∇⨀!(∇p, u, v, Ωᵏ)
             @. ∇p *= -c²
 
-            for ϕ in fields
+            for 𝑓 in fields
                 # compute field differences at face points
-                @. ϕ.fⁿ[BPᵏ] = Ωᵏ.nˣ * ϕ.fˣ[BPᵏ] + Ωᵏ.nʸ * ϕ.fʸ[BPᵏ]
+                @. 𝑓.fⁿ[BPᵏ] = Ωᵏ.nˣ * 𝑓.fˣ[BPᵏ] + Ωᵏ.nʸ * 𝑓.fʸ[BPᵏ]
 
                 # compute surface term
-                ∮ϕ = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* ϕ.fⁿ[BPᵏ])
+                ∮𝑓 = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* 𝑓.fⁿ[BPᵏ])
 
                 # compute RHS of PDE's
-                @. ϕ.u̇[GLᵏ] = ϕ.∇u[GLᵏ] + ∮ϕ
+                @. 𝑓.ϕ̇[GLᵏ] = 𝑓.∇ϕ[GLᵏ] + ∮𝑓
             end
         end
     end

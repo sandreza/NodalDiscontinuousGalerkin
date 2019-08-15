@@ -21,13 +21,13 @@ Field2D(𝒢::Grid2D)
 
 """
 struct Field2D{T} <: AbstractField2D
-    u::T
-    u̇::T
-    ∇u::T
+    ϕ::T
+    ϕ̇::T
+    ∇ϕ::T
     φˣ::T
     φʸ::T
 
-    Δu::T
+    Δϕ::T
     fˣ::T
     fʸ::T
     fⁿ::T
@@ -36,19 +36,19 @@ struct Field2D{T} <: AbstractField2D
 
     function Field2D(𝒢::Grid2D)
         # set up the solution
-        u  = zeros(𝒢.nGL)
-        u̇  = zeros(𝒢.nGL)
-        ∇u = zeros(𝒢.nGL)
+        ϕ  = zeros(𝒢.nGL)
+        ϕ̇  = zeros(𝒢.nGL)
+        ∇ϕ = zeros(𝒢.nGL)
         φˣ = zeros(𝒢.nGL)
         φʸ = zeros(𝒢.nGL)
 
-        Δu = zeros(𝒢.nBP)
+        Δϕ = zeros(𝒢.nBP)
         fˣ = zeros(𝒢.nBP)
         fʸ = zeros(𝒢.nBP)
         fⁿ = zeros(𝒢.nBP)
 
         r  = zeros(𝒢.nGL)
 
-        return new{typeof(u)}(u,u̇,∇u,φˣ,φʸ, Δu,fˣ,fʸ,fⁿ, r)
+        return new{typeof(ϕ)}(ϕ,ϕ̇,∇ϕ,φˣ,φʸ, Δϕ,fˣ,fʸ,fⁿ, r)
     end
 end

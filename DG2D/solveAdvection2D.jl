@@ -19,15 +19,15 @@ function solveAdvection2D!(U̇, U, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     α = params[2]
-    h = params[end]
+    𝑓 = params[end]
 
-    @. h.u = U
+    @. 𝑓.ϕ = U
 
     # define field differences at faces
-    @. h.Δu = h.u[𝒢.nodes⁻] - h.u[𝒢.nodes⁺]
+    @. 𝑓.Δϕ = 𝑓.ϕ[𝒢.nodes⁻] - 𝑓.ϕ[𝒢.nodes⁺]
 
     # impose BC
-    # @. h.u[𝒢.nodesᴮ] = 0.0
+    # @. 𝑓.ϕ[𝒢.nodesᴮ] = 0.0
 
     # perform calculations over elements
     let nGL = nBP = 0
@@ -43,11 +43,11 @@ function solveAdvection2D!(U̇, U, params, t)
             vʸ = view(params[4], GLᵏ)
 
             # get views of computation elements
-            u  = view(h.u,  GLᵏ)
-            u̇  = view(h.u̇,  GLᵏ)
-            ∇u = view(h.∇u, GLᵏ)
-            Δu = view(h.Δu, BPᵏ)
-            f  = view(h.fⁿ, BPᵏ)
+            u  = view(𝑓.ϕ,  GLᵏ)
+            u̇  = view(𝑓.ϕ̇,  GLᵏ)
+            ∇u = view(𝑓.∇ϕ, GLᵏ)
+            Δu = view(𝑓.Δϕ, BPᵏ)
+            f  = view(𝑓.fⁿ, BPᵏ)
 
             # local derivatives of the fields
             ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
@@ -64,7 +64,7 @@ function solveAdvection2D!(U̇, U, params, t)
         end
     end
 
-    @. U̇ = h.u̇
+    @. U̇ = 𝑓.ϕ̇
 
     return nothing
 end

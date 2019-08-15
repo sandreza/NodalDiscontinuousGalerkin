@@ -444,10 +444,10 @@ rk_solver!(u̇, u, params, t)
 function rk_solver!(rhs!, fields, params, dt, Nsteps)
     # Runge-Kutta residual storage
     solutions = []
-    for field in fields
-        uᵗ = similar(field.u)
-        @. uᵗ = field.u
-        push!(solutions, [uᵗ])
+    for 𝑓 in fields
+        ϕᵗ = similar(𝑓.ϕ)
+        @. ϕᵗ = 𝑓.ϕ
+        push!(solutions, [ϕᵗ])
     end
 
     # time step loop
@@ -457,17 +457,17 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps)
             rhs!(fields, params)
 
             # update solutions
-            for field in fields
-                @. field.r = rk4a[iRK] * field.r + field.u̇ * dt
-                @. field.u = rk4b[iRK] * field.r + field.u
+            for 𝑓 in fields
+                @. 𝑓.r = rk4a[iRK] * 𝑓.r + 𝑓.ϕ̇ * dt
+                @. 𝑓.ϕ = rk4b[iRK] * 𝑓.r + 𝑓.ϕ
                 # seems to differ from matlab code during this step ???
             end
         end
 
-        for (i,field) in enumerate(fields)
-            uᵗ = similar(field.u)
-            @. uᵗ = field.u
-            push!(solutions[i], uᵗ)
+        for (i,𝑓) in enumerate(fields)
+            ϕᵗ = similar(𝑓.ϕ)
+            @. ϕᵗ = 𝑓.ϕ
+            push!(solutions[i], ϕᵗ)
         end
 
         if (tstep % 1000) == 0

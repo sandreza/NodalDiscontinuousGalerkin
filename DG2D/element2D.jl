@@ -1,6 +1,42 @@
 include("../src/utils.jl")
 
-abstract type AbstractElement2D end
+abstract type AbstractFace end
+abstract type AbstractFace2D <: AbstractFace end
+"""
+Face()
+
+# Description
+
+    initialize a face struct
+
+#
+
+"""
+struct Face2D{S, T, U, V} <: AbstractFace2D
+    # number of points on face and on boundary
+    nGL::S
+    nBP::S
+
+    # indices of GL points
+    i⁻::T # interior
+    i⁺::T # exterior
+    iᴮ::T # boundary
+
+    # normals lift operator for this face
+    nˣ::U
+    nʸ::U
+    ∮::V
+
+    function Face(i⁻,i⁺,iᴮ, nˣ,nʸ,∮)
+        nGL = length(i⁻)
+        nBP = length(iᴮ)
+
+        return new{typeof(nGL),typeof(i⁻),typeof(nˣ),typeof(∮)}(nGL,nBP, i⁻,i⁺,iᴮ, nˣ,nʸ,∮)
+    end
+end
+
+abstract type AbstractElement end
+abstract type AbstractElement2D <: AbstractElement end
 """
 Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
 

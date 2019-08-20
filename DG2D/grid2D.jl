@@ -59,7 +59,7 @@ Grid2D(ℳ::Mesh2D, N::Int) ℳ
     return a properly initiliazed Grid2D object
 
 """
-struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
+struct Grid2D{S, T, U, V} <: AbstractGrid2D
     # basic grid of vertices
     ℳ::S
 
@@ -69,13 +69,6 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
     # GL points
     x::U # physical coordinates
     nGL::V # number of points
-    nBP::V # number of points on the boundary
-
-    # maps maps maps
-    nodes⁻::W
-    nodes⁺::W
-    nodesᴮ::W
-    mapᴮ::W
 
     function Grid2D(ℳ::Mesh2D, N::Int; periodic::Bool=false)
         # get elements and GL nodes
@@ -86,10 +79,9 @@ struct Grid2D{S, T, U, V, W} <: AbstractGrid2D
         # build the boundary maps
         l̃ˣ = abs(maximum(x̃[:,1]) - minimum(x̃[:,1]))
         l̃ʸ = abs(maximum(x̃[:,2]) - minimum(x̃[:,2]))
-        nodes⁻,nodes⁺,nodesᴮ,mapᴮ = buildmaps2D(ℳ, Ω, nGL; lˣ=l̃ˣ, lʸ=l̃ʸ, periodic=periodic)
-        nBP = length(nodes⁻)
+        buildmaps2D(ℳ, Ω, nGL; lˣ=l̃ˣ, lʸ=l̃ʸ, periodic=periodic)
 
-        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL),typeof(nodes⁻)}(ℳ,Ω, x̃,nGL,nBP, nodes⁻,nodes⁺,nodesᴮ,mapᴮ)
+        return new{typeof(ℳ),typeof(Ω),typeof(x̃),typeof(nGL)}(ℳ,Ω, x̃,nGL)
     end
 end
 
@@ -545,71 +537,62 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
     connectivity = connect2D(ℳ, periodic=periodic)
 
     # find indices of interior face nodes
-    vmap⁻ = Array{Array{Int}}[]
     nodes = collect(Int, 1:nGL)
     let nGLᵏ = 0
         for k in 1:ℳ.K
             # get element
             Ωᵏ = Ω[k]
-            push!(vmap⁻, Array{Int}[])
-            nFaces = length(Ωᵏ.vertices)
 
             # get number of GL points in element k
             xᵏ = (nGLᵏ + 1):(nGLᵏ + Ωᵏ.nGL)
             nGLᵏ += Ωᵏ.nGL
 
             # extract indices of GL points in element k
-            nodesᵏ = nodes[xᵏ]
+            @. Ωᵏ.iⱽ = nodes[xᵏ]
 
-            for f in 1:nFaces
-                # get GL points on face f
-                maskᶠ = Ωᵏ.fmask[:, f]
-
-                # save global indices of GL on face f
-                push!(vmap⁻[k], nodesᵏ[maskᶠ])
+            # save global indices of GL on face f
+            for face in Ωᵏ.faces
+                @. face.i⁻ = Ωᵏ.iⱽ[face.mask]
             end
         end
     end
 
     # find indices of exterior nodes
-    vmap⁺ = Array{Array{Int}}[]
     for k in 1:ℳ.K
         # get element
         Ωᵏ = Ω[k]
-        push!(vmap⁺, Array{Int}[])
-        nFaces = length(Ωᵏ.vertices)
 
-        for f⁻ in 1:nFaces
+        for h in 1:length(Ωᵏ.faces)
             # find neighbor and matching face
-            j,f⁺ = connectivity[k][f⁻]
+            j,g = connectivity[k][h]
 
             # get neighbor
             Ωʲ = Ω[j]
 
-            # get indices of GL points on the faces
-            mask⁻ = Ωᵏ.fmask[:, f⁻]
-            mask⁺ = Ωʲ.fmask[:, f⁺]
+            # get faces
+            f⁻ = Ωᵏ.faces[h]
+            f⁺ = Ωʲ.faces[g]
 
             # get coordinates of GL points on the faces
-            x⁻ = Ωᵏ.x[mask⁻, :]
-            x⁺ = Ωʲ.x[mask⁺, :]
+            x⁻ = Ωᵏ.x[f⁻.mask, :]
+            x⁺ = Ωʲ.x[f⁺.mask, :]
 
-            nFP,_ = size(x⁻)
             # create distance matrix
-            D = zeros(Int, nFP, nFP)
-            for i in 1:nFP
-                for j in 1:i
+            nFP⁻,_ = size(x⁻)
+            nFP⁺,_ = size(x⁺)
+            D = zeros(Int, nFP⁺, nFP⁻)
+            for j in 1:nFP⁺
+                for i in 1:nFP⁻
                     exact = (x⁻[i, 1] ≈ x⁺[j, 1]) && (x⁻[i, 2] ≈ x⁺[j, 2])
                     periodicˣ = (abs(x⁻[i, 1] - x⁺[j, 1]) ≈ lˣ) && (x⁻[i, 2] ≈ x⁺[j, 2])
                     periodicʸ = (abs(x⁻[i, 2] - x⁺[j, 2]) ≈ lʸ) && (x⁻[i, 1] ≈ x⁺[j, 1])
                     if periodic
-                        D[j,i] = (exact || periodicˣ || periodicʸ)
+                        D[i,j] = (exact || periodicˣ || periodicʸ)
                     else
-                        D[j,i] = exact
+                        D[i,j] = exact
                     end
                 end
             end
-            D = Symmetric(D)
 
             # convert from matrix mask to linear mask
             m,n = size(D)
@@ -620,27 +603,14 @@ function buildmaps2D(ℳ::Mesh2D, Ω::Array{Element2D}, nGL::Int; lˣ=-1, lʸ=-1
             id⁺ =  @. mod(d-1, m) + 1
 
             # save exterior node that interior node maps to
-            push!(vmap⁺[k], vmap⁻[j][f⁺][id⁺])
-            if length(vmap⁺[k][f⁻]) != length(vmap⁻[k][f⁻])
-                display(D)
-            end
+            @. f⁻.i⁺[id⁻] = f⁺.i⁻[id⁺]
+
+            # create list of boundary nodes
+            mapᴮ = collect(Int, 1:length(f⁻.i⁻))[f⁻.i⁺ .== f⁻.i⁻]
+            x = !isempty(mapᴮ)
+            @. f⁻.isBoundary = [x]
         end
     end
 
-    # flatten lists of interior and exterior nodes
-    nodes⁻ = Int64[]
-    nodes⁺ = Int64[]
-    for k in 1:ℳ.K
-        for f in 1:length(Ω[k].vertices)
-            nodes⁻ = cat(nodes⁻, vmap⁻[k][f], dims=1)
-            nodes⁺ = cat(nodes⁺, vmap⁺[k][f], dims=1)
-        end
-    end
-
-    # Create list of boundary nodes
-    map⁻ = collect(Int, 1:length(nodes⁻))
-    mapᴮ = map⁻[nodes⁺ .== nodes⁻]
-    nodesᴮ = nodes⁻[mapᴮ]
-
-    return nodes⁻, nodes⁺, nodesᴮ, mapᴮ
+    return nothing
 end

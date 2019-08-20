@@ -17,13 +17,13 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2^4
+N = 2^1
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
-plotgrid2D(𝒢)
+# plotgrid2D(𝒢)
 
 # display(𝒢.Ω[1].rˣ[1, :, :])
 # println(𝒢.Ω[1].volume)
@@ -53,7 +53,7 @@ u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) * cos(π/2 * x) *
 @. u.ϕ = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 # parameters
-α  = 1. # determine upwind or central flux
+α  = 0. # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
 @. vˣ = 1.0

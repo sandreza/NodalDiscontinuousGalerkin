@@ -12,26 +12,34 @@ Face()
 #
 
 """
-struct Face2D{S, T, U, V} <: AbstractFace2D
-    # number of points on face and on boundary
-    nGL::S
-    nBP::S
+struct Face2D{S, T, U, V, W} <: AbstractFace2D
+    # identifying features
+    index::S
+    mask::T # indices of local GL points
 
-    # indices of GL points
+    # number of GL points
+    nGL::S
+
+    # indices of global GL points
     i⁻::T # interior
     i⁺::T # exterior
-    iᴮ::T # boundary
+    isBoundary::U
 
-    # normals lift operator for this face
-    nˣ::U
-    nʸ::U
-    ∮::V
+    # normals and lift operator for this face
+    nˣ::V
+    nʸ::V
+    C::V  # compactness, or surface-area-to-volume ratio
+    ∮::W
 
-    function Face(i⁻,i⁺,iᴮ, nˣ,nʸ,∮)
-        nGL = length(i⁻)
-        nBP = length(iᴮ)
+    function Face2D(index, mask, C,nˣ,nʸ,∮)
+        nGL = length(mask)
+        isBoundary = [false]
 
-        return new{typeof(nGL),typeof(i⁻),typeof(nˣ),typeof(∮)}(nGL,nBP, i⁻,i⁺,iᴮ, nˣ,nʸ,∮)
+        # default assignment
+        i⁻ = similar(mask)
+        i⁺ = similar(mask)
+
+        return new{typeof(index),typeof(mask),typeof(isBoundary),typeof(nˣ),typeof(∮)}(index,mask, nGL,i⁻,i⁺,isBoundary, nˣ,nʸ,C,∮)
     end
 end
 
@@ -61,38 +69,33 @@ Element2D(index,vertices, r̃,x̃,n̂, D,lift,fmask)
     return a properly initiliazed Element2D object
 
 """
-struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
+struct Element2D{S, T, U, V, W, X, Y, Z} <: AbstractElement2D
     # identifying features
     index::S
     vertices::T
 
-    # GL points
+    # volume information
     nGL::S # number of points
     x::U   # physical coordinates
-    D::V   # differentiation matrices
+    iⱽ::V  # global indices of GL points
+
+    # boundary information
+    faces::W  # Array of Face structs
+
+    # geometric factors
+    J::X   # magnitude of the jacobian
+    rˣ::Y  # jacobian matrix from ideal to physical space
+    D::Z   # differentiation matrices
     M::U   # mass matrix
     M⁺::U  # inverse of mass matrix
 
-    # boundary information
-    nBP::S    # number of points on the boundary
-    fmask::W  # mapping of GL points to faces
-    nˣ::X     # normal vectors
-    nʸ::X     # normal vectors
-    ∮::U   # lift matrix
-
-    # geometric factors
-    rˣ::Y     # jacobian matrix from ideal to physical space
-    J::X      # magnitude of the jacobian
-    volume::X # size of the element in physical space
-
-    function Element2D(index,vertices, x̃,D,M, fmask,nˣ,nʸ,Jˢ,∮)
-        # number of points on the boundary
-        nFPᵏ,nFaces = size(fmask)
-        nBP = nFPᵏ * nFaces
+    function Element2D(index,vertices, x̃,D,M, fmasks,nˣ,nʸ,Jˢ,∮)
+        # indices of GL points
+        nGL,nDim = size(x̃)
+        iⱽ = collect(Int, 1:nGL)
 
         # partial derivatives of x
-        nGL,nDim = size(x̃)
-        x̃ʳ = zeros(nGL, 2, 2)
+        x̃ʳ = zeros(nGL, nDim, nDim)
         r̃ˣ = similar(x̃ʳ)
         J = zeros(nGL)
 
@@ -110,15 +113,24 @@ struct Element2D{S, T, U, V, W, X, Y} <: AbstractElement2D
             J[i] = det(𝒥)
         end
 
-        # volume of element
-        volume = @. Jˢ / J[fmask][:]
-
         # inverse of mass Matrix
         M⁺ = inv(M)
 
-        #### add nodes⁻ and nodes⁺ as struct members
+        # construct faces
+        nBP = 0
+        faces = Face2D[]
+        for (f, fmask) in enumerate(fmasks)
+            BPᶠ = (nBP + 1):(nBP + length(fmask))
+            nBP += length(fmask)
 
-        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(D),typeof(fmask),typeof(volume),typeof(r̃ˣ)}(index,vertices, nGL,x̃,D,M,M⁺, nBP,fmask,nˣ,nʸ,∮, r̃ˣ,J,volume)
+            C = @. Jˢ[BPᶠ] / J[fmask]
+
+            face = Face2D(f, fmask, C, nˣ[BPᶠ], nʸ[BPᶠ], ∮[:, BPᶠ])
+
+            push!(faces, face)
+        end
+
+        return new{typeof(index),typeof(vertices),typeof(x̃),typeof(iⱽ),typeof(faces),typeof(J),typeof(r̃ˣ),typeof(D)}(index,vertices, nGL,x̃,iⱽ, faces, J,r̃ˣ,D,M,M⁺)
     end
 end
 

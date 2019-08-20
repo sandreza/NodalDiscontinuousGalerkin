@@ -42,10 +42,10 @@ struct Field2D{T} <: AbstractField2D
         φˣ = zeros(𝒢.nGL)
         φʸ = zeros(𝒢.nGL)
 
-        Δϕ = zeros(𝒢.nBP)
-        fˣ = zeros(𝒢.nBP)
-        fʸ = zeros(𝒢.nBP)
-        fⁿ = zeros(𝒢.nBP)
+        Δϕ = zeros(𝒢.nGL)
+        fˣ = zeros(𝒢.nGL)
+        fʸ = zeros(𝒢.nGL)
+        fⁿ = zeros(𝒢.nGL)
 
         r  = zeros(𝒢.nGL)
 

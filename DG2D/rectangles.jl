@@ -223,10 +223,10 @@ function liftSQ(r, s, fmask)
     nf4 = n+m+n+m
 
     # fill ∮ matrix with mass matrices
-    @. ∮[fmask[:,1],     1:nf1] = Mʳ
-    @. ∮[fmask[:,2], nf1+1:nf2] = Mˢ
-    @. ∮[fmask[:,3], nf2+1:nf3] = Mʳ
-    @. ∮[fmask[:,4], nf3+1:nf4] = Mˢ
+    @. ∮[fmask[1],     1:nf1] = Mʳ
+    @. ∮[fmask[2], nf1+1:nf2] = Mˢ
+    @. ∮[fmask[3], nf2+1:nf3] = Mʳ
+    @. ∮[fmask[4], nf3+1:nf4] = Mˢ
 
     return ∮
 end
@@ -345,10 +345,10 @@ fmaskSQ(r, s)
 
 """
 function fmaskSQ(r, s)
-    fmask1 = findall( abs.( s .+ 1) .< eps(1.0) )'
-    fmask2 = findall( abs.( r .- 1) .< eps(1.0) )'
-    fmask3 = reverse(findall( abs.( s .- 1) .< eps(1.0) ))'
-    fmask4 = reverse(findall( abs.( r .+ 1) .< eps(1.0) ))'
-    fmask = Array([fmask1; fmask2; fmask3; fmask4]')
-    return fmask
+    fmask1 = Array(findall( abs.( s .+ 1) .< eps(1.0) ))'
+    fmask2 = Array(findall( abs.( r .- 1) .< eps(1.0) ))'
+    fmask3 = Array(reverse(findall( abs.( s .- 1) .< eps(1.0) )))'
+    fmask4 = Array(reverse(findall( abs.( r .+ 1) .< eps(1.0) )))'
+    fmasks = [fmask1', fmask2', fmask3', fmask4']
+    return fmasks
 end

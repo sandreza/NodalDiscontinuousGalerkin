@@ -17,13 +17,13 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2^4
+N = 2^1
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
-plotgrid2D(𝒢)
+# plotgrid2D(𝒢)
 
 # display(𝒢.Ω[1].rˣ[1, :, :])
 # println(𝒢.Ω[1].volume)

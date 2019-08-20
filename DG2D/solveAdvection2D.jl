@@ -19,48 +19,42 @@ function solveAdvection2D!(U̇, U, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     α = params[2]
+    vˣ = params[3]
+    vʸ = params[4]
     𝑓 = params[end]
 
     @. 𝑓.ϕ = U
 
-    # define field differences at faces
-    @. 𝑓.Δϕ = 𝑓.ϕ[𝒢.nodes⁻] - 𝑓.ϕ[𝒢.nodes⁺]
-
-    # impose BC
-    # @. 𝑓.ϕ[𝒢.nodesᴮ] = 0.0
-
     # perform calculations over elements
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+    for Ωᵏ in 𝒢.Ω
+        # get views of volume elements
+        u  = view(𝑓.ϕ,  Ωᵏ.iⱽ)
+        u̇  = view(𝑓.ϕ̇,  Ωᵏ.iⱽ)
+        ∇u = view(𝑓.∇ϕ, Ωᵏ.iⱽ)
 
-            # get views of params
-            vˣ = view(params[3], GLᵏ)
-            vʸ = view(params[4], GLᵏ)
+        # impose BC
+        # @. u = 0.0
 
-            # get views of computation elements
-            u  = view(𝑓.ϕ,  GLᵏ)
-            u̇  = view(𝑓.ϕ̇,  GLᵏ)
-            ∇u = view(𝑓.∇ϕ, GLᵏ)
-            Δu = view(𝑓.Δϕ, BPᵏ)
-            f  = view(𝑓.fⁿ, BPᵏ)
+        # compute volume contributions
+        ∇⨀!(∇u, vˣ[Ωᵏ.iⱽ] .* u, vʸ[Ωᵏ.iⱽ] .* u, Ωᵏ)
+        @. u̇ = -∇u
 
-            # local derivatives of the fields
-            ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
+        # compute surface contributions
+        for f in Ωᵏ.faces
+            # get views of surface elements
+            Δu = view(𝑓.Δϕ, f.i⁻)
+            fⁿ = view(𝑓.fⁿ, f.i⁻)
+
+            # define field differences at faces
+            @. Δu = 𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺]
 
             # evaluate flux
-            vⁿ = @. Ωᵏ.nˣ * vˣ[Ωᵏ.fmask][:] + Ωᵏ.nʸ * vʸ[Ωᵏ.fmask][:]
-            @. f = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
+            vⁿ = @. f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻]
+            @. fⁿ = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
 
             # compute surface term
-            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* f)
-
-            # compute RHS of PDE's
-            @. u̇ = -∇u + lift
+            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* fⁿ)
+            @. u̇ += ∮ᶠu
         end
     end
 

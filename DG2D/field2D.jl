@@ -21,17 +21,21 @@ Field2D(𝒢::Grid2D)
 
 """
 struct Field2D{T} <: AbstractField2D
+    # volume terms
     ϕ::T
     ϕ̇::T
     ∇ϕ::T
     φˣ::T
     φʸ::T
 
+    # surface terms
+    ϕ⁺::T
     Δϕ::T
     fˣ::T
     fʸ::T
     fⁿ::T
 
+    # residual
     r::T
 
     function Field2D(𝒢::Grid2D)
@@ -42,6 +46,7 @@ struct Field2D{T} <: AbstractField2D
         φˣ = zeros(𝒢.nGL)
         φʸ = zeros(𝒢.nGL)
 
+        ϕ⁺ = zeros(𝒢.nGL)
         Δϕ = zeros(𝒢.nGL)
         fˣ = zeros(𝒢.nGL)
         fʸ = zeros(𝒢.nGL)
@@ -49,6 +54,6 @@ struct Field2D{T} <: AbstractField2D
 
         r  = zeros(𝒢.nGL)
 
-        return new{typeof(ϕ)}(ϕ,ϕ̇,∇ϕ,φˣ,φʸ, Δϕ,fˣ,fʸ,fⁿ, r)
+    return new{typeof(ϕ)}(ϕ,ϕ̇,∇ϕ,φˣ,φʸ, ϕ⁺,Δϕ,fˣ,fʸ,fⁿ, r)
     end
 end

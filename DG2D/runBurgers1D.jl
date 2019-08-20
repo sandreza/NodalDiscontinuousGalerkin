@@ -23,7 +23,7 @@ N = 2^2
 𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
-plotgrid2D(𝒢)
+# plotgrid2D(𝒢)
 
 dof = 𝒢.nGL
 println("The degrees of freedom are $dof")

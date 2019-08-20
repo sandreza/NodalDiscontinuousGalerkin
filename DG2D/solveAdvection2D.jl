@@ -32,9 +32,6 @@ function solveAdvection2D!(U̇, U, params, t)
         u̇  = view(𝑓.ϕ̇,  Ωᵏ.iⱽ)
         ∇u = view(𝑓.∇ϕ, Ωᵏ.iⱽ)
 
-        # impose BC
-        # @. u = 0.0
-
         # compute volume contributions
         ∇⨀!(∇u, vˣ[Ωᵏ.iⱽ] .* u, vʸ[Ωᵏ.iⱽ] .* u, Ωᵏ)
         @. u̇ = -∇u
@@ -42,11 +39,18 @@ function solveAdvection2D!(U̇, U, params, t)
         # compute surface contributions
         for f in Ωᵏ.faces
             # get views of surface elements
+            u⁻ = view(𝑓.ϕ , f.i⁻)
+            u⁺ = view(𝑓.ϕ , f.i⁺)
             Δu = view(𝑓.Δϕ, f.i⁻)
             fⁿ = view(𝑓.fⁿ, f.i⁻)
 
             # define field differences at faces
-            @. Δu = 𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺]
+            @. Δu = u⁻ - u⁺
+
+            # impose BC
+            if f.isBoundary[1]
+                @. Δu = u⁻
+            end
 
             # evaluate flux
             vⁿ = @. f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻]

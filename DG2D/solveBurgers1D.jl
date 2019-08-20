@@ -22,92 +22,90 @@ function solveBurgers1D!(fields, params)
 
     # unpack fields
     𝑓ᵘ = fields[1]
-    𝑓² = fields[2]
+    𝑓ᵛ = fields[2]
     𝑓ᵖ = fields[3]
 
-    # define field differences at faces
-    @. 𝑓ᵘ.Δϕ = 𝑓ᵘ.ϕ[𝒢.nodes⁻] - 𝑓ᵘ.ϕ[𝒢.nodes⁺]
-    @. 𝑓².Δϕ = 1//2 * (𝑓ᵘ.ϕ[𝒢.nodes⁻]^2 - 𝑓ᵘ.ϕ[𝒢.nodes⁺]^2)
-
-    # impose Dirichlet BC on u
-    # @. 𝑓ᵘ.ϕ[𝒢.mapᴮ] = 2 * (𝑓ᵘ.ϕ[𝒢.nodesᴮ] - u⁰(𝒢.x[1]))
-    # @. 𝑓².ϕ[𝒢.mapᴮ] = 𝑓ᵘ.ϕ[𝒢.nodesᴮ]^2 - u⁰(𝒢.x[1])^2
-
-    # calculate max value of u (might need to be a face by face calculation later)
-    maxu = maximum(abs.(𝑓ᵘ.ϕ))
-
     # calculate q
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+    for Ωᵏ in 𝒢.Ω
+        # get view of volume elements
+        u  = view(𝑓ᵘ.ϕ,  Ωᵏ.iⱽ)
+        u̇  = view(𝑓ᵘ.ϕ̇,  Ωᵏ.iⱽ)
+        ∇u = view(𝑓ᵘ.∇ϕ, Ωᵏ.iⱽ)
+        uˣ = view(𝑓ᵘ.φˣ, Ωᵏ.iⱽ)
+        uʸ = view(𝑓ᵘ.φʸ, Ωᵏ.iⱽ)
 
-            # get views of computation elements
-            u  = view(𝑓ᵘ.ϕ,  GLᵏ)
-            uˣ = view(𝑓ᵘ.φˣ, GLᵏ)
-            uʸ = view(𝑓ᵘ.φʸ, GLᵏ)
-            Δu = view(𝑓ᵘ.Δϕ, BPᵏ)
+        v  = view(𝑓ᵛ.ϕ,  Ωᵏ.iⱽ)
+        q  = view(𝑓ᵖ.ϕ,  Ωᵏ.iⱽ)
 
-            q  = view(𝑓ᵖ.ϕ,  GLᵏ)
+        # compute volume contribution to q
+        ∇!(uˣ, uʸ, u, Ωᵏ)
+        @. q = sqrt(ε) * uˣ
 
-            # interior terms
-            ∇!(uˣ, uʸ, u, Ωᵏ)
+        # compute u²
+        @. v = u^2
 
-            # surface terms
-            ∮ˣu = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
+        # compute surface contributions to q
+        for f in Ωᵏ.faces
+            # get views of surface elements
+            u⁻ = view(𝑓ᵘ.ϕ , f.i⁻)
+            u⁺ = view(𝑓ᵘ.ϕ , f.i⁺)
+            Δu = view(𝑓ᵘ.Δϕ, f.i⁻)
 
+            # define field differences at faces
+            @. Δu = 1//2 * (u⁻ - u⁺)
+
+            # impose Dirichlet BC on u
+            if f.isBoundary[1]
+                @. Δu = u⁰(𝒢.x[1]) - u⁻
+            end
+
+            # compute surface terms
+            ∮ˣu = Ωᵏ.M⁺ * f.∮ * (f.C .* f.nˣ .* Δu)
             # combine them
-            @. q = sqrt(ε) * uˣ - ∮ˣu
+            @. q -= ∮ˣu
         end
-    end
 
-    # define field differences at faces
-    @. 𝑓ᵖ.Δϕ = 1//2 * (𝑓ᵖ.ϕ[𝒢.nodes⁻] - 𝑓ᵖ.ϕ[𝒢.nodes⁺])
+        # define physical flux
+        @. ∇u = 1//2 * α * u^2 - sqrt(ε) * q
 
-    # impose Dirichlet BC on q
-    @. 𝑓ᵖ.Δϕ[𝒢.mapᴮ] = 0.0
+        # compute volume contributions to tendency
+        ∇!(uˣ, uʸ, ∇u, Ωᵏ)
+        @. u̇ = -uˣ
 
-    # perform calculations over elements
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+        # compute surface contributions to tendency
+        for f in Ωᵏ.faces
+            # get views of surface elements
+            u⁻ = view(𝑓ᵘ.ϕ , f.i⁻)
+            Δu = view(𝑓ᵘ.Δϕ, f.i⁻)
+            fⁿ = view(𝑓ᵘ.fⁿ, f.i⁻)
 
-            # get views of computation elements
-            u   = view(𝑓ᵘ.ϕ,  GLᵏ)
-            u̇   = view(𝑓ᵘ.ϕ̇,  GLᵏ)
-            ∇u  = view(𝑓ᵘ.∇ϕ, GLᵏ)
-            Δu  = view(𝑓ᵘ.Δϕ, BPᵏ)
-            uˣ  = view(𝑓ᵘ.φˣ, GLᵏ)
-            uʸ  = view(𝑓ᵘ.φʸ, GLᵏ)
-            fⁿ  = view(𝑓ᵘ.fⁿ, BPᵏ)
+            v⁻ = view(𝑓ᵛ.ϕ , f.i⁻)
+            v⁺ = view(𝑓ᵛ.ϕ , f.i⁺)
+            Δv = view(𝑓ᵛ.Δϕ, f.i⁻)
 
-            q   = view(𝑓ᵖ.ϕ,  GLᵏ)
-            Δq  = view(𝑓ᵖ.Δϕ, BPᵏ)
+            q⁻ = view(𝑓ᵖ.ϕ , f.i⁻)
+            q⁺ = view(𝑓ᵖ.ϕ , f.i⁺)
+            Δq = view(𝑓ᵖ.Δϕ, f.i⁻)
 
-            Δu² = view(𝑓².Δϕ, BPᵏ)
+            # define field differences at faces
+            @. Δq = 1//2 * (q⁻ - q⁺)
+            @. Δv = 1//2 * (v⁻ - v⁺)
+
+            # impose BC on q and u²
+            if f.isBoundary[1]
+                @. Δq  = 0.0
+                @. Δv = u⁰(𝒢.x[1])^2 - v⁻
+            end
 
             # evaluate numerical flux
-            @. fⁿ = Ωᵏ.nˣ * (α * Δu²/2 - sqrt(ε) * Δq) - 1//2 * maxu * Δu
+            maxu = maximum(abs.(u⁻))
+            @. fⁿ = f.nˣ * (α * Δv/2 - sqrt(ε) * Δq) - 1//2 * maxu * Δu
 
             # compute surface term
-            ∮u = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
-
-            # define physical flux in the x direction
-            @. ∇u = 1//2 * α * u^2 - sqrt(ε) * q
-
-            # define derivatives of physical flux
-            ∇!(uˣ, uʸ, ∇u, Ωᵏ)
-            @. ∇u = uˣ
+            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* fⁿ)
 
             # combine terms
-            @. u̇ = -∇u + ∮u
+            @. u̇ += ∮ᶠu
         end
     end
 

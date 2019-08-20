@@ -5,8 +5,8 @@ using Plots
 using OrdinaryDiffEq
 
 # make mesh
-K = 2
-L = 2
+K = 3
+L = 3
 xmin = ymin = -1.0
 xmax = ymax = 1.0
 ℳ = rectmesh2D(xmin, xmax, ymin, ymax, K, L)
@@ -17,18 +17,13 @@ filename = filepath * filename
 # ℳ = meshreader_gambit2D(filename)
 
 # set number of DG elements and poly order
-N = 2^1
+N = 2^3
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
 # plotgrid2D(𝒢)
-
-# display(𝒢.Ω[1].rˣ[1, :, :])
-# println(𝒢.Ω[1].volume)
-# display(𝒢.Ω[1].n̂)
-# display(𝒢.Ω[1].lift)
 
 dof = 𝒢.nGL
 println("The degrees of freedom are $dof")

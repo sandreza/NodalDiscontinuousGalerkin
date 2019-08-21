@@ -28,13 +28,6 @@ ỹ = 𝒢.x[:,2]
 dof = 𝒢.nGL
 println("The degrees of freedom are $dof")
 
-# determine timestep
-vmax = 10 # no material here
-Δx = minspacing2D(𝒢)
-CFL = 0.75
-dt  = CFL * Δx / vmax
-println("Time step is $dt")
-
 # make field objects
 u  = Field2D(𝒢)
 u² = Field2D(𝒢)
@@ -43,8 +36,16 @@ uʸ = Field2D(𝒢)
 
 # initialize conditions
 ε = 0.1;
-u⁰(x) = -tanh(( x + 0.5) / (2 * ε)) + 1.0
-@. u.ϕ = [u⁰(x̃[i]) for i in 1:𝒢.nGL]
+t = 0
+u⁰(x,t) = -tanh(( x + 0.5 - t) / (2 * ε)) + 1.0
+@. u.ϕ = [u⁰(x̃[i],t) for i in 1:𝒢.nGL]
+
+# determine timestep
+umax = maximum(abs.(u.ϕ))
+Δx = minspacing2D(𝒢)
+CFL = 0.25
+dt  = CFL * minimum([Δx/umax, Δx^2/sqrt(ε)])
+println("Time step is $dt")
 
 # solve equations
 stoptime = 2.

@@ -15,10 +15,11 @@ solveMaxwell!(u̇, u, params)
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 
 """
-function solveBurgers1D!(fields, params)
+function solveBurgers1D!(fields, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ε = params[2]
+    α = params[3]
 
     # unpack fields
     u  = fields[1]
@@ -55,8 +56,9 @@ function solveBurgers1D!(fields, params)
 
             # impose BC
             if f.isBoundary[1]
-                @. uˣ.fˣ[i⁻] = 2 * (u.ϕ[i⁻] -  u⁰(𝒢.x[1]))
-                @. uʸ.fʸ[i⁻] = 2 * (u.ϕ[i⁻] -  u⁰(𝒢.x[1]))
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in i⁻]
+                @. uˣ.fˣ[i⁻] = sqrt(ε) * uᴮ
+                @. uʸ.fʸ[i⁻] = sqrt(ε) * uᴮ
             end
 
             # compute jumps in flux
@@ -88,22 +90,21 @@ function solveBurgers1D!(fields, params)
             i⁺ = f.i⁺
 
             # evaluate numerical fluxes
-            @. uˣ.fˣ[i⁻] = 0.5 * (uˣ.ϕ[i⁻] + uˣ.ϕ[i⁺])
-            @. uʸ.fʸ[i⁻] = 0.5 * (uʸ.ϕ[i⁻] + uʸ.ϕ[i⁺])
-            @. u².fˣ[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
-            @. u².fʸ[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
+            @. uˣ.ϕ°[i⁻] = 0.5 * (uˣ.ϕ[i⁻] + uˣ.ϕ[i⁺])
+            @. uʸ.ϕ°[i⁻] = 0.5 * (uʸ.ϕ[i⁻] + uʸ.ϕ[i⁺])
+            @. u².ϕ°[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
 
             # impose BC on uˣ, uʸ, and u²
             if f.isBoundary[1]
-                @. uˣ.fˣ[i⁻] = 0.0
-                @. uʸ.fʸ[i⁻] = 0.0
-                @. u².fˣ[i⁻] = u².ϕ[i⁻] - u⁰(𝒢.x[1])^2
-                @. u².fʸ[i⁻] = u².ϕ[i⁻] - u⁰(𝒢.x[1])^2
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in i⁻]
+                @. uˣ.ϕ°[i⁻] = uˣ.ϕ[i⁻]
+                @. uʸ.ϕ°[i⁻] = uʸ.ϕ[i⁻]
+                @. u².ϕ°[i⁻] = uᴮ^2
             end
 
             # evaluate numerical flux for u
             C = maximum(abs.(u.ϕ[i⁻]))
-            @. u.fˣ[i⁻] = 0.5 * α * u².fˣ[i⁻] - sqrt(ε) * uˣ.fˣ[i⁻] + 0.5 * C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺])
+            @. u.fˣ[i⁻] = 0.5 * α * u².ϕ°[i⁻] - sqrt(ε) * uˣ.ϕ°[i⁻] + 0.5 * C * (u.ϕ[i⁻] - u.ϕ[i⁺])
             @. u.fʸ[i⁻] = 0.0 # make non-zero for 2D burgers eqn
 
             # compute jump in flux

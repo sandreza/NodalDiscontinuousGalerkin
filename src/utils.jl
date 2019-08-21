@@ -452,9 +452,10 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps)
 
     # time step loop
     for tstep in 1:Nsteps
+        time = dt * tstep
         for iRK in 1:5
             # get numerical solution
-            rhs!(fields, params)
+            rhs!(fields, params, time)
 
             # update solutions
             for 𝑓 in fields

@@ -24,7 +24,8 @@ struct Field2D{T} <: AbstractField2D
     # field value and tendency
     ϕ::T
     ϕ̇::T
-    
+    ϕ°::T
+
     # volume contributions to tendency
     𝚽::T
 
@@ -46,10 +47,11 @@ struct Field2D{T} <: AbstractField2D
     r::T
 
     function Field2D(𝒢::Grid2D)
-
         ϕ  = zeros(𝒢.nGL)
         ϕ̇  = zeros(𝒢.nGL)
-        𝚽 = zeros(𝒢.nGL)
+        ϕ° = zeros(𝒢.nGL)
+
+        𝚽  = zeros(𝒢.nGL)
         φˣ = zeros(𝒢.nGL)
         φʸ = zeros(𝒢.nGL)
 
@@ -60,7 +62,6 @@ struct Field2D{T} <: AbstractField2D
 
         r  = zeros(𝒢.nGL)
 
-    return new{typeof(ϕ)}(ϕ,ϕ̇,𝚽, φˣ,φʸ, fˣ,fʸ, Δf,∮f, r)
-
+        return new{typeof(ϕ)}(ϕ,ϕ̇,ϕ°, 𝚽, φˣ,φʸ, fˣ,fʸ, Δf,∮f, r)
     end
 end

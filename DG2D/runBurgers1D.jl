@@ -38,7 +38,8 @@ println("Time step is $dt")
 # make field objects
 u  = Field2D(𝒢)
 u² = Field2D(𝒢)
-q  = Field2D(𝒢)
+uˣ = Field2D(𝒢)
+uʸ = Field2D(𝒢)
 
 # initialize conditions
 ε = 0.1;
@@ -53,7 +54,7 @@ println("Number of steps is $Nsteps")
 # turn non linear turns on/off
 α = 1
 
-fields = [u, u², q]
+fields = [u, u², uˣ, uʸ]
 params = (𝒢, ε, α)
 tspan = (0.0, stoptime)
 

@@ -23,47 +23,63 @@ function solveBurgers1D!(fields, params)
     # unpack fields
     u  = fields[1]
     u² = fields[2]
-    q  = fields[3]
+    uˣ = fields[3]
+    uʸ = fields[4]
 
-    # calculate q
     for Ωᵏ in 𝒢.Ω
         # get volume nodes
         iⱽ = Ωᵏ.iⱽ
 
-        # compute volume contribution to q
+        # compute volume contribution to uˣ and uʸ
         ∇!(u.φˣ, u.φʸ, u.ϕ, Ωᵏ)
-        @. q.ϕ[iⱽ] = sqrt(ε) * u.φˣ[iⱽ]
+        @. uˣ.ϕ[iⱽ] = sqrt(ε) * u.φˣ[iⱽ]
+        @. uʸ.ϕ[iⱽ] = sqrt(ε) * u.φʸ[iⱽ]
 
-        # compute u²
-        @. u².ϕ[iⱽ] = u.ϕ[iⱽ]^2
+        # define physical fluxes for uˣ and uʸ
+        @. uˣ.φˣ[iⱽ] = sqrt(ε) * u.ϕ[iⱽ]
+        @. uˣ.φʸ[iⱽ] = 0.0
+        @. uʸ.φˣ[iⱽ] = 0.0
+        @. uʸ.φʸ[iⱽ] = sqrt(ε) * u.ϕ[iⱽ]
 
-        # compute surface contributions to q
+        # compute surface contributions to uˣ, uʸ
         for f in Ωᵏ.faces
             # get face nodes
             i⁻ = f.i⁻
             i⁺ = f.i⁺
 
-            # define field differences at faces
-            @. u.Δϕ[i⁻] = 1//2 * (u.ϕ[i⁻] - u.ϕ[i⁺])
+            # evaluate numerical fluxes
+            @. uˣ.fˣ[i⁻] = 0.5 * (uˣ.φˣ[i⁻] + uˣ.φˣ[i⁺])
+            @. uˣ.fʸ[i⁻] = 0.0
+            @. uʸ.fˣ[i⁻] = 0.0
+            @. uʸ.fʸ[i⁻] = 0.5 * (uʸ.φʸ[i⁻] + uʸ.φʸ[i⁺])
 
-            # impose Dirichlet BC on u
+            # impose BC
             if f.isBoundary[1]
-                @. u.Δϕ[i⁻] = 2 * (u.ϕ[i⁻] -  u⁰(𝒢.x[1]))
+                @. uˣ.fˣ[i⁻] = 2 * (u.ϕ[i⁻] -  u⁰(𝒢.x[1]))
+                @. uʸ.fʸ[i⁻] = 2 * (u.ϕ[i⁻] -  u⁰(𝒢.x[1]))
             end
 
-            # compute surface terms
-            ∮ˣu = Ωᵏ.M⁺ * f.∮ * (f.C .* f.nˣ .* u.Δϕ[i⁻])
+            # compute jumps in flux
+            @. uˣ.Δf[i⁻] = f.nˣ * (uˣ.φˣ[i⁻] - uˣ.fˣ[i⁻]) + f.nʸ * (uˣ.φʸ[i⁻] - uˣ.fʸ[i⁻])
+            @. uʸ.Δf[i⁻] = f.nˣ * (uʸ.φˣ[i⁻] - uʸ.fˣ[i⁻]) + f.nʸ * (uʸ.φʸ[i⁻] - uʸ.fʸ[i⁻])
 
-            # combine them
-            @. q.ϕ[iⱽ] -= ∮ˣu
+            # compute surface terms
+            uˣ.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* uˣ.Δf[i⁻])
+            uʸ.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* uʸ.Δf[i⁻])
+            @. uˣ.ϕ[iⱽ] -= uˣ.∮f[iⱽ]
+            @. uʸ.ϕ[iⱽ] -= uʸ.∮f[iⱽ]
         end
 
-        # define physical flux
-        @. u.∇ϕ[iⱽ] = 1//2 * α * u².ϕ[iⱽ] - sqrt(ε) * q.ϕ[iⱽ]
+        # compute u²
+        @. u².ϕ[iⱽ] = u.ϕ[iⱽ]^2
 
-        # compute volume contributions to tendency
-        ∇!(u.φˣ, u.φʸ, u.∇ϕ, Ωᵏ)
-        @. u.ϕ̇[iⱽ] = -u.φˣ[iⱽ]
+        # define physical fluxes
+        @. u.φˣ[iⱽ] = 0.5 * α * u².ϕ[iⱽ] - sqrt(ε) * uˣ.ϕ[iⱽ]
+        @. u.φʸ[iⱽ] = 0.0 # make non-zero for 2D burgers eqn
+
+        # compute volume contributions
+        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ωᵏ)
+        @. u.ϕ̇[iⱽ] = -u.𝚽[iⱽ]
 
         # compute surface contributions to tendency
         for f in Ωᵏ.faces
@@ -71,25 +87,31 @@ function solveBurgers1D!(fields, params)
             i⁻ = f.i⁻
             i⁺ = f.i⁺
 
-            # define field differences at faces
-            @.  q.Δϕ[i⁻] = 1//2 * ( q.ϕ[i⁻] -  q.ϕ[i⁺])
-            @. u².Δϕ[i⁻] = 1//2 * (u².ϕ[i⁻] - u².ϕ[i⁺])
+            # evaluate numerical fluxes
+            @. uˣ.fˣ[i⁻] = 0.5 * (uˣ.ϕ[i⁻] + uˣ.ϕ[i⁺])
+            @. uʸ.fʸ[i⁻] = 0.5 * (uʸ.ϕ[i⁻] + uʸ.ϕ[i⁺])
+            @. u².fˣ[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
+            @. u².fʸ[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
 
-            # impose BC on q and u²
+            # impose BC on uˣ, uʸ, and u²
             if f.isBoundary[1]
-                @.  q.Δϕ[i⁻] = 0.0
-                @. u².Δϕ[i⁻] = u².ϕ[i⁻] - u⁰(𝒢.x[1])^2
+                @. uˣ.fˣ[i⁻] = 0.0
+                @. uʸ.fʸ[i⁻] = 0.0
+                @. u².fˣ[i⁻] = u².ϕ[i⁻] - u⁰(𝒢.x[1])^2
+                @. u².fʸ[i⁻] = u².ϕ[i⁻] - u⁰(𝒢.x[1])^2
             end
 
-            # evaluate numerical flux
-            maxu = maximum(abs.(u.ϕ[i⁻]))
-            @. u.fⁿ[i⁻] = f.nˣ * (1//2 * α * u².Δϕ[i⁻] - sqrt(ε) * q.Δϕ[i⁻]) - 1//2 * maxu * u.Δϕ[i⁻]
+            # evaluate numerical flux for u
+            C = maximum(abs.(u.ϕ[i⁻]))
+            @. u.fˣ[i⁻] = 0.5 * α * u².fˣ[i⁻] - sqrt(ε) * uˣ.fˣ[i⁻] + 0.5 * C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺])
+            @. u.fʸ[i⁻] = 0.0 # make non-zero for 2D burgers eqn
+
+            # compute jump in flux
+            @. u.Δf[i⁻] = f.nˣ * (u.φˣ[i⁻] - u.fˣ[i⁻]) + f.nʸ * (u.φʸ[i⁻] - u.fʸ[i⁻])
 
             # compute surface term
-            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* u.fⁿ[i⁻])
-
-            # combine terms
-            @. u.ϕ̇[iⱽ] += ∮ᶠu
+            u.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* u.Δf[i⁻])
+            @. u.ϕ̇[iⱽ] += u.∮f[iⱽ]
         end
     end
 

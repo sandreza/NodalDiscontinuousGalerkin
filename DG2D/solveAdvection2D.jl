@@ -30,9 +30,13 @@ function solveAdvection2D!(U̇, U, params, t)
         # get volumes nodes
         iⱽ = Ωᵏ.iⱽ
 
+        # define physical fluxes
+        @. u.φˣ[iⱽ] = vˣ[iⱽ] .* u.ϕ[iⱽ]
+        @. u.φʸ[iⱽ] = vʸ[iⱽ] .* u.ϕ[iⱽ]
+
         # compute volume contributions
-        ∇⨀!(u.∇ϕ, vˣ .* u.ϕ, vʸ .* u.ϕ, Ωᵏ)
-        @. u.ϕ̇[iⱽ] = -u.∇ϕ[iⱽ]
+        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ωᵏ)
+        @. u.ϕ̇[iⱽ] = -u.𝚽[iⱽ]
 
         # compute surface contributions
         for f in Ωᵏ.faces
@@ -40,21 +44,25 @@ function solveAdvection2D!(U̇, U, params, t)
             i⁻ = f.i⁻
             i⁺ = f.i⁺
 
-            # define field differences at faces
-            @. u.Δϕ[i⁻] = u.ϕ[i⁻] - u.ϕ[i⁺]
+            # evaluate numerical fluxes
+            v⁻ = @. abs(f.nˣ * vˣ[i⁻] + f.nʸ * vʸ[i⁻])
+            v⁺ = @. abs(f.nˣ * vˣ[i⁺] + f.nʸ * vʸ[i⁺])
+            C = maximum([v⁻, v⁺])
+            @. u.fˣ[i⁻] = 0.5 * (u.φˣ[i⁻] + u.φˣ[i⁺] + C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺]))
+            @. u.fʸ[i⁻] = 0.5 * (u.φʸ[i⁻] + u.φʸ[i⁺] + C * f.nʸ * (u.ϕ[i⁻] - u.ϕ[i⁺]))
 
             # impose BC
             if f.isBoundary[1]
-                @. u.Δϕ[i⁻] = u.ϕ[i⁻]
+                @. u.fˣ[i⁻] = u.φˣ[i⁻]
+                @. u.fʸ[i⁻] = u.φʸ[i⁻]
             end
 
-            # evaluate flux
-            vⁿ = @. f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻]
-            @. u.fⁿ[i⁻] = 1//2 * (vⁿ - α * abs(vⁿ)) * u.Δϕ[i⁻]
+            # compute jump in flux
+            @. u.Δf[i⁻] = f.nˣ * (u.φˣ[i⁻] - u.fˣ[i⁻]) + f.nʸ * (u.φʸ[i⁻] - u.fʸ[i⁻])
 
             # compute surface term
-            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* u.fⁿ[i⁻])
-            @. u.ϕ̇[iⱽ] += ∮ᶠu
+            u.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* u.Δf[i⁻])
+            @. u.ϕ̇[iⱽ] += u.∮f[iⱽ]
         end
     end
 

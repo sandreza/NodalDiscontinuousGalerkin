@@ -21,39 +21,46 @@ Field2D(𝒢::Grid2D)
 
 """
 struct Field2D{T} <: AbstractField2D
-    # volume terms
+    # field value and tendency
     ϕ::T
     ϕ̇::T
-    ∇ϕ::T
+    
+    # volume contributions to tendency
+    𝚽::T
+
+    # physical fluxes
     φˣ::T
     φʸ::T
 
-    # surface terms
-    ϕ⁺::T
-    Δϕ::T
+    # numerical fluxes
     fˣ::T
     fʸ::T
-    fⁿ::T
 
-    # residual
+    # jump in the flux
+    Δf::T
+
+    # surface contributions to the tendency
+    ∮f::T
+
+    # residual for RK4 methods
     r::T
 
     function Field2D(𝒢::Grid2D)
-        # set up the solution
+
         ϕ  = zeros(𝒢.nGL)
         ϕ̇  = zeros(𝒢.nGL)
-        ∇ϕ = zeros(𝒢.nGL)
+        𝚽 = zeros(𝒢.nGL)
         φˣ = zeros(𝒢.nGL)
         φʸ = zeros(𝒢.nGL)
 
-        ϕ⁺ = zeros(𝒢.nGL)
-        Δϕ = zeros(𝒢.nGL)
         fˣ = zeros(𝒢.nGL)
         fʸ = zeros(𝒢.nGL)
-        fⁿ = zeros(𝒢.nGL)
+        Δf = zeros(𝒢.nGL)
+        ∮f = zeros(𝒢.nGL)
 
         r  = zeros(𝒢.nGL)
 
-    return new{typeof(ϕ)}(ϕ,ϕ̇,∇ϕ,φˣ,φʸ, ϕ⁺,Δϕ,fˣ,fʸ,fⁿ, r)
+    return new{typeof(ϕ)}(ϕ,ϕ̇,𝚽, φˣ,φʸ, fˣ,fʸ, Δf,∮f, r)
+
     end
 end

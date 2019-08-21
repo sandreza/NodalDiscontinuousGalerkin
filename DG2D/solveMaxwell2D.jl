@@ -24,68 +24,54 @@ function solveMaxwell2D!(fields, params)
     Hʸ = fields[2]
     Eᶻ = fields[3]
 
-    # define field differences at faces
-    @. Hˣ.Δϕ = Hˣ.ϕ[𝒢.nodes⁻] - Hˣ.ϕ[𝒢.nodes⁺]
-    @. Hʸ.Δϕ = Hʸ.ϕ[𝒢.nodes⁻] - Hʸ.ϕ[𝒢.nodes⁺]
-    @. Eᶻ.Δϕ = Eᶻ.ϕ[𝒢.nodes⁻] - Eᶻ.ϕ[𝒢.nodes⁺]
-
-    # impose reflective BC
-    @. Hˣ.Δϕ[𝒢.mapᴮ] = 0
-    @. Hʸ.Δϕ[𝒢.mapᴮ] = 0
-    @. Eᶻ.Δϕ[𝒢.mapᴮ] = 2 * Eᶻ.ϕ[𝒢.nodesᴮ]
-
     # perform calculations over elements
-    let nGL = nBP = 0
-        for k in 1:𝒢.ℳ.K
-            # get element and number of GL points
-            Ωᵏ = 𝒢.Ω[k]
-            nGLᵏ = (nGL + 1):(nGL + Ωᵏ.nGL)
-            nBPᵏ = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+    for Ωᵏ in 𝒢.Ω
+        # get volume nodes
+        iⱽ = Ωᵏ.iⱽ
 
-            # get views of computation elements
-            uHˣ = view(Hˣ.ϕ, nGLᵏ)
-            uHʸ = view(Hʸ.ϕ, nGLᵏ)
-            uEᶻ = view(Eᶻ.ϕ, nGLᵏ)
+        # compute volume contributions
+        ∇!(Hʸ.∇ϕ, Hˣ.∇ϕ, Eᶻ.ϕ, Ωᵏ)
+        ∇⨂!(Eᶻ.∇ϕ, Hˣ.ϕ, Hʸ.ϕ, Ωᵏ)
 
-            ϕ̇Hˣ = view(Hˣ.ϕ̇, nGLᵏ)
-            ϕ̇Hʸ = view(Hʸ.ϕ̇, nGLᵏ)
-            ϕ̇Eᶻ = view(Eᶻ.ϕ̇, nGLᵏ)
+        @. Hˣ.ϕ̇[iⱽ] = -Hˣ.∇ϕ[iⱽ]
+        @. Hʸ.ϕ̇[iⱽ] =  Hʸ.∇ϕ[iⱽ]
+        @. Eᶻ.ϕ̇[iⱽ] =  Eᶻ.∇ϕ[iⱽ]
 
-            ∇Hˣ = view(Hˣ.∇ϕ, nGLᵏ)
-            ∇Hʸ = view(Hʸ.∇ϕ, nGLᵏ)
-            ∇Eᶻ = view(Eᶻ.∇ϕ, nGLᵏ)
+        # compute surface contributions
+        for f in Ωᵏ.faces
+            # get face nodes
+            i⁻ = f.i⁻
+            i⁺ = f.i⁺
 
-            ΔHˣ = view(Hˣ.Δϕ, nBPᵏ)
-            ΔHʸ = view(Hʸ.Δϕ, nBPᵏ)
-            ΔEᶻ = view(Eᶻ.Δϕ, nBPᵏ)
+            # define field differences at faces
+            @. Hˣ.Δϕ[i⁻] = Hˣ.ϕ[i⁻] - Hˣ.ϕ[i⁺]
+            @. Hʸ.Δϕ[i⁻] = Hʸ.ϕ[i⁻] - Hʸ.ϕ[i⁺]
+            @. Eᶻ.Δϕ[i⁻] = Eᶻ.ϕ[i⁻] - Eᶻ.ϕ[i⁺]
 
-            fHˣ = view(Hˣ.fⁿ, nBPᵏ)
-            fHʸ = view(Hʸ.fⁿ, nBPᵏ)
-            fEᶻ = view(Eᶻ.fⁿ, nBPᵏ)
+            # impose reflective BC
+            if f.isBoundary[1]
+                @. Hˣ.Δϕ[i⁻] = 0
+                @. Hʸ.Δϕ[i⁻] = 0
+                @. Eᶻ.Δϕ[i⁻] = 2 * Eᶻ.ϕ[i⁻]
+            end
 
             # evaluate upwind fluxes
-            nˣΔH = @. Ωᵏ.nˣ * (Ωᵏ.nˣ * ΔHˣ + Ωᵏ.nʸ * ΔHʸ)
-            nʸΔH = @. Ωᵏ.nʸ * (Ωᵏ.nˣ * ΔHˣ + Ωᵏ.nʸ * ΔHʸ)
+            nˣΔH = @. f.nˣ * (f.nˣ * Hˣ.Δϕ[i⁻] + f.nʸ * Hʸ.Δϕ[i⁻])
+            nʸΔH = @. f.nʸ * (f.nˣ * Hˣ.Δϕ[i⁻] + f.nʸ * Hʸ.Δϕ[i⁻])
 
             # minus isn't defined for these fluxes?????
-            @. fHˣ =      Ωᵏ.nʸ * ΔEᶻ + α * (nˣΔH + (-1 * ΔHˣ))
-            @. fHʸ = -1 * Ωᵏ.nˣ * ΔEᶻ + α * (nʸΔH + (-1 * ΔHʸ))
-            @. fEᶻ = -1 * Ωᵏ.nˣ * ΔHʸ + Ωᵏ.nʸ * ΔHˣ + (-1 * α * ΔEᶻ)
-
-            # local derivatives of the fields
-            ∇!(∇Hʸ, ∇Hˣ, uEᶻ, Ωᵏ)
-            ∇⨂!(∇Eᶻ, uHˣ, uHʸ, Ωᵏ)
+            @. Hˣ.fⁿ[i⁻] =  f.nʸ * Eᶻ.Δϕ[i⁻] + α * (nˣΔH - Hˣ.Δϕ[i⁻])
+            @. Hʸ.fⁿ[i⁻] = -f.nˣ * Eᶻ.Δϕ[i⁻] + α * (nʸΔH - Hʸ.Δϕ[i⁻])
+            @. Eᶻ.fⁿ[i⁻] = -f.nˣ * Hʸ.Δϕ[i⁻] + f.nʸ * Hˣ.Δϕ[i⁻] - α * Eᶻ.Δϕ[i⁻]
 
             # compute RHS of PDE's
-            liftHˣ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fHˣ)
-            liftHʸ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fHʸ)
-            liftEᶻ = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fEᶻ)
+            ∮Hˣ = 1//2 * Ωᵏ.M⁺ * f.∮ * (f.C .* Hˣ.fⁿ[i⁻])
+            ∮Hʸ = 1//2 * Ωᵏ.M⁺ * f.∮ * (f.C .* Hʸ.fⁿ[i⁻])
+            ∮Eᶻ = 1//2 * Ωᵏ.M⁺ * f.∮ * (f.C .* Eᶻ.fⁿ[i⁻])
 
-            @. ϕ̇Hˣ = -∇Hˣ + liftHˣ
-            @. ϕ̇Hʸ =  ∇Hʸ + liftHʸ
-            @. ϕ̇Eᶻ =  ∇Eᶻ + liftEᶻ
+            @. Hˣ.ϕ̇[iⱽ] += ∮Hˣ
+            @. Hʸ.ϕ̇[iⱽ] += ∮Hʸ
+            @. Eᶻ.ϕ̇[iⱽ] += ∮Eᶻ
         end
     end
 

@@ -21,48 +21,44 @@ function solveAdvection2D!(U̇, U, params, t)
     α = params[2]
     vˣ = params[3]
     vʸ = params[4]
-    𝑓 = params[end]
+    u = params[end]
 
-    @. 𝑓.ϕ = U
+    @. u.ϕ = U
 
     # perform calculations over elements
     for Ωᵏ in 𝒢.Ω
-        # get views of volume elements
-        u  = view(𝑓.ϕ,  Ωᵏ.iⱽ)
-        u̇  = view(𝑓.ϕ̇,  Ωᵏ.iⱽ)
-        ∇u = view(𝑓.∇ϕ, Ωᵏ.iⱽ)
+        # get volumes nodes
+        iⱽ = Ωᵏ.iⱽ
 
         # compute volume contributions
-        ∇⨀!(∇u, vˣ[Ωᵏ.iⱽ] .* u, vʸ[Ωᵏ.iⱽ] .* u, Ωᵏ)
-        @. u̇ = -∇u
+        ∇⨀!(u.∇ϕ, vˣ .* u.ϕ, vʸ .* u.ϕ, Ωᵏ)
+        @. u.ϕ̇[iⱽ] = -u.∇ϕ[iⱽ]
 
         # compute surface contributions
         for f in Ωᵏ.faces
-            # get views of surface elements
-            u⁻ = view(𝑓.ϕ , f.i⁻)
-            u⁺ = view(𝑓.ϕ , f.i⁺)
-            Δu = view(𝑓.Δϕ, f.i⁻)
-            fⁿ = view(𝑓.fⁿ, f.i⁻)
+            # get face nodes
+            i⁻ = f.i⁻
+            i⁺ = f.i⁺
 
             # define field differences at faces
-            @. Δu = u⁻ - u⁺
+            @. u.Δϕ[i⁻] = u.ϕ[i⁻] - u.ϕ[i⁺]
 
             # impose BC
             if f.isBoundary[1]
-                @. Δu = u⁻
+                @. u.Δϕ[i⁻] = u.ϕ[i⁻]
             end
 
             # evaluate flux
             vⁿ = @. f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻]
-            @. fⁿ = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
+            @. u.fⁿ[i⁻] = 1//2 * (vⁿ - α * abs(vⁿ)) * u.Δϕ[i⁻]
 
             # compute surface term
-            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* fⁿ)
-            @. u̇ += ∮ᶠu
+            ∮ᶠu = Ωᵏ.M⁺ * f.∮ * (f.C .* u.fⁿ[i⁻])
+            @. u.ϕ̇[iⱽ] += ∮ᶠu
         end
     end
 
-    @. U̇ = 𝑓.ϕ̇
+    @. U̇ = u.ϕ̇
 
     return nothing
 end

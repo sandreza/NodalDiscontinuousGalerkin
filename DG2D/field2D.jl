@@ -121,14 +121,14 @@ struct AuxiliaryField2D{T} <: AbstractAuxiliaryField2D
     end
 end
 
-function computeCentralFluxes!(𝑓::Field2D, f::Face2D)
+function computeCentralFluxes!(𝑓::Union{Field2D, AuxiliaryField2D}, f::Face2D)
     @. 𝑓.fˣ[f.i⁻] = 0.5 * (𝑓.φˣ[f.i⁻] + 𝑓.φˣ[f.i⁺])
     @. 𝑓.fʸ[f.i⁻] = 0.5 * (𝑓.φʸ[f.i⁻] + 𝑓.φʸ[f.i⁺])
 
     return nothing
 end
 
-function computeLaxFriedrichsFluxes!(𝑓::Field2D, f::Face2D, C)
+function computeLaxFriedrichsFluxes!(𝑓::Union{Field2D, AuxiliaryField2D}, f::Face2D, C)
     @. 𝑓.fˣ[f.i⁻] += 0.5 * C * f.nˣ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
     @. 𝑓.fʸ[f.i⁻] += 0.5 * C * f.nʸ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
 

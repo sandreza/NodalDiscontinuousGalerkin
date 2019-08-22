@@ -30,9 +30,9 @@ println("The degrees of freedom are $dof")
 
 # make field objects
 u  = Field2D(𝒢)
-u² = Field2D(𝒢)
-uˣ = Field2D(𝒢)
-uʸ = Field2D(𝒢)
+u² = AuxiliaryField2D(𝒢)
+uˣ = AuxiliaryField2D(𝒢)
+uʸ = AuxiliaryField2D(𝒢)
 
 # initialize conditions
 ε = 0.1;
@@ -55,11 +55,12 @@ println("Number of steps is $Nsteps")
 # turn non linear turns on/off
 α = 1
 
-fields = [u, u², uˣ, uʸ]
+fields = [u]
+auxil  = [u², uˣ, uʸ]
 params = (𝒢, ε, α)
 tspan = (0.0, stoptime)
 
-solutions = rk_solver!(solveBurgers1D!, fields, params, dt, Nsteps)
+solutions = rk_solver!(solveBurgers1D!, fields, params, dt, Nsteps; auxil = auxil)
 solutions = solutions[1]
 
 Nsteps = floor(Int, length(solutions))
@@ -69,9 +70,7 @@ times = 1:step:Nsteps
 exacts = []
 for time in times
     t = dt * time
-    println("$t ")
     uᵗ = @. [u⁰(x̃[i],t) for i in 1:𝒢.nGL]
-    println("$uᵗ")
     push!(exacts, uᵗ)
 end
 

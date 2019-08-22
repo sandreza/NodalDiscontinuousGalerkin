@@ -15,7 +15,7 @@ solveMaxwell!(u̇, u, params)
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 
 """
-function solveBurgers1D!(fields, params, t)
+function solveBurgers1D!(fields, auxil, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters
     ε = params[2]
@@ -23,9 +23,11 @@ function solveBurgers1D!(fields, params, t)
 
     # unpack fields
     u  = fields[1]
-    u² = fields[2]
-    uˣ = fields[3]
-    uʸ = fields[4]
+
+    # auxiliary fields
+    u² = auxil[1]
+    uˣ = auxil[2]
+    uʸ = auxil[3]
 
     for Ωᵏ in 𝒢.Ω
         # get volume nodes
@@ -38,8 +40,6 @@ function solveBurgers1D!(fields, params, t)
 
         # define physical fluxes for uˣ and uʸ
         @. uˣ.φˣ[iⱽ] = sqrt(ε) * u.ϕ[iⱽ]
-        @. uˣ.φʸ[iⱽ] = 0.0
-        @. uʸ.φˣ[iⱽ] = 0.0
         @. uʸ.φʸ[iⱽ] = sqrt(ε) * u.ϕ[iⱽ]
 
         # compute surface contributions to uˣ, uʸ
@@ -48,28 +48,18 @@ function solveBurgers1D!(fields, params, t)
             i⁻ = f.i⁻
             i⁺ = f.i⁺
 
-            # evaluate numerical fluxes
-            @. uˣ.fˣ[i⁻] = 0.5 * (uˣ.φˣ[i⁻] + uˣ.φˣ[i⁺])
-            @. uˣ.fʸ[i⁻] = 0.0
-            @. uʸ.fˣ[i⁻] = 0.0
-            @. uʸ.fʸ[i⁻] = 0.5 * (uʸ.φʸ[i⁻] + uʸ.φʸ[i⁺])
+            computeCentralFluxes!(uˣ, f)
+            computeCentralFluxes!(uʸ, f)
 
             # impose BC
             if f.isBoundary[1]
-                uᴮ = [u⁰(𝒢.x[i,1],t) for i in i⁻]
-                @. uˣ.fˣ[i⁻] = sqrt(ε) * uᴮ
-                @. uʸ.fʸ[i⁻] = sqrt(ε) * uᴮ
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in f.i⁻]
+                @. uˣ.fˣ[f.i⁻] = sqrt(ε) * uᴮ
+                @. uʸ.fʸ[f.i⁻] = sqrt(ε) * uᴮ
             end
 
-            # compute jumps in flux
-            @. uˣ.Δf[i⁻] = f.nˣ * (uˣ.φˣ[i⁻] - uˣ.fˣ[i⁻]) + f.nʸ * (uˣ.φʸ[i⁻] - uˣ.fʸ[i⁻])
-            @. uʸ.Δf[i⁻] = f.nˣ * (uʸ.φˣ[i⁻] - uʸ.fˣ[i⁻]) + f.nʸ * (uʸ.φʸ[i⁻] - uʸ.fʸ[i⁻])
-
-            # compute surface terms
-            uˣ.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* uˣ.Δf[i⁻])
-            uʸ.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* uʸ.Δf[i⁻])
-            @. uˣ.ϕ[iⱽ] -= uˣ.∮f[iⱽ]
-            @. uʸ.ϕ[iⱽ] -= uʸ.∮f[iⱽ]
+            computeSurfaceTerms!(uˣ, Ωᵏ, f)
+            computeSurfaceTerms!(uʸ, Ωᵏ, f)
         end
 
         # compute u²
@@ -85,34 +75,25 @@ function solveBurgers1D!(fields, params, t)
 
         # compute surface contributions to tendency
         for f in Ωᵏ.faces
-            # get face nodes
-            i⁻ = f.i⁻
-            i⁺ = f.i⁺
-
-            # evaluate numerical fluxes
-            @. uˣ.ϕ°[i⁻] = 0.5 * (uˣ.ϕ[i⁻] + uˣ.ϕ[i⁺])
-            @. uʸ.ϕ°[i⁻] = 0.5 * (uʸ.ϕ[i⁻] + uʸ.ϕ[i⁺])
-            @. u².ϕ°[i⁻] = 0.5 * (u².ϕ[i⁻] + u².ϕ[i⁺])
+            computeCentralDifference!(uˣ, f)
+            computeCentralDifference!(uʸ, f)
+            computeCentralDifference!(u², f)
 
             # impose BC on uˣ, uʸ, and u²
             if f.isBoundary[1]
-                uᴮ = [u⁰(𝒢.x[i,1],t) for i in i⁻]
-                @. uˣ.ϕ°[i⁻] = uˣ.ϕ[i⁻]
-                @. uʸ.ϕ°[i⁻] = uʸ.ϕ[i⁻]
-                @. u².ϕ°[i⁻] = uᴮ^2
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in f.i⁻]
+                @. uˣ.ϕ°[f.i⁻] = uˣ.ϕ[f.i⁻]
+                @. uʸ.ϕ°[f.i⁻] = uʸ.ϕ[f.i⁻]
+                @. u².ϕ°[f.i⁻] = uᴮ^2
             end
 
             # evaluate numerical flux for u
-            C = maximum(abs.(u.ϕ[i⁻]))
-            @. u.fˣ[i⁻] = 0.5 * α * u².ϕ°[i⁻] - sqrt(ε) * uˣ.ϕ°[i⁻] + 0.5 * C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺])
-            @. u.fʸ[i⁻] = 0.0 # make non-zero for 2D burgers eqn
+            C = maximum(abs.(u.ϕ[f.i⁻]))
+            @. u.fˣ[f.i⁻] = 0.5 * α * u².ϕ°[f.i⁻] - sqrt(ε) * uˣ.ϕ°[f.i⁻]
+            computeLaxFriedrichsFluxes!(u, f, C)
+            @. u.fʸ[f.i⁻] = 0.0 # make non-zero for 2D burgers eqn
 
-            # compute jump in flux
-            @. u.Δf[i⁻] = f.nˣ * (u.φˣ[i⁻] - u.fˣ[i⁻]) + f.nʸ * (u.φʸ[i⁻] - u.fʸ[i⁻])
-
-            # compute surface term
-            u.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* u.Δf[i⁻])
-            @. u.ϕ̇[iⱽ] += u.∮f[iⱽ]
+            computeSurfaceTerms!(u, Ωᵏ, f)
         end
     end
 

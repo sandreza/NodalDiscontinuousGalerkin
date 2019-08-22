@@ -128,10 +128,9 @@ function computeCentralFluxes!(𝑓::Field2D, f::Face2D)
     return nothing
 end
 
-function computeLaxFriedrichsFluxes!(𝑓::Field2D, f::Face2D)
-    C = maximum(abs.([𝑓.ϕ[f.i⁻]; 𝑓.ϕ[f.i⁺]]))
-    @. 𝑓.fˣ[f.i⁻] += C * f.nˣ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
-    @. 𝑓.fʸ[f.i⁻] += C * f.nˣ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
+function computeLaxFriedrichsFluxes!(𝑓::Field2D, f::Face2D, C)
+    @. 𝑓.fˣ[f.i⁻] += 0.5 * C * f.nˣ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
+    @. 𝑓.fʸ[f.i⁻] += 0.5 * C * f.nʸ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
 
     return nothing
 end
@@ -142,24 +141,24 @@ function computeCentralDifference!(𝑓::AuxiliaryField2D, f::Face2D)
     return nothing
 end
 
-function computeSurfaceTerms!(𝑓::Field2D, f::Face2D)
+function computeSurfaceTerms!(𝑓::Field2D, Ωᵏ::Element2D, f::Face2D)
     # compute jump in flux
     @. 𝑓.Δf[f.i⁻] = f.nˣ * (𝑓.φˣ[f.i⁻] - 𝑓.fˣ[f.i⁻]) + f.nʸ * (𝑓.φʸ[f.i⁻] - 𝑓.fʸ[f.i⁻])
 
     # compute surface terms
-    𝑓.∮f[f.iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* 𝑓.Δf[f.i⁻])
-    @. 𝑓.ϕ̇[f.iⱽ] += 𝑓.∮f[f.iⱽ]
+    𝑓.∮f[Ωᵏ.iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* 𝑓.Δf[f.i⁻])
+    @. 𝑓.ϕ̇[Ωᵏ.iⱽ] += 𝑓.∮f[Ωᵏ.iⱽ]
 
     return nothing
 end
 
-function computeSurfaceTerms!(𝑓::AuxiliaryField2D, f::Face2D)
+function computeSurfaceTerms!(𝑓::AuxiliaryField2D, Ωᵏ::Element2D, f::Face2D)
     # compute jump in flux
     @. 𝑓.Δf[f.i⁻] = f.nˣ * (𝑓.φˣ[f.i⁻] - 𝑓.fˣ[f.i⁻]) + f.nʸ * (𝑓.φʸ[f.i⁻] - 𝑓.fʸ[f.i⁻])
 
     # compute surface terms
-    𝑓.∮f[f.iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* 𝑓.Δf[f.i⁻])
-    @. 𝑓.ϕ[f.iⱽ] -= 𝑓.∮f[f.iⱽ]
+    𝑓.∮f[Ωᵏ.iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* 𝑓.Δf[f.i⁻])
+    @. 𝑓.ϕ[Ωᵏ.iⱽ] -= 𝑓.∮f[Ωᵏ.iⱽ]
 
     return nothing
 end

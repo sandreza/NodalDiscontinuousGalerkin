@@ -40,16 +40,12 @@ function solveAdvection2D!(U̇, U, params, t)
 
         # compute surface contributions
         for f in Ωᵏ.faces
-            # get face nodes
-            i⁻ = f.i⁻
-            i⁺ = f.i⁺
-
             # evaluate numerical fluxes
-            v⁻ = @. abs(f.nˣ * vˣ[i⁻] + f.nʸ * vʸ[i⁻])
-            v⁺ = @. abs(f.nˣ * vˣ[i⁺] + f.nʸ * vʸ[i⁺])
+            v⁻ = @. abs(f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻])
+            v⁺ = @. abs(f.nˣ * vˣ[f.i⁺] + f.nʸ * vʸ[f.i⁺])
             C = maximum([v⁻, v⁺])
-            @. u.fˣ[i⁻] = 0.5 * (u.φˣ[i⁻] + u.φˣ[i⁺] + C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺]))
-            @. u.fʸ[i⁻] = 0.5 * (u.φʸ[i⁻] + u.φʸ[i⁺] + C * f.nʸ * (u.ϕ[i⁻] - u.ϕ[i⁺]))
+            computeCentralFluxes!(u, f)
+            computeLaxFriedrichsFluxes!(u, f, C)
 
             # impose BC
             if f.isBoundary[1]
@@ -57,12 +53,7 @@ function solveAdvection2D!(U̇, U, params, t)
                 @. u.fʸ[i⁻] = u.φʸ[i⁻]
             end
 
-            # compute jump in flux
-            @. u.Δf[i⁻] = f.nˣ * (u.φˣ[i⁻] - u.fˣ[i⁻]) + f.nʸ * (u.φʸ[i⁻] - u.fʸ[i⁻])
-
-            # compute surface term
-            u.∮f[iⱽ] = Ωᵏ.M⁺ * f.∮ * (f.C .* u.Δf[i⁻])
-            @. u.ϕ̇[iⱽ] += u.∮f[iⱽ]
+            computeSurfaceTerms!(u, Ωᵏ, f)
         end
     end
 

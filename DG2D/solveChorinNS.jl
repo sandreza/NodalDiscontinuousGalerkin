@@ -133,14 +133,16 @@ function solveChorinNS!(fields, params, time; BCᵈ = [nothing, nothing, nothing
             end
 
             # compute numerical fluxes
+            Cᵘ = []
             @. u.fˣ[f.i⁻] = uu.ϕ°[f.i⁻] - (ν+c²) * uˣ.ϕ°[f.i⁻] - c² * vʸ.ϕ°[f.i⁻]
             @. u.fʸ[f.i⁻] = uv.ϕ°[f.i⁻] - ν * uʸ.ϕ°[f.i⁻]
-            computeLaxFriedrichsFluxes!(u, f)
+            computeLaxFriedrichsFluxes!(u, f, Cᵘ)
             computeSurfaceTerms!(u, f)
 
+            Cᵛ = []
             @. v.fˣ[f.i⁻] = vu.ϕ°[f.i⁻] - ν * vˣ.ϕ°[f.i⁻]
             @. v.fʸ[f.i⁻] = vv.ϕ°[f.i⁻] - (ν+c²) * vʸ.ϕ°[f.i⁻] - c² * uˣ.ϕ°[f.i⁻]
-            computeLaxFriedrichsFluxes!(v, f)
+            computeLaxFriedrichsFluxes!(v, f, Cᵛ)
             computeSurfaceTerms!(v, f)
         end
     end

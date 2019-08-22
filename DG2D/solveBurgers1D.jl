@@ -104,7 +104,7 @@ function solveBurgers1D!(fields, params, t)
 
             # evaluate numerical flux for u
             C = maximum(abs.(u.ϕ[i⁻]))
-            @. u.fˣ[i⁻] = 0.5 * α * u².ϕ°[i⁻] - sqrt(ε) * uˣ.ϕ°[i⁻] + 0.5 * C * (u.ϕ[i⁻] - u.ϕ[i⁺])
+            @. u.fˣ[i⁻] = 0.5 * α * u².ϕ°[i⁻] - sqrt(ε) * uˣ.ϕ°[i⁻] + 0.5 * C * f.nˣ * (u.ϕ[i⁻] - u.ϕ[i⁺])
             @. u.fʸ[i⁻] = 0.0 # make non-zero for 2D burgers eqn
 
             # compute jump in flux

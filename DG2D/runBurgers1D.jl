@@ -44,7 +44,7 @@ u⁰(x,t) = -tanh(( x + 0.5 - t) / (2 * ε)) + 1.0
 umax = maximum(abs.(u.ϕ))
 Δx = minspacing2D(𝒢)
 CFL = 0.25
-dt  = CFL * minimum([Δx/umax, Δx^2/sqrt(ε)])
+dt  = CFL * minimum([Δx/umax, Δx^2/ε])
 println("Time step is $dt")
 
 # solve equations

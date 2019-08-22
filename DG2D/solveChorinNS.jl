@@ -22,7 +22,7 @@ solveSalmonCNS!(fields, params)
 -   `BCⁿ = (Nᵘ, Nᵛ)`:   neumann boundary conditions for each field
 
 """
-function solveChorinNS!(fields, params, time; BCᵈ = [nothing, nothing, nothing], BCⁿ = [nothing, nothing, nothing])
+function solveChorinNS!(fields, auxils, params, time)
     # unpack parameters
     𝒢  = params[1]
     ν  = params[2]
@@ -33,21 +33,20 @@ function solveChorinNS!(fields, params, time; BCᵈ = [nothing, nothing, nothing
     v  = fields[2]
 
     # utility fields for first derivatives
-    uˣ = fields[3]
-    uʸ = fields[4]
-    vˣ = fields[5]
-    vʸ = fields[6]
+    uˣ = auxils[1]
+    uʸ = auxils[2]
+    vˣ = auxils[3]
+    vʸ = auxils[4]
 
     # utility fields for second order terms
-    uu = fields[7]
-    uv = fields[8]
-    vu = fields[9]
-    vv = fields[10]
+    uu = auxils[5]
+    uv = auxils[6]
+    vu = auxils[7]
+    vv = auxils[8]
 
     # for convenience
     nonlinear   = [uu, uv, vu, vv]
     derivatives = [uˣ, uʸ, vˣ, vʸ]
-    auxiliary   = nonlinear + derivatives
 
     for Ωᵏ in 𝒢.Ω
         # get volume nodes
@@ -113,7 +112,7 @@ function solveChorinNS!(fields, params, time; BCᵈ = [nothing, nothing, nothing
 
         # compute surface contributions to tendency
         for f in Ωᵏ.faces
-            for 𝑓 in auxiliary
+            for 𝑓 in auxils
                 computeCentralDifference!(𝑓, f)
             end
 
@@ -132,16 +131,17 @@ function solveChorinNS!(fields, params, time; BCᵈ = [nothing, nothing, nothing
                 @. vʸ.ϕ°[f.i⁻] = vʸ.ϕ[f.i⁻]
             end
 
-            Cᵘ = []
+            ṽ⁻ = @. abs(f.nˣ * u.ϕ[f.i⁻] + f.nʸ * v.ϕ[f.i⁻])
+            ṽ⁺ = @. abs(f.nˣ * u.ϕ[f.i⁺] + f.nʸ * v.ϕ[f.i⁺])
+            C = maximum([ṽ⁻, ṽ⁺])
             @. u.fˣ[f.i⁻] = uu.ϕ°[f.i⁻] - (ν+c²) * uˣ.ϕ°[f.i⁻] - c² * vʸ.ϕ°[f.i⁻]
             @. u.fʸ[f.i⁻] = uv.ϕ°[f.i⁻] - ν * uʸ.ϕ°[f.i⁻]
-            computeLaxFriedrichsFluxes!(u, f, Cᵘ)
+            computeLaxFriedrichsFluxes!(u, f, C)
             computeSurfaceTerms!(u, Ωᵏ, f)
 
-            Cᵛ = []
             @. v.fˣ[f.i⁻] = vu.ϕ°[f.i⁻] - ν * vˣ.ϕ°[f.i⁻]
             @. v.fʸ[f.i⁻] = vv.ϕ°[f.i⁻] - (ν+c²) * vʸ.ϕ°[f.i⁻] - c² * uˣ.ϕ°[f.i⁻]
-            computeLaxFriedrichsFluxes!(v, f, Cᵛ)
+            computeLaxFriedrichsFluxes!(v, f, C)
             computeSurfaceTerms!(v, Ωᵏ, f)
         end
     end

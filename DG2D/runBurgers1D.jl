@@ -20,7 +20,7 @@ filename = filepath * filename
 N = 2^2
 
 # make grid
-𝒢 = Grid2D(ℳ, N, periodic=true)
+𝒢 = Grid2D(ℳ, N, periodic=false)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
 # plotgrid2D(𝒢)
@@ -36,9 +36,9 @@ uʸ = Field2D(𝒢)
 
 # initialize conditions
 ε = 0.1;
-t = 0
+t⁰ = 0
 u⁰(x,t) = -tanh(( x + 0.5 - t) / (2 * ε)) + 1.0
-@. u.ϕ = [u⁰(x̃[i],t) for i in 1:𝒢.nGL]
+@. u.ϕ = [u⁰(x̃[i],t⁰) for i in 1:𝒢.nGL]
 
 # determine timestep
 umax = maximum(abs.(u.ϕ))
@@ -65,5 +65,24 @@ solutions = solutions[1]
 Nsteps = floor(Int, length(solutions))
 step = maximum([floor(Int, Nsteps / 50), 1])
 times = 1:step:Nsteps
+
+exacts = []
+for time in times
+    t = dt * time
+    println("$t ")
+    uᵗ = @. [u⁰(x̃[i],t) for i in 1:𝒢.nGL]
+    println("$uᵗ")
+    push!(exacts, uᵗ)
+end
+
+diffs = []
+for (sol, exact) in zip(solutions, exacts)
+    diff = @. sol - exact
+    push!(diffs, diff)
+end
+
+
 # times = 1:100
-plotfield2D(times, [solutions], x̃, ỹ)
+plotfield2D(times, [solutions, exacts, diffs], x̃, ỹ)
+wrong = rel_error(solutions[end], exacts[end])
+println("The relative error of the solution is $wrong")

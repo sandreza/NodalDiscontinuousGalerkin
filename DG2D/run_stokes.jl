@@ -19,8 +19,8 @@ eigenvalues = false
 check_correctness = true
 plotting_solution = true
 # simulation parameters and grid
-n = 18
-FileName = "Maxwell1.neu"
+n = 1
+FileName = "Maxwell0125.neu"
 filepath = "./DG2D/grids/"
 filename = filepath*FileName
 mesh = garbage_triangle3(n, filename)
@@ -45,10 +45,13 @@ t = 0.0
 
 # boundary conditions for velocity, for whatever reason plugging in zero yields faster results. Could be the case that one sets zero to create the operator, then creates new boundary conditions later and evaluates the operator at that specific point
 bc_u = (mesh.vmapB,mesh.mapB, 0.0)
-dbc_u = (mesh.vmapB,mesh.mapB, 0.0, 0.0)
+#dbc_u = (mesh.vmapB,mesh.mapB, 0.0, 0.0)
+dbc_u = ([],[],0.0,0.0)
+
 
 bc_v = (mesh.vmapB,mesh.mapB, 0.0)
-dbc_v = (mesh.vmapB,mesh.mapB, 0.0,0.0)
+#dbc_v = (mesh.vmapB,mesh.mapB, 0.0,0.0)
+dbc_v = ([],[],0.0,0.0)
 
 # no boundary conditions for pressure
 bc_p = ([],[],0.0)
@@ -147,6 +150,27 @@ println("the error for the pressure is $(p_error)")
 
 println("The largest jump in pressure is ")
 println(maximum(abs.(p_computed[mesh.vmapM]-p_computed[mesh.vmapP])))
+
+tmp = similar(u_computed)
+tmpx = similar(u_computed)
+tmpy = similar(u_computed)
+∇⨀!(tmp, u_computed, v_computed, mesh)
+println("The amount of incompressibility is ")
+println(maximum(abs.(tmp)))
+
+∇!(tmpx, tmpy, u_computed, mesh)
+println("The error in computing the x-derivative u-velocity is ")
+println(maximum(abs.(tmpx)))
+println("The error in computing the y-derivative u-velocity is ")
+println(maximum(abs.(tmpx)))
+
+
+∇!(tmpx, tmpy, v_computed, mesh)
+println("The error in computing the x-derivative v-velocity is ")
+println(maximum(abs.(tmpx)))
+println("The error in computing the y-derivative v-velocity is ")
+println(maximum(abs.(tmpx)))
+
 #=
 
 

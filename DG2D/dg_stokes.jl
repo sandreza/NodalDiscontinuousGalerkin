@@ -89,7 +89,7 @@ function ∂ˣ_∮(ι, mesh, bc_ϕ!, bc)
     liftx = mesh.lift * (mesh.fscale .* ι.fˣ )
     # compute partial with respect to x
     ∇!(ι.∂ˣ, ι.∂ʸ, ι.ϕ, mesh)
-    return ∂ˣϕ =  ι.∂ˣ + liftx
+    return ι.∂ˣ + liftx
 end
 
 function ∂ʸ_∮(ι, mesh, bc_ϕ!, bc)
@@ -103,7 +103,7 @@ function ∂ʸ_∮(ι, mesh, bc_ϕ!, bc)
     lifty = mesh.lift * (mesh.fscale .* ι.fʸ )
     # compute partial with respect to x
     ∇!(ι.∂ˣ, ι.∂ʸ, ι.ϕ, mesh)
-    return ∂ʸϕ =  ι.∂ʸ + lifty
+    return ι.∂ʸ + lifty
 end
 
 

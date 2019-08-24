@@ -9,6 +9,11 @@ include("../DG2D/mesh2D.jl")
 include("../DG2D/utils2D.jl")
 =#
 
+function eval_grid(phield, mesh, t)
+    tmp = [phield(mesh.x[i],mesh.y[i], t) for i in 1:length(mesh.x) ]
+    return reshape(tmp, size(mesh.x))
+end
+
 struct dg_field{T}
     ϕ::T
     ϕ⁺::T
@@ -122,8 +127,15 @@ end
 
 
 #dirichlet
+# might need to change to ϕ.ϕ
+
 function bc!(ϕ, mesh, bc)
     @. ϕ.fⁿ[bc[2]] = ϕ.u[bc[1]]  - bc[3]
+    return nothing
+end
+
+function bc2!(ϕ, mesh, bc)
+    @. ϕ.fⁿ[bc[2]] = ϕ.ϕ[bc[1]]  - bc[3]
     return nothing
 end
 #neumann
@@ -134,8 +146,10 @@ function bc_∇!(ϕ, mesh, bc)
 end
 
 
-
-
+# initial condition for stommel gyr
+Ψ_stommel(x,y,t) = sin(π * x)^2 * sin(π * y )^2  ;
+u_stommel(x,y,t) =  sin(π * x)^2 * sin(π * y ) * cos(π * y) ;
+v_stommel(x,y,t) = - sin(π * x) * cos(π * x) * sin(π * y )^2;
 # exact answer pearson_vortex
 
 # functions
@@ -166,12 +180,24 @@ p_analytic(x,y,t) = -cos(2 * π * x ) * cos(2 *π * y) * exp( - ν * 8 *π^2 * t
 u∇ux_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣu_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸu_analytic(x,y,t)
 u∇uy_analytic(x,y,t) = u_analytic(x,y,t) * ∂ˣv_analytic(x,y,t) + v_analytic(x,y,t) * ∂ʸv_analytic(x,y,t)
 
-function eval_grid(phield, mesh, t)
-    tmp = [phield(mesh.x[i],mesh.y[i], t) for i in 1:length(mesh.x) ]
-    return reshape(tmp, size(mesh.x))
+
+#=
+"""
+∇⨂∇⨂(ns, mesh)
+
+# Description
+
+- compute curl curl of velocity field and include the lift terms
+
+
+"""
+function ∇⨂∇⨂(ns, ω, mesh)
+    # compute ∇
+
+
+    return tmpu, tmpv
 end
-
-
+=#
 
 # super inefficient, only need points on boundary yet things are evaluated everywhere
 function compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t⁰, mesh)
@@ -288,6 +314,16 @@ function calculate_pearson_bc_vel(mesh, t)
     return bc_u, dbc_u, bc_v, dbc_v
 end
 
+function calculate_stommel_bc_vel(mesh, t)
+    # it is assumed that t refers to time t¹
+    # compute u and v boundary conditions (since it is time dependent)
+    bc_u = (mesh.vmapB, mesh.mapB, 0.0)
+    dbc_u = ([],[],0.0,0.0)
+    bc_v = (mesh.vmapB, mesh.mapB, 0.0)
+    dbc_v = ([],[],0.0,0.0)
+    return bc_u, dbc_u, bc_v, dbc_v
+end
+
 function calculate_pearson_bc_p(mesh, t, Δt, ν, u⁰, v⁰)
     # it is assumed that t refers to time t¹
 
@@ -342,6 +378,16 @@ function ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     return nothing
 end
 
+function ns_stommel!(f, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    @. ι.u.φⁿ += Δt * ( -f * v⁰ + sin(π * mesh.y) )
+    @. ι.v.φⁿ += Δt * f * u⁰
+end
+
+function ns_stommel_β!(f, β, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    @. ι.u.φⁿ += Δt * ( -(f + β * mesh.y) * v⁰ + sin(π * mesh.y) )
+    @. ι.v.φⁿ += Δt * (f + β * mesh.y) * u⁰
+end
+
 function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     zero_value = zeros(size(mesh.x))
     dg_poisson_bc!(bᵖ, zero_value, field, params_vel, mesh, bc!, bc_p, bc_∇!, dbc_p)
@@ -349,8 +395,8 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # take the divergence of the solution
     rhsᵖ = similar(ι.p.ϕ)
     ∇⨀!(rhsᵖ, ι.u.φⁿ, ι.v.φⁿ, mesh)
-    # println("The maximum incompressibility of the nonlinear part is")
-    # println(maximum(abs.(rhsᵖ)))
+    println("The maximum incompressibility of the nonlinear part is")
+    println(maximum(abs.(rhsᵖ)))
     #construct appropriate lift!
     ∮∇⨀u = compute_div_lift_terms(ι, mesh)
     @. rhsᵖ += ∮∇⨀u
@@ -373,7 +419,52 @@ function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
     # project
     @. ũ = ι.u.φⁿ - ι.p.∂ˣ - px_lift
     @. ṽ = ι.v.φⁿ - ι.p.∂ʸ - py_lift
+
+    ∇⨀!(rhsᵖ, ũ, ṽ, mesh)
+    println("The maximum incompressibility of the nonlinear part is now")
+    println(maximum(abs.(rhsᵖ)))
+
+    if second_order
+        tmpˣ, tmpʸ = ∇⨂∇⨂(ι.u.φⁿ, ι.v.φⁿ, mesh)
+        @. ι.u.u̇ = tmpˣ
+        @. ι.v.u̇ = tmpʸ
+    end
+
     return nothing
+end
+
+function ns_curl_curl!(ι, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, chol_Δᵘ, chol_Δᵛ, mesh)
+    zero_value = zeros(size(mesh.x))
+    tmpˣ, tmpʸ = ∇⨂∇⨂(ι.u.φⁿ, ι.v.φⁿ, mesh)
+    @. ι.u.u̇ = tmpˣ
+    @. ι.v.u̇ = tmpʸ
+    rhsᵖ = similar(ι.p.ϕ)
+    ∇⨀!(rhsᵖ, tmpˣ, tmpʸ, mesh)
+    #println("The maximum incompressibility of the nonlinear part is")
+    #println(maximum(abs.(rhsᵖ)))
+
+    zero_value = zeros(size(mesh.x))
+    # set up affine part
+    dg_poisson_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+    dg_poisson_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+    #
+    rhsᵘ = 1 .* mesh.J .* (mesh.M * tmpˣ) + bᵘ
+
+    # then v
+    rhsᵛ = 1 .* mesh.J .* (mesh.M * tmpʸ) + bᵛ
+
+
+    # step one solve helmholtz equation for velocity field
+    tmpu¹ = reshape(chol_Δᵘ \ rhsᵘ[:], size(mesh.x) )
+    tmpv¹ = reshape(chol_Δᵛ \ rhsᵛ[:], size(mesh.x) )
+    @. ũ = tmpu¹
+    @. ṽ = tmpv¹
+
+    ∇⨀!(rhsᵖ, ũ, ṽ, mesh)
+    #println("The maximum incompressibility of the nonlinear part is now")
+    #println(maximum(abs.(rhsᵖ)))
+
 end
 
 function ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, params_vel)
@@ -387,6 +478,28 @@ function ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u�
     rhsᵘ *= -1.0 #cholesky nonsense
     # then v
     rhsᵛ = -1 .* mesh.J .* (mesh.M * ṽ ./ (ν*Δt)) - bᵛ
+    rhsᵛ *= -1.0 #cholesky nonsense
+
+    # step one solve helmholtz equation for velocity field
+    tmpu¹ = reshape(chol_Hᵘ \ rhsᵘ[:], size(mesh.x) )
+    tmpv¹ = reshape(chol_Hᵛ \ rhsᵛ[:], size(mesh.x) )
+    @. u¹ = tmpu¹
+    @. v¹ = tmpv¹
+    return nothing
+end
+
+
+function ns_diffuse_2!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, params_vel)
+    zero_value = zeros(size(mesh.x))
+    # set up affine part
+    dg_helmholtz_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+    dg_helmholtz_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+    #
+    rhsᵘ = -1 .* mesh.J .* (mesh.M *  ( ũ ./ (ν*Δt/2) .- ι.u.u̇ ) ) - bᵘ
+    rhsᵘ *= -1.0 #cholesky nonsense
+    # then v
+    rhsᵛ = -1 .* mesh.J .* (mesh.M * (ṽ ./ (ν*Δt/2) .- ι.v.u̇) ) - bᵛ
     rhsᵛ *= -1.0 #cholesky nonsense
 
     # step one solve helmholtz equation for velocity field
@@ -509,14 +622,19 @@ function ns_timestep_other!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, b
     fu¹ = 0.0
     fv¹ = 0.0
     compute_pressure_terms(u⁰, v⁰, ν, fu¹, fv¹, t, mesh)
-    ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    #ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    ns_curl_curl!(ι, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, chol_Δᵘ, chol_Δᵛ, mesh)
     # now consider next time-step
     @. t_list += Δt
     t = t_list[1]
 
     # step 3: Diffuse
     bc_u, dbc_u, bc_v, dbc_v = calculate_pearson_bc_vel(mesh, t)
-    ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+    if second_order
+        ns_diffuse_2!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+    else
+        ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+    end
 
     # step 4: set new value of velocity
     @. u⁰ = u¹
@@ -537,6 +655,160 @@ function modify_pressure_Δ(Δᵖ)
     dropϵzeros!(nΔᵖ)
     lu_Δᵖ = lu(-nΔᵖ)
     return lu_Δᵖ
+end
+
+
+
+function ns_timestep_stommel!(f, u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list, bc_u, bc_v, dbc_u, dbc_v)
+    t = t_list[1]
+    # step 1: Advection
+    #@. ι.u.ϕ = u⁰
+    #@. ι.v.ϕ = v⁰
+
+    #bc_u, dbc_u, bc_v, dbc_v = calculate_stommel_bc_vel(mesh, t)
+    #ns_advection!(ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    @. ι.u.φⁿ = u⁰
+    @. ι.v.φⁿ = v⁰
+    # ns_stommel!(f, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    ns_stommel_β!(f, -10.0, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    # if you mess up the boundary values you get errors
+
+    # step 2: Pressure projection
+    #bc_p, dbc_p = calculate_pearson_bc_p(mesh)
+    #ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
+    ns_curl_curl!(ι, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, chol_Δᵘ, chol_Δᵛ, mesh)
+    #@. ũ = ι.u.ϕ
+    #@. ṽ = ι.v.ϕ
+
+    # now consider next time-step
+    @. t_list += Δt
+    t = t_list[1]
+
+    # step 3: Diffuse
+    bc_u, dbc_u, bc_v, dbc_v = calculate_stommel_bc_vel(mesh, t)
+    if second_order
+        ns_diffuse_2!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+    else
+        ns_diffuse!(ι, mesh, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹,  ũ, ṽ, params_vel)
+    end
+
+    # step 4: set new value of velocity
+    @. u⁰ = u¹
+    @. v⁰ = v¹
+    return nothing
+end
+
+
+
+
+function ns_curl_curl2!(ι, bc_u, bc_v, dbc_u, dbc_v, ν, Δt, bᵘ, bᵛ, u¹, v¹, ũ, ṽ, chol_Δᵘ, chol_Δᵛ, mesh)
+    # first compute ω
+    #@. ι.v.ϕ = ι.v.φⁿ
+    #@. ι.u.ϕ = ι.u.φⁿ
+    #tmp1 = ∂ˣ_∮(ι.v, mesh, bc2!, bc_v)
+    #tmp2 = ∂ʸ_∮(ι.u, mesh, bc2!, bc_u)
+    # could try to include b.c here
+    tmp1 = ∂ˣ_∮(ι.v.φⁿ, mesh)
+    tmp2 = ∂ʸ_∮(ι.u.φⁿ, mesh)
+    ω = tmp1 - tmp2
+    # check incompressibility
+
+    tmp1 = ∂ˣ_∮(ω, mesh)
+    tmp2 = ∂ʸ_∮(ω, mesh)
+
+    tmpˣ =   tmp2
+    tmpʸ = - tmp1
+
+    # save the "laplacian of u and v"
+    @. ι.u.u̇ = tmpˣ
+    @. ι.v.u̇ = tmpʸ
+
+    rhsᵖ = similar(ι.p.ϕ)
+    ∇⨀!(rhsᵖ, tmpˣ, tmpʸ, mesh)
+
+
+    println("The maximum incompressibility of the nonlinear part is")
+    println(maximum(abs.(rhsᵖ)))
+
+    zero_value = zeros(size(mesh.x))
+    # set up affine part
+    dg_poisson_bc!(bᵘ, zero_value, field, params_vel, mesh, bc!, bc_u, bc_∇!, dbc_u)
+    dg_poisson_bc!(bᵛ, zero_value, field, params_vel, mesh, bc!, bc_v, bc_∇!, dbc_v)
+
+    #
+    rhsᵘ = 1 .* mesh.J .* (mesh.M * tmpˣ) + bᵘ
+
+    # then v
+    rhsᵛ = 1 .* mesh.J .* (mesh.M * tmpʸ) + bᵛ
+
+
+    # step one solve helmholtz equation for velocity field
+    tmpu¹ = reshape(chol_Δᵘ \ rhsᵘ[:], size(mesh.x) )
+    tmpv¹ = reshape(chol_Δᵛ \ rhsᵛ[:], size(mesh.x) )
+    @. ũ = tmpu¹
+    @. ṽ = tmpv¹
+
+    ∇⨀!(rhsᵖ, ũ, ṽ, mesh)
+    println("The maximum incompressibility of the nonlinear part is now")
+    println(maximum(abs.(rhsᵖ)))
+
+end
+
+
+function ∂ˣ_∮(ι, mesh, bc_ϕ!, bc)
+    # form field differnces at faces
+    @. ι.fⁿ[:] =  (ι.ϕ[mesh.vmapM] - ι.ϕ[mesh.vmapP]) / 2 #central flux
+    # enforce bc
+    bc_ϕ!(ι, mesh, bc)
+    # compute normal component in the x-direction
+    @. ι.fˣ = mesh.nx * ι.fⁿ
+    # compute lift term
+    liftx = mesh.lift * (mesh.fscale .* ι.fˣ )
+    # compute partial with respect to x
+    ∇!(ι.∂ˣ, ι.∂ʸ, ι.ϕ, mesh)
+    return ι.∂ˣ + liftx
+end#
+
+function ∂ʸ_∮(ι, mesh, bc_ϕ!, bc)
+    # form field differnces at faces
+    @. ι.fⁿ[:] =  (ι.ϕ[mesh.vmapM] - ι.ϕ[mesh.vmapP]) / 2 #central flux
+    # enforce bc
+    bc_ϕ!(ι, mesh, bc)
+    # compute normal component in the x-direction
+    @. ι.fʸ = mesh.ny * ι.fⁿ
+    # compute lift term
+    lifty = mesh.lift * (mesh.fscale .* ι.fʸ )
+    # compute partial with respect to x
+    ∇!(ι.∂ˣ, ι.∂ʸ, ι.ϕ, mesh)
+    return ι.∂ʸ + lifty
+end
+
+# no boundary conditions
+function ∂ˣ_∮(ϕ, mesh)
+    # form field differnces at faces
+    fⁿ =  (ϕ[mesh.vmapM] - ϕ[mesh.vmapP]) ./ 2 #central flux
+    fˣ = mesh.nx .* reshape(fⁿ, size(mesh.nx))
+    # compute lift term
+    liftx = mesh.lift * (mesh.fscale .* fˣ )
+    # compute partial with respect to x
+    ∂ˣ = similar(ϕ)
+    ∂ʸ = similar(ϕ)
+    ∇!(∂ˣ, ∂ʸ, ϕ, mesh)
+    return ∂ˣ + liftx
+end#
+
+#no boundary conditions
+function ∂ʸ_∮(ϕ, mesh)
+    # form field differnces at faces
+    fⁿ=  (ϕ[mesh.vmapM] - ϕ[mesh.vmapP]) ./ 2 #central flux
+    fʸ = mesh.ny .* reshape(fⁿ, size(mesh.ny))
+    # compute lift term
+    lifty = mesh.lift * (mesh.fscale .* fʸ )
+    # compute partial with respect to x
+    ∂ˣ = similar(ϕ)
+    ∂ʸ = similar(ϕ)
+    ∇!(∂ˣ, ∂ʸ, ϕ, mesh)
+    return ∂ʸ + lifty
 end
 
 

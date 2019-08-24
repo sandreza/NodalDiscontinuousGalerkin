@@ -7,7 +7,7 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 3
+n = 8
 timings = false
 gradients_check = false
 solve_ode = false

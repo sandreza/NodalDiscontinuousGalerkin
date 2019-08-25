@@ -306,6 +306,7 @@ end
 ###
 Ψ = solve_Ψ(u¹, v¹, mesh, chol_Δ) #already flattened
 
-p3 = surface(mesh.x[:],mesh.y[:], Ψ , camera = (0,90))}
-display(plot(p3))
+p3 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (0,90))
+p4 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (25,60))
+display(plot(p4))
 ###

@@ -813,7 +813,8 @@ end
 
 function solve_Ψ(u, v, mesh, Δ)
     ω = ∇⨂(u,v,mesh)
-    Ψ = Δ \ ω[:]
+    rhs = mesh.J .* (mesh.M * ω)
+    Ψ = Δ \ rhs[:]
     return Ψ
 
 end

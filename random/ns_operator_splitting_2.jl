@@ -17,6 +17,7 @@ n = 10 #even good odd okay
 plotting = false
 timings = false
 stommel = true
+stream_function = true
 const second_order = true
 const debug = false
 # load grids
@@ -118,6 +119,16 @@ else
     dropϵzeros!(Δᵛ)
     chol_Δᵘ = cholesky(-Δᵘ)
     chol_Δᵛ = cholesky(-Δᵛ)
+end
+
+if stream_function
+    params_ψ = [τ]
+    bc_ψ = (mesh.vmapB, mesh.mapB, 0.0)
+    dbc_ψ = (Any[], Any[], 0.0, 0.0)
+    Δ, b = poisson_setup_bc(field, params_ψ, mesh, bc!, bc_ψ, bc_∇!, dbc_ψ)
+    Δ = (Δ + Δ') / 2
+    dropϵzeros!(Δ)
+    chol_Δ = cholesky(-Δ)
 end
 
 
@@ -288,5 +299,13 @@ if plotting
     p1 = surface(mesh.x[:],mesh.y[:], thing1 , camera = (0,90))
     p2 = surface(mesh.x[:],mesh.y[:], thing2 , camera = (0,90))
     display(plot(p1,p2))
-
 end
+
+
+
+###
+Ψ = solve_Ψ(u¹, v¹, mesh, chol_Δ) #already flattened
+
+p3 = surface(mesh.x[:],mesh.y[:], Ψ , camera = (0,90))}
+display(plot(p3))
+###

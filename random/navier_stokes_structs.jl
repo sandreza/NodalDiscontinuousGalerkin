@@ -811,6 +811,13 @@ function ∂ʸ_∮(ϕ, mesh)
     return ∂ʸ + lifty
 end
 
+function solve_Ψ(u, v, mesh, Δ)
+    ω = ∇⨂(u,v,mesh)
+    Ψ = Δ \ ω[:]
+    return Ψ
+
+end
+
 
 #stuff I probably won't need
 #=

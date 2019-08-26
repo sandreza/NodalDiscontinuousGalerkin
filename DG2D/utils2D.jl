@@ -342,6 +342,6 @@ function plotfield2D(times, solutions, x, y)
             ploti = surface(x[:], y[:], sol[t], zlims = (0.0, 1.0), camera = (0, 90)) # (15,60))
             push!(plots, ploti)
         end
-        display(plot(plots..., zlims = (0.0, 1.0), colors = :blue))
+        display(plot(plots..., zlims = (0.0, 1.0)))
     end
 end

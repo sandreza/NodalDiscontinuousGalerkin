@@ -2,7 +2,6 @@ include("grid2D.jl")
 include("solveBurgers1D.jl")
 
 using Plots
-using OrdinaryDiffEq
 
 # make mesh
 K = 2
@@ -20,7 +19,7 @@ filename = filepath * filename
 N = 2^2
 
 # make grid
-𝒢 = Grid2D(ℳ, N, periodic=true)
+𝒢 = Grid2D(ℳ, N, periodic=false)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
 # plotgrid2D(𝒢)
@@ -56,7 +55,7 @@ println("Number of steps is $Nsteps")
 α = 1
 
 # turn 2D on/off
-β = 1
+β = 0
 
 fields = [u]
 auxil  = [u², uˣ, uʸ]

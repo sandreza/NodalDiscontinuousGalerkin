@@ -2,7 +2,6 @@ include("grid2D.jl")
 include("solveAdvection2D.jl")
 
 using Plots
-using OrdinaryDiffEq
 
 # make mesh
 K = 3
@@ -43,12 +42,9 @@ u = Field2D(𝒢)
 x⁰ = 0.0
 y⁰ = 0.0
 u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) * cos(π/2 * x) * cos(π/2 * y)
-# u⁰(x, y) = 10*(y-y⁰)^2 # 10*(x-x⁰)^2
-# ∇u(x, y) = 20*(x-x⁰)   # - 20*(y-y⁰)
 @. u.ϕ = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 # parameters
-α  = 0. # determine upwind or central flux
 vˣ = zeros(𝒢.nGL)
 vʸ = zeros(𝒢.nGL)
 @. vˣ = 1.0
@@ -60,25 +56,23 @@ Nsteps = ceil(Int, stoptime / dt)
 println("Number of steps is $Nsteps")
 
 fields = [u]
-params = (𝒢, α, vˣ, vʸ, u)
+params = (𝒢, vˣ, vʸ)
 tspan = (0.0, stoptime)
 
-# solutions = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
-problem = ODEProblem(solveAdvection2D!, u.ϕ, tspan, params);
-forward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+forward = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
 
 @. vˣ = -vˣ
 @. vʸ = -vʸ
 
-problem = ODEProblem(solveAdvection2D!, u.ϕ, tspan, params);
-backward = solve(problem, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+backward = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
 
-solutions = [forward.u; backward.u]
+solutions = [forward[1]; backward[1]]
 
 Nsteps = floor(Int, length(solutions))
 step = maximum([floor(Int, Nsteps / 50), 1])
 times = 1:step:Nsteps
 # times = 1:100
+
 plotfield2D(times, [solutions], x̃, ỹ)
 wrong = rel_error(solutions[1], solutions[end])
 println("The relative error of the solution is $wrong")

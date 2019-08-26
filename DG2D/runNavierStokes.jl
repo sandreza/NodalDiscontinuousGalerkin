@@ -44,12 +44,12 @@ vv = AuxiliaryField2D(𝒢)
 
 # initialize conditions
 @. u.ϕ = 1.0
-@. v.ϕ = 0.0
+@. v.ϕ = 1.0
 
 # parameters
 stoptime = 2.
 ν  = 1.0e-1
-c² = 1.0
+c² = 0.0
 
 # determine timestep
 umax = maximum(abs.(u.ϕ))
@@ -60,12 +60,16 @@ CFL = 0.25
 dt  = CFL * minimum([Δx/cmax, Δx^2/ν])
 println("Time step is $dt")
 
+# turn non-linear on/off
+α = 0
+
 # solve equations
 fields = (u, v)
 auxil  = (uˣ, uʸ, vˣ, vʸ, uu, uv, vu, vv)
-params = (𝒢, ν, c²)
+params = (𝒢, ν, c², α)
 rhs!   = solveChorinNS!
 Nsteps = ceil(Int, stoptime / dt)
+# Nsteps = 2
 println("Number of steps is $Nsteps")
 
 solutions = rk_solver!(rhs!, fields, params, dt, Nsteps; auxil = auxil)

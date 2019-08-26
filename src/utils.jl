@@ -465,7 +465,6 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps; auxil = [])
             for 𝑓 in fields
                 @. 𝑓.r = rk4a[iRK] * 𝑓.r + 𝑓.ϕ̇ * dt
                 @. 𝑓.ϕ = rk4b[iRK] * 𝑓.r + 𝑓.ϕ
-                # seems to differ from matlab code during this step ???
             end
         end
 

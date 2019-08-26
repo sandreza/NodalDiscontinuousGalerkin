@@ -2,7 +2,7 @@ include("field2D.jl")
 include("utils2D.jl")
 
 """
-solveSalmonCNS!(fields, params)
+solveChorinNS!(fields, auxils, params, time)
 
 # Description
 
@@ -17,16 +17,17 @@ solveSalmonCNS!(fields, params)
 # Arguments
 
 -   `fields = (u, v)`: velocity in each dimension
--   `params = (𝒢, ν, c²)`: grid struct, viscosity, and speed of sound
--   `BCᵈ = (Dᵘ, Dᵛ)`: dirichlet boundary conditions for each field
--   `BCⁿ = (Nᵘ, Nᵛ)`:   neumann boundary conditions for each field
+-   `auxils = (uˣ, uʸ, vˣ, vʸ, uu, uv, vu, vv)`: auxiliary fields for computation
+-   `params = (𝒢, ν, c²)`: grid struct, viscosity, speed of sound, and nonlinear switch
+-   `t`: time to compute BC at
 
 """
-function solveChorinNS!(fields, auxils, params, time)
+function solveChorinNS!(fields, auxils, params, t)
     # unpack parameters
     𝒢  = params[1]
     ν  = params[2]
     c² = params[3]
+    α  = params[4]
 
     # main velocity fields
     u  = fields[1]
@@ -48,18 +49,10 @@ function solveChorinNS!(fields, auxils, params, time)
     nonlinear   = [uu, uv, vu, vv]
     derivatives = [uˣ, uʸ, vˣ, vʸ]
 
+    # compute volume contributions to first derivatives
     for Ωᵏ in 𝒢.Ω
         # get volume nodes
         iⱽ = Ωᵏ.iⱽ
-
-        # compute volume contributions to first derivatives
-        ∇!(u.φˣ, u.φʸ, u.ϕ, Ωᵏ)
-        @. uˣ.ϕ[iⱽ] = u.φˣ[iⱽ]
-        @. uʸ.ϕ[iⱽ] = u.φʸ[iⱽ]
-
-        ∇!(v.φˣ, v.φʸ, v.ϕ, Ωᵏ)
-        @. vˣ.ϕ[iⱽ] = v.φˣ[iⱽ]
-        @. vʸ.ϕ[iⱽ] = v.φʸ[iⱽ]
 
         # define physical fluxes for first derivatives
         @. uˣ.φˣ[iⱽ] = u.ϕ[iⱽ]
@@ -68,7 +61,17 @@ function solveChorinNS!(fields, auxils, params, time)
         @. vˣ.φˣ[iⱽ] = v.ϕ[iⱽ]
         @. vʸ.φʸ[iⱽ] = v.ϕ[iⱽ]
 
-        # compute surface contributions to first derivatives
+        ∇!(u.φˣ, u.φʸ, u.ϕ, Ωᵏ)
+        @. uˣ.ϕ[iⱽ] = u.φˣ[iⱽ]
+        @. uʸ.ϕ[iⱽ] = u.φʸ[iⱽ]
+
+        ∇!(v.φˣ, v.φʸ, v.ϕ, Ωᵏ)
+        @. vˣ.ϕ[iⱽ] = v.φˣ[iⱽ]
+        @. vʸ.ϕ[iⱽ] = v.φʸ[iⱽ]
+    end
+
+    # compute surface contributions to first derivatives
+    for Ωᵏ in 𝒢.Ω
         for f in Ωᵏ.faces
             for 𝑓 in derivatives
                 computeCentralFluxes!(𝑓, f)
@@ -89,7 +92,12 @@ function solveChorinNS!(fields, auxils, params, time)
                 computeSurfaceTerms!(𝑓, Ωᵏ, f)
             end
         end
+    end
 
+    # compute volume contributions to the tendecies
+    for Ωᵏ in 𝒢.Ω
+        # get volume nodes
+        iⱽ = Ωᵏ.iⱽ
         # compute non-linear terms
         @. uu.ϕ[iⱽ] = u.ϕ[iⱽ] * u.ϕ[iⱽ]
         @. uv.ϕ[iⱽ] = u.ϕ[iⱽ] * v.ϕ[iⱽ]
@@ -97,20 +105,21 @@ function solveChorinNS!(fields, auxils, params, time)
         @. vv.ϕ[iⱽ] = v.ϕ[iⱽ] * v.ϕ[iⱽ]
 
         # define physical fluxes for u and v
-        @. u.φˣ[iⱽ] = uu.ϕ[iⱽ] - (ν+c²) * uˣ.ϕ[iⱽ] - c² * vʸ.ϕ[iⱽ]
-        @. u.φʸ[iⱽ] = uv.ϕ[iⱽ] - ν * uʸ.ϕ[iⱽ]
+        @. u.φˣ[iⱽ] = α * uu.ϕ[iⱽ] - (ν+c²) * uˣ.ϕ[iⱽ] - c² * vʸ.ϕ[iⱽ]
+        @. u.φʸ[iⱽ] = α * uv.ϕ[iⱽ] - ν * uʸ.ϕ[iⱽ]
 
-        @. v.φˣ[iⱽ] = vu.ϕ[iⱽ] - ν * vˣ.ϕ[iⱽ]
-        @. v.φʸ[iⱽ] = vv.ϕ[iⱽ] - (ν+c²) * vʸ.ϕ[iⱽ] - c² * uˣ.ϕ[iⱽ]
+        @. v.φˣ[iⱽ] = α * vu.ϕ[iⱽ] - ν * vˣ.ϕ[iⱽ]
+        @. v.φʸ[iⱽ] = α * vv.ϕ[iⱽ] - (ν+c²) * vʸ.ϕ[iⱽ] - c² * uˣ.ϕ[iⱽ]
 
-        # compute volume contributions to the tendecies
         ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ωᵏ)
         @. u.ϕ̇[iⱽ] = -u.𝚽[iⱽ]
 
         ∇⨀!(v.𝚽, v.φˣ, v.φʸ, Ωᵏ)
         @. v.ϕ̇[iⱽ] = -v.𝚽[iⱽ]
+    end
 
-        # compute surface contributions to tendency
+    # compute surface contributions to tendency
+    for Ωᵏ in 𝒢.Ω
         for f in Ωᵏ.faces
             for 𝑓 in auxils
                 computeCentralDifference!(𝑓, f)
@@ -134,13 +143,14 @@ function solveChorinNS!(fields, auxils, params, time)
             ṽ⁻ = @. abs(f.nˣ * u.ϕ[f.i⁻] + f.nʸ * v.ϕ[f.i⁻])
             ṽ⁺ = @. abs(f.nˣ * u.ϕ[f.i⁺] + f.nʸ * v.ϕ[f.i⁺])
             C = maximum([ṽ⁻, ṽ⁺])
-            @. u.fˣ[f.i⁻] = uu.ϕ°[f.i⁻] - (ν+c²) * uˣ.ϕ°[f.i⁻] - c² * vʸ.ϕ°[f.i⁻]
-            @. u.fʸ[f.i⁻] = uv.ϕ°[f.i⁻] - ν * uʸ.ϕ°[f.i⁻]
+
+            @. u.fˣ[f.i⁻] = α * uu.ϕ°[f.i⁻] - (ν+c²) * uˣ.ϕ°[f.i⁻] - c² * vʸ.ϕ°[f.i⁻]
+            @. u.fʸ[f.i⁻] = α * uv.ϕ°[f.i⁻] - ν * uʸ.ϕ°[f.i⁻]
             computeLaxFriedrichsFluxes!(u, f, C)
             computeSurfaceTerms!(u, Ωᵏ, f)
 
-            @. v.fˣ[f.i⁻] = vu.ϕ°[f.i⁻] - ν * vˣ.ϕ°[f.i⁻]
-            @. v.fʸ[f.i⁻] = vv.ϕ°[f.i⁻] - (ν+c²) * vʸ.ϕ°[f.i⁻] - c² * uˣ.ϕ°[f.i⁻]
+            @. v.fˣ[f.i⁻] = α * vu.ϕ°[f.i⁻] - ν * vˣ.ϕ°[f.i⁻]
+            @. v.fʸ[f.i⁻] = α * vv.ϕ°[f.i⁻] - (ν+c²) * vʸ.ϕ°[f.i⁻] - c² * uˣ.ϕ°[f.i⁻]
             computeLaxFriedrichsFluxes!(v, f, C)
             computeSurfaceTerms!(v, Ωᵏ, f)
         end

@@ -20,7 +20,7 @@ filename = filepath * filename
 N = 2^2
 
 # make grid
-𝒢 = Grid2D(ℳ, N, periodic=false)
+𝒢 = Grid2D(ℳ, N, periodic=true)
 x̃ = 𝒢.x[:,1]
 ỹ = 𝒢.x[:,2]
 # plotgrid2D(𝒢)
@@ -35,16 +35,16 @@ uˣ = AuxiliaryField2D(𝒢)
 uʸ = AuxiliaryField2D(𝒢)
 
 # initialize conditions
-ε = 0.1;
+ν = 0.1;
 t⁰ = 0
-u⁰(x,t) = -tanh(( x + 0.5 - t) / (2 * ε)) + 1.0
+u⁰(x,t) = -tanh(( x + 0.5 - t) / (2 * ν)) + 1.0
 @. u.ϕ = [u⁰(x̃[i],t⁰) for i in 1:𝒢.nGL]
 
 # determine timestep
 umax = maximum(abs.(u.ϕ))
 Δx = minspacing2D(𝒢)
 CFL = 0.25
-dt  = CFL * minimum([Δx/umax, Δx^2/ε])
+dt  = CFL * minimum([Δx/umax, Δx^2/ν])
 println("Time step is $dt")
 
 # solve equations
@@ -55,9 +55,12 @@ println("Number of steps is $Nsteps")
 # turn non linear turns on/off
 α = 1
 
+# turn 2D on/off
+β = 1
+
 fields = [u]
 auxil  = [u², uˣ, uʸ]
-params = (𝒢, ε, α)
+params = (𝒢, ν, α, β)
 tspan = (0.0, stoptime)
 
 solutions = rk_solver!(solveBurgers1D!, fields, params, dt, Nsteps; auxil = auxil)

@@ -13,7 +13,7 @@ include("../DG2D/triangles.jl")
 # super important when one has a large number of elements, less so with less elements
 
 # define polynomial order, n=11 is about the right size
-n = 10 #even good odd okay
+n = 12 #even good odd okay
 plotting = false
 timings = false
 stommel = true
@@ -211,7 +211,7 @@ divu  = similar(u⁰)
 thing = abs.(divu[:])
 println(maximum(thing))
 # check the timestep
-times = 1:2000
+times = 1:10000
 for i in times
     # pressure on lin 293 and 294 is multiplied by zero for bc
     #ns_timestep!(u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, mesh, bᵘ, bᵛ, bᵖ, t_list)
@@ -308,5 +308,13 @@ end
 
 p3 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (0,90))
 p4 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (25,60))
-display(plot(p4))
+p5 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (0,0))
+display(plot(p5))
+
+for j in 0:15:45
+    for i in 0:10:90
+        p6 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (j,i))
+        display(p6)
+    end
+end
 ###

@@ -384,8 +384,8 @@ function ns_stommel!(f, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
 end
 
 function ns_stommel_β!(f, β, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
-    @. ι.u.φⁿ += Δt * ( -(f + β * mesh.y) * v⁰ + sin(π * mesh.y) )
-    @. ι.v.φⁿ += Δt * (f + β * mesh.y) * u⁰
+    @. ι.u.φⁿ += Δt * ( (f + β * mesh.y) * v⁰ + sin(π * mesh.y) )
+    @. ι.v.φⁿ += -Δt * (f + β * mesh.y) * u⁰
 end
 
 function ns_projection!(ι, bc_p, dbc_p, chol_Δᵖ, ũ, ṽ, bᵖ, params_vel)
@@ -670,7 +670,7 @@ function ns_timestep_stommel!(f, u⁰, v⁰, u¹, v¹, ũ, ṽ, ν, Δt, ι, me
     @. ι.u.φⁿ = u⁰
     @. ι.v.φⁿ = v⁰
     # ns_stommel!(f, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
-    ns_stommel_β!(f, -10.0, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
+    ns_stommel_β!(f, 10.0, ι, bc_u, bc_v, mesh, u⁰, v⁰, Δt)
     # if you mess up the boundary values you get errors
 
     # step 2: Pressure projection

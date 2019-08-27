@@ -1,4 +1,5 @@
 include("grid2D.jl")
+include("flux2D.jl")
 include("solveAdvection2D.jl")
 
 using Plots
@@ -35,7 +36,9 @@ dt  = CFL * Δx / vmax
 println("Time step is $dt")
 
 # make field objects
-u = Field2D(𝒢)
+u  = Field2D(𝒢)
+θˣ = Field2D(𝒢)
+θʸ = Field2D(𝒢)
 
 # initialize conditions
 σ = 10.0
@@ -43,6 +46,10 @@ x⁰ = 0.0
 y⁰ = 0.0
 u⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2)) * cos(π/2 * x) * cos(π/2 * y)
 @. u.ϕ = [u⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
+
+# fluxes
+φˣ = Flux2D([θˣ], [-1])
+φʸ = Flux2D([θʸ], [-1])
 
 # parameters
 vˣ = zeros(𝒢.nGL)
@@ -56,15 +63,16 @@ Nsteps = ceil(Int, stoptime / dt)
 println("Number of steps is $Nsteps")
 
 fields = [u]
+auxils = [θˣ, θʸ]
+fluxes = [φˣ, φʸ]
 params = (𝒢, vˣ, vʸ)
-tspan = (0.0, stoptime)
 
-forward = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
+forward = rk_solver!(solveAdvection2D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
 
 @. vˣ = -vˣ
 @. vʸ = -vʸ
 
-backward = rk_solver!(solveAdvection2D!, fields, params, dt, Nsteps)
+backward = rk_solver!(solveAdvection2D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
 
 solutions = [forward[1]; backward[1]]
 

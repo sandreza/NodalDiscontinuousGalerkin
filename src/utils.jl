@@ -441,7 +441,7 @@ rk_solver!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function rk_solver!(rhs!, fields, params, dt, Nsteps; auxil = [])
+function rk_solver!(rhs!, fields, fluxes, params, dt, Nsteps; auxils = [])
     # Runge-Kutta residual storage
     solutions = []
     for 𝑓 in fields
@@ -455,10 +455,10 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps; auxil = [])
         time = dt * tstep
         for iRK in 1:5
             # get numerical solution
-            if isempty(auxil)
-                rhs!(fields, params, time)
+            if isempty(auxils)
+                rhs!(fields, fluxes, params, time)
             else
-                rhs!(fields, auxil, params, time)
+                rhs!(fields, fluxes, auxils, params, time)
             end
 
             # update solutions

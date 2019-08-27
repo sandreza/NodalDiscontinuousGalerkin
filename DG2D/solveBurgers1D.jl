@@ -22,7 +22,7 @@ solveBurgers1D!(fields, auxils, params, t)
 -   `t`: time to compute BC at
 
 """
-function solveBurgers1D!(fields, auxils, params, t)
+function solveBurgers1D!(fields, fluxes, auxils, params, t)
     # unpack params
     𝒢  = params[1] # grid parameters
     ν  = params[2]
@@ -37,59 +37,56 @@ function solveBurgers1D!(fields, auxils, params, t)
     uˣ = auxils[2]
     uʸ = auxils[3]
 
-    # compute volume contribution to uˣ and uʸ
-    for Ωᵏ in 𝒢.Ω
-        # get volume nodes
-        iⱽ = Ωᵏ.iⱽ
+    φᵘ  = fluxes[1]
+    φˣᵤ = fluxes[2]
+    φʸᵤ = fluxes[3]
 
-        # define physical fluxes for uˣ and uʸ
-        @. uˣ.φˣ[iⱽ] = sqrt(ν) * u.ϕ[iⱽ]
-        @. uʸ.φʸ[iⱽ] = sqrt(ν) * u.ϕ[iⱽ]
+    # compute volume contribution to uˣ and uʸ
+    for Ω in 𝒢.Ω
+        computePhysicalFlux!(uˣ.φˣ, φᵘ, Ω)
+        computePhysicalFlux!(uʸ.φʸ, φᵘ, Ω)
 
         # compute volume contributions
-        ∇!(u.φˣ, u.φʸ, u.ϕ, Ωᵏ)
-        @. uˣ.ϕ[iⱽ] = sqrt(ν) * u.φˣ[iⱽ]
-        @. uʸ.ϕ[iⱽ] = sqrt(ν) * u.φʸ[iⱽ]
+        ∇!(u.φˣ, u.φʸ, u.ϕ, Ω)
+        @. uˣ.ϕ[Ω.iⱽ] = sqrt(ν) * u.φˣ[Ω.iⱽ]
+        @. uʸ.ϕ[Ω.iⱽ] = sqrt(ν) * u.φʸ[Ω.iⱽ]
     end
 
     # compute surface contributions to uˣ, uʸ
-    for Ωᵏ in 𝒢.Ω
-        for f in Ωᵏ.faces
-            computeCentralFluxes!(uˣ, f)
-            computeCentralFluxes!(uʸ, f)
+    for Ω in 𝒢.Ω
+        for f in Ω.faces
+            computeCentralDifference!(u, f)
 
             # impose BC
             if f.isBoundary[1]
                 uᴮ = [u⁰(𝒢.x[i,1],t) for i in f.i⁻]
-                @. uˣ.fˣ[f.i⁻] = sqrt(ν) * uᴮ
-                @. uʸ.fʸ[f.i⁻] = sqrt(ν) * uᴮ
+                @. u.ϕ°[f.i⁻] = uᴮ
             end
 
-            computeSurfaceTerms!(uˣ, Ωᵏ, f)
-            computeSurfaceTerms!(uʸ, Ωᵏ, f)
+            computeNumericalFlux!(uˣ.fˣ, φᵘ, f)
+            computeNumericalFlux!(uʸ.fʸ, φᵘ, f)
+
+            computeSurfaceTerms!(uˣ.ϕ, uˣ, Ω, f)
+            computeSurfaceTerms!(uʸ.ϕ, uʸ, Ω, f)
         end
     end
 
+    # compute u²
+    @. u².ϕ = u.ϕ^2
+
     # compute volume contribution to tendency
-    for Ωᵏ in 𝒢.Ω
-        # get volume nodes
-        iⱽ = Ωᵏ.iⱽ
-
-        # compute u²
-        @. u².ϕ[iⱽ] = u.ϕ[iⱽ]^2
-
-        # define physical fluxes
-        @. u.φˣ[iⱽ] = 0.5 * α * u².ϕ[iⱽ] - sqrt(ν) * uˣ.ϕ[iⱽ]
-        @. u.φʸ[iⱽ] = 0.5 * β * (α * u².ϕ[iⱽ] - sqrt(ν) * uʸ.ϕ[iⱽ])
+    for Ω in 𝒢.Ω
+        computePhysicalFlux!(u.φˣ, φˣᵤ, Ω)
+        computePhysicalFlux!(u.φʸ, φʸᵤ, Ω)
 
         # compute volume contributions
-        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ωᵏ)
-        @. u.ϕ̇[iⱽ] = -u.𝚽[iⱽ]
+        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ω)
+        @. u.ϕ̇[Ω.iⱽ] = u.𝚽[Ω.iⱽ]
     end
 
     # compute surface contributions to tendency
-    for Ωᵏ in 𝒢.Ω
-        for f in Ωᵏ.faces
+    for Ω in 𝒢.Ω
+        for f in Ω.faces
             computeCentralDifference!(uˣ, f)
             computeCentralDifference!(uʸ, f)
             computeCentralDifference!(u², f)
@@ -103,12 +100,13 @@ function solveBurgers1D!(fields, auxils, params, t)
             end
 
             # evaluate numerical flux for u
-            C = maximum(abs.(u.ϕ[f.i⁻]))
-            @. u.fˣ[f.i⁻] = 0.5 * α * u².ϕ°[f.i⁻] - sqrt(ν) * uˣ.ϕ°[f.i⁻]
-            @. u.fʸ[f.i⁻] = 0.5 * β * (α * u².ϕ°[f.i⁻] - sqrt(ν) * uʸ.ϕ°[f.i⁻])
+            computeNumericalFlux!(u.fˣ, φˣᵤ, f)
+            computeNumericalFlux!(u.fʸ, φʸᵤ, f)
 
+            C = -maximum(abs.(u.ϕ[f.i⁻]))
             computeLaxFriedrichsFluxes!(u, f, C)
-            computeSurfaceTerms!(u, Ωᵏ, f)
+
+            computeSurfaceTerms!(u.ϕ̇, u, Ω, f)
         end
     end
 

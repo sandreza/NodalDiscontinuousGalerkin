@@ -29,9 +29,9 @@ println("The degrees of freedom are $dof")
 
 # make field objects
 u  = Field2D(𝒢)
-u² = AuxiliaryField2D(𝒢)
-uˣ = AuxiliaryField2D(𝒢)
-uʸ = AuxiliaryField2D(𝒢)
+u² = Field2D(𝒢)
+uˣ = Field2D(𝒢)
+uʸ = Field2D(𝒢)
 
 # initialize conditions
 ν = 0.1;
@@ -57,12 +57,18 @@ println("Number of steps is $Nsteps")
 # turn 2D on/off
 β = 0
 
+# fluxes
+φˣᵤ = Flux2D([u², uˣ], [-0.5 * α, sqrt(ν)])
+φʸᵤ = Flux2D([u², uʸ], [-0.5 * α * β, β * sqrt(ν)])
+φᵘ  = Flux2D([u], sqrt(ν))
+
 fields = [u]
-auxil  = [u², uˣ, uʸ]
+fluxes = [φᵘ, φˣᵤ, φʸᵤ]
+auxils = [u², uˣ, uʸ]
 params = (𝒢, ν, α, β)
 tspan = (0.0, stoptime)
 
-solutions = rk_solver!(solveBurgers1D!, fields, params, dt, Nsteps; auxil = auxil)
+solutions = rk_solver!(solveBurgers1D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
 solutions = solutions[1]
 
 Nsteps = floor(Int, length(solutions))

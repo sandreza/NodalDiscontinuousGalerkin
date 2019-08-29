@@ -49,15 +49,15 @@ end
 """
 function ∇!(uˣ,uʸ, u, Ω::Element2D)
     # compute partial derivatives on ideal grid
-    uʳ = Ω.D[1] * u
-    uˢ = Ω.D[2] * u
+    uʳ = Ω.D[1] * u[Ω.iⱽ]
+    uˢ = Ω.D[2] * u[Ω.iⱽ]
 
     # pull partials out from Jacobian
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute partial derivatives on physical grid
-    @. uˣ = rˣ * uʳ + sˣ * uˢ
-    @. uʸ = rʸ * uʳ + sʸ * uˢ
+    @. uˣ[Ω.iⱽ] = rˣ * uʳ + sˣ * uˢ
+    @. uʸ[Ω.iⱽ] = rʸ * uʳ + sʸ * uˢ
 
     return nothing
 end
@@ -104,16 +104,16 @@ end
 """
 function ∇⨀!(∇⨀u, uˣ, uʸ, Ω::Element2D)
     # compute partial derivatives on ideal grid
-    xʳ = Ω.D[1] * uˣ
-    xˢ = Ω.D[2] * uˣ
-    yʳ = Ω.D[1] * uʸ
-    yˢ = Ω.D[2] * uʸ
+    xʳ = Ω.D[1] * uˣ[Ω.iⱽ]
+    xˢ = Ω.D[2] * uˣ[Ω.iⱽ]
+    yʳ = Ω.D[1] * uʸ[Ω.iⱽ]
+    yˢ = Ω.D[2] * uʸ[Ω.iⱽ]
 
     # pull partials out from Jacobian
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute gradient on physical grid
-    @. ∇⨀u = rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
+    @. ∇⨀u[Ω.iⱽ] = rˣ * xʳ + sˣ * xˢ + rʸ * yʳ + sʸ * yˢ
 
     return nothing
 end
@@ -162,16 +162,16 @@ end
 """
 function ∇⨂!(∇⨂u, uˣ, uʸ, Ω::Element2D)
     # compute partial derivatives on ideal grid
-    xʳ = Ω.D[1] * uˣ
-    xˢ = Ω.D[2] * uˣ
-    yʳ = Ω.D[1] * uʸ
-    yˢ = Ω.D[2] * uʸ
+    xʳ = Ω.D[1] * uˣ[Ω.iⱽ]
+    xˢ = Ω.D[2] * uˣ[Ω.iⱽ]
+    yʳ = Ω.D[1] * uʸ[Ω.iⱽ]
+    yˢ = Ω.D[2] * uʸ[Ω.iⱽ]
 
     # pull partials out from Jacobian
     rˣ,sˣ,rʸ,sʸ = partials(Ω.rˣ)
 
     # compute gradient on physical grid
-    @. ∇⨂u = rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
+    @. ∇⨂u[Ω.iⱽ] = rˣ * yʳ + sˣ * yˢ - rʸ * xʳ - sʸ * xˢ
 
     return nothing
 end
@@ -206,13 +206,17 @@ function plotgrid2D(𝒢::Grid2D)
         s = Ω.x[:, 2]
 
         scatter!(r, s, legend = false)
+
+        for f in Ω.faces
+            # plot interfaces between elements
+            scatter!(x[f.i⁻] , y[f.i⁻], color = "black", legend = false)
+
+            # plot boundary of domain
+            if f.isBoundary[1]
+                scatter!(x[f.i⁻] , y[f.i⁻], color = "yellow", legend = false)
+            end
+        end
     end
-
-    # plot boundary of the elements
-    scatter!(x[𝒢.nodes⁻] , y[𝒢.nodes⁻], color = "black", legend = false)
-
-    # plot boundary of domain
-    scatter!(x[𝒢.nodesᴮ] , y[𝒢.nodesᴮ], color = "yellow", legend = false)
 
     # display
     display(plot(grid))
@@ -338,6 +342,6 @@ function plotfield2D(times, solutions, x, y)
             ploti = surface(x[:], y[:], sol[t], zlims = (0.0, 1.0), camera = (0, 90)) # (15,60))
             push!(plots, ploti)
         end
-        display(plot(plots..., zlims = (0.0, 1.0), colors = :blue))
+        display(plot(plots..., zlims = (0.0, 1.0)))
     end
 end

@@ -441,7 +441,7 @@ rk_solver!(u̇, u, params, t)
 -   `t`: time to evaluate at
 
 """
-function rk_solver!(rhs!, fields, params, dt, Nsteps)
+function rk_solver!(rhs!, fields, fluxes, params, dt, Nsteps; auxils = [])
     # Runge-Kutta residual storage
     solutions = []
     for 𝑓 in fields
@@ -452,15 +452,19 @@ function rk_solver!(rhs!, fields, params, dt, Nsteps)
 
     # time step loop
     for tstep in 1:Nsteps
+        time = dt * tstep
         for iRK in 1:5
             # get numerical solution
-            rhs!(fields, params)
+            if isempty(auxils)
+                rhs!(fields, fluxes, params, time)
+            else
+                rhs!(fields, fluxes, auxils, params, time)
+            end
 
             # update solutions
             for 𝑓 in fields
                 @. 𝑓.r = rk4a[iRK] * 𝑓.r + 𝑓.ϕ̇ * dt
                 @. 𝑓.ϕ = rk4b[iRK] * 𝑓.r + 𝑓.ϕ
-                # seems to differ from matlab code during this step ???
             end
         end
 

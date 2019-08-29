@@ -1,70 +1,75 @@
 include("field2D.jl")
+include("flux2D.jl")
 include("utils2D.jl")
 
 """
-solveMaxwell!(u̇, u, params)
+solveAdvection2D!(fields, params, t)
 
 # Description
 
-    numerical solution to 1D maxwell's equation
+    numerical solution to Chorin Navier Stokes equation
+    in vector form:
+    ∂ᵗu = -∇⋅(ṽu)
+    written out component wise for DG formulation:
+    ∂ᵗu = -∂ˣ(vˣ * u) - ∂ʸ(vʸ * u)
 
 # Arguments
 
--   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
--   `u  = (E , H )`: container for starting field values
--   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
+-   `fields = (u)`: velocity field
+-   `params = (𝒢, vˣ, vʸ)`: grid struct and velocities in each direction
+-   `t`: time to compute BC at
 
 """
-function solveAdvection2D!(U̇, U, params, t)
+function solveAdvection2D!(fields, fluxes, auxils, params, t)
     # unpack params
-    𝒢 = params[1] # grid parameters
-    α = params[2]
-    𝑓 = params[end]
+    𝒢  = params[1]
+    vˣ = params[2]
+    vʸ = params[3]
 
-    @. 𝑓.ϕ = U
+    u  = fields[1]
+    θˣ = auxils[1]
+    θʸ = auxils[2]
 
-    # define field differences at faces
-    @. 𝑓.Δϕ = 𝑓.ϕ[𝒢.nodes⁻] - 𝑓.ϕ[𝒢.nodes⁺]
+    φˣ = fluxes[1]
+    φʸ = fluxes[2]
 
-    # impose BC
-    # @. 𝑓.ϕ[𝒢.nodesᴮ] = 0.0
+    # define physical fluxes
+    @. θˣ.ϕ = vˣ .* u.ϕ
+    @. θʸ.ϕ = vʸ .* u.ϕ
 
-    # perform calculations over elements
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+    # compute volume contributions
+    for Ω in 𝒢.Ω
+        computePhysicalFlux!(u.φˣ, φˣ, Ω)
+        computePhysicalFlux!(u.φʸ, φʸ, Ω)
 
-            # get views of params
-            vˣ = view(params[3], GLᵏ)
-            vʸ = view(params[4], GLᵏ)
-
-            # get views of computation elements
-            u  = view(𝑓.ϕ,  GLᵏ)
-            u̇  = view(𝑓.ϕ̇,  GLᵏ)
-            ∇u = view(𝑓.∇ϕ, GLᵏ)
-            Δu = view(𝑓.Δϕ, BPᵏ)
-            f  = view(𝑓.fⁿ, BPᵏ)
-
-            # local derivatives of the fields
-            ∇⨀!(∇u, vˣ .* u, vʸ .* u, Ωᵏ)
-
-            # evaluate flux
-            vⁿ = @. Ωᵏ.nˣ * vˣ[Ωᵏ.fmask][:] + Ωᵏ.nʸ * vʸ[Ωᵏ.fmask][:]
-            @. f = 1//2 * (vⁿ - α * abs(vⁿ)) * Δu
-
-            # compute surface term
-            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* f)
-
-            # compute RHS of PDE's
-            @. u̇ = -∇u + lift
-        end
+        # compute volume contributions
+        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ω)
+        @. u.ϕ̇[Ω.iⱽ] = u.𝚽[Ω.iⱽ]
     end
 
-    @. U̇ = 𝑓.ϕ̇
+    # compute surface contributions
+    for Ω in 𝒢.Ω
+        for f in Ω.faces
+            computeCentralDifference!(θˣ, f)
+            computeCentralDifference!(θʸ, f)
+
+            # impose BC
+            if f.isBoundary[1]
+                @. θˣ.ϕ°[f.i⁻] = θˣ.ϕ[f.i⁻]
+                @. θʸ.ϕ°[f.i⁻] = θʸ.ϕ[f.i⁻]
+            end
+
+            computeNumericalFlux!(u.fˣ, φˣ, f)
+            computeNumericalFlux!(u.fʸ, φʸ, f)
+
+            v⁻ = @. abs(f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻])
+            v⁺ = @. abs(f.nˣ * vˣ[f.i⁺] + f.nʸ * vʸ[f.i⁺])
+            C = -maximum([v⁻, v⁺])
+            computeLaxFriedrichsFluxes!(u, f, C)
+
+            computeSurfaceTerms!(u.ϕ̇, u, Ω, f)
+        end
+    end
 
     return nothing
 end

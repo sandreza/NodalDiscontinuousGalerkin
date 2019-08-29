@@ -2,112 +2,111 @@ include("field2D.jl")
 include("utils2D.jl")
 
 """
-solveMaxwell!(u̇, u, params)
+solveBurgers1D!(fields, auxils, params, t)
 
 # Description
 
-    numerical solution to 1D maxwell's equation
+    numerical solution to Chorin Navier Stokes equation
+    in vector form:
+    ∂ᵗu = -∇(u²/2) + ν∇²u
+    written out component wise for DG formulation:
+    ∂ᵗu = -∂ˣ(u²/2 - νuˣ) - ∂ʸ(u²/2 - νuʸ)
+    we are setting the flux in the y-direction to be zero for the 1D case
+
 
 # Arguments
 
--   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
--   `u  = (E , H )`: container for starting field values
--   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
+-   `fields = (u)`: velocity field
+-   `auxils = (uˣ, uʸ, u²)`: auxiliary fields for computation
+-   `params = (𝒢, ν, α, β)`: grid struct, viscosity, nonlinear switch, and 2D switch
+-   `t`: time to compute BC at
 
 """
-function solveBurgers1D!(fields, params)
+function solveBurgers1D!(fields, fluxes, auxils, params, t)
     # unpack params
-    𝒢 = params[1] # grid parameters
-    ε = params[2]
+    𝒢  = params[1] # grid parameters
+    ν  = params[2]
+    α  = params[3]
+    β  = params[4]
 
     # unpack fields
-    𝑓ᵘ = fields[1]
-    𝑓² = fields[2]
-    𝑓ᵖ = fields[3]
+    u  = fields[1]
 
-    # define field differences at faces
-    @. 𝑓ᵘ.Δϕ = 𝑓ᵘ.ϕ[𝒢.nodes⁻] - 𝑓ᵘ.ϕ[𝒢.nodes⁺]
-    @. 𝑓².Δϕ = 1//2 * (𝑓ᵘ.ϕ[𝒢.nodes⁻]^2 - 𝑓ᵘ.ϕ[𝒢.nodes⁺]^2)
+    # auxiliary fields
+    u² = auxils[1]
+    uˣ = auxils[2]
+    uʸ = auxils[3]
 
-    # impose Dirichlet BC on u
-    # @. 𝑓ᵘ.ϕ[𝒢.mapᴮ] = 2 * (𝑓ᵘ.ϕ[𝒢.nodesᴮ] - u⁰(𝒢.x[1]))
-    # @. 𝑓².ϕ[𝒢.mapᴮ] = 𝑓ᵘ.ϕ[𝒢.nodesᴮ]^2 - u⁰(𝒢.x[1])^2
+    φᵘ  = fluxes[1]
+    φˣᵤ = fluxes[2]
+    φʸᵤ = fluxes[3]
 
-    # calculate max value of u (might need to be a face by face calculation later)
-    maxu = maximum(abs.(𝑓ᵘ.ϕ))
+    # compute volume contribution to uˣ and uʸ
+    for Ω in 𝒢.Ω
+        computePhysicalFlux!(uˣ.φˣ, φᵘ, Ω)
+        computePhysicalFlux!(uʸ.φʸ, φᵘ, Ω)
 
-    # calculate q
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+        # compute volume contributions
+        ∇!(u.φˣ, u.φʸ, u.ϕ, Ω)
+        @. uˣ.ϕ[Ω.iⱽ] = sqrt(ν) * u.φˣ[Ω.iⱽ]
+        @. uʸ.ϕ[Ω.iⱽ] = sqrt(ν) * u.φʸ[Ω.iⱽ]
+    end
 
-            # get views of computation elements
-            u  = view(𝑓ᵘ.ϕ,  GLᵏ)
-            uˣ = view(𝑓ᵘ.φˣ, GLᵏ)
-            uʸ = view(𝑓ᵘ.φʸ, GLᵏ)
-            Δu = view(𝑓ᵘ.Δϕ, BPᵏ)
+    # compute surface contributions to uˣ, uʸ
+    for Ω in 𝒢.Ω
+        for f in Ω.faces
+            computeCentralDifference!(u, f)
 
-            q  = view(𝑓ᵖ.ϕ,  GLᵏ)
+            # impose BC
+            if f.isBoundary[1]
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in f.i⁻]
+                @. u.ϕ°[f.i⁻] = uᴮ
+            end
 
-            # interior terms
-            ∇!(uˣ, uʸ, u, Ωᵏ)
+            computeNumericalFlux!(uˣ.fˣ, φᵘ, f)
+            computeNumericalFlux!(uʸ.fʸ, φᵘ, f)
 
-            # surface terms
-            ∮ˣu = 1//2 * Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
-
-            # combine them
-            @. q = sqrt(ε) * uˣ - ∮ˣu
+            computeSurfaceTerms!(uˣ.ϕ, uˣ, Ω, f)
+            computeSurfaceTerms!(uʸ.ϕ, uʸ, Ω, f)
         end
     end
 
-    # define field differences at faces
-    @. 𝑓ᵖ.Δϕ = 1//2 * (𝑓ᵖ.ϕ[𝒢.nodes⁻] - 𝑓ᵖ.ϕ[𝒢.nodes⁺])
+    # compute u²
+    @. u².ϕ = u.ϕ^2
 
-    # impose Dirichlet BC on q
-    @. 𝑓ᵖ.Δϕ[𝒢.mapᴮ] = 0.0
+    # compute volume contribution to tendency
+    for Ω in 𝒢.Ω
+        computePhysicalFlux!(u.φˣ, φˣᵤ, Ω)
+        computePhysicalFlux!(u.φʸ, φʸᵤ, Ω)
 
-    # perform calculations over elements
-    let nGL = nBP = 0
-        for Ωᵏ in 𝒢.Ω
-            # get number of GL points
-            GLᵏ  = (nGL + 1):(nGL + Ωᵏ.nGL)
-            BPᵏ  = (nBP + 1):(nBP + Ωᵏ.nBP)
-            nGL += Ωᵏ.nGL
-            nBP += Ωᵏ.nBP
+        # compute volume contributions
+        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ω)
+        @. u.ϕ̇[Ω.iⱽ] = u.𝚽[Ω.iⱽ]
+    end
 
-            # get views of computation elements
-            u   = view(𝑓ᵘ.ϕ,  GLᵏ)
-            u̇   = view(𝑓ᵘ.ϕ̇,  GLᵏ)
-            ∇u  = view(𝑓ᵘ.∇ϕ, GLᵏ)
-            Δu  = view(𝑓ᵘ.Δϕ, BPᵏ)
-            uˣ  = view(𝑓ᵘ.φˣ, GLᵏ)
-            uʸ  = view(𝑓ᵘ.φʸ, GLᵏ)
-            fⁿ  = view(𝑓ᵘ.fⁿ, BPᵏ)
+    # compute surface contributions to tendency
+    for Ω in 𝒢.Ω
+        for f in Ω.faces
+            computeCentralDifference!(uˣ, f)
+            computeCentralDifference!(uʸ, f)
+            computeCentralDifference!(u², f)
 
-            q   = view(𝑓ᵖ.ϕ,  GLᵏ)
-            Δq  = view(𝑓ᵖ.Δϕ, BPᵏ)
+            # impose BC on uˣ, uʸ, and u²
+            if f.isBoundary[1]
+                uᴮ = [u⁰(𝒢.x[i,1],t) for i in f.i⁻]
+                @. uˣ.ϕ°[f.i⁻] = uˣ.ϕ[f.i⁻]
+                @. uʸ.ϕ°[f.i⁻] = uʸ.ϕ[f.i⁻]
+                @. u².ϕ°[f.i⁻] = uᴮ^2
+            end
 
-            Δu² = view(𝑓².Δϕ, BPᵏ)
+            # evaluate numerical flux for u
+            computeNumericalFlux!(u.fˣ, φˣᵤ, f)
+            computeNumericalFlux!(u.fʸ, φʸᵤ, f)
 
-            # evaluate numerical flux
-            @. fⁿ = Ωᵏ.nˣ * (α * Δu²/2 - sqrt(ε) * Δq) - 1//2 * maxu * Δu
+            C = -maximum(abs.(u.ϕ[f.i⁻]))
+            computeLaxFriedrichsFluxes!(u, f, C)
 
-            # compute surface term
-            ∮u = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
-
-            # define physical flux in the x direction
-            @. ∇u = 1//2 * α * u^2 - sqrt(ε) * q
-
-            # define derivatives of physical flux
-            ∇!(uˣ, uʸ, ∇u, Ωᵏ)
-            @. ∇u = uˣ
-
-            # combine terms
-            @. u̇ = -∇u + ∮u
+            computeSurfaceTerms!(u.ϕ̇, u, Ω, f)
         end
     end
 

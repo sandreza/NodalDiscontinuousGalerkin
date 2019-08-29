@@ -17,7 +17,7 @@ name = path * name
 # ℳ = meshreader_gambit2D(name)
 
 # set number of DG elements and poly order
-N = 2^3
+N = 2^2
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
@@ -46,7 +46,7 @@ n = m = 1
 @. Hʸ.ϕ = 0.0
 
 # solve equations
-stoptime = 6.0
+stoptime = 3.0
 Nsteps = ceil(Int, stoptime / dt)
 fields = (Hˣ, Hʸ, Eᶻ)
 α = 1 # determine upwind or central flux

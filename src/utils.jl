@@ -474,7 +474,7 @@ function rk_solver!(rhs!, fields, fluxes, params, dt, Nsteps; auxils = [])
             push!(solutions[i], ϕᵗ)
         end
 
-        if (tstep % 1000) == 0
+        if (tstep % 100) == 0
             println( string(tstep, " / ", Nsteps))
         end
     end

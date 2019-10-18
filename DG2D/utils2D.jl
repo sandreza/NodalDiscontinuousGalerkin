@@ -339,9 +339,9 @@ function plotfield2D(times, solutions, x, y)
     @animate for t in times
         plots = []
         for (i,sol) in enumerate(solutions)
-            ploti = surface(x[:], y[:], sol[t], zlims = (0.0, 1.0), camera = (0, 90)) # (15,60))
+            ploti = surface(x[:], y[:], sol[t], camera = (0, 90)) # (15,60))
             push!(plots, ploti)
         end
-        display(plot(plots..., zlims = (0.0, 1.0)))
+        display(plot(plots...))
     end
 end

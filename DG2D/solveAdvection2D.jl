@@ -9,13 +9,13 @@ solveAdvection2D!(fields, params, t)
 
     numerical solution to Chorin Navier Stokes equation
     in vector form:
-    ∂ᵗu = -∇⋅(ṽu)
+    ∂ᵗθ = -∇⋅(ṽθ)
     written out component wise for DG formulation:
-    ∂ᵗu = -∂ˣ(vˣ * u) - ∂ʸ(vʸ * u)
+    ∂ᵗθ = -∂ˣ(vˣ * θ) - ∂ʸ(vʸ * θ)
 
 # Arguments
 
--   `fields = (u)`: velocity field
+-   `fields = (θ)`: velocity field
 -   `params = (𝒢, vˣ, vʸ)`: grid struct and velocities in each direction
 -   `t`: time to compute BC at
 
@@ -26,7 +26,7 @@ function solveAdvection2D!(fields, fluxes, auxils, params, t)
     vˣ = params[2]
     vʸ = params[3]
 
-    u  = fields[1]
+    θ  = fields[1]
     θˣ = auxils[1]
     θʸ = auxils[2]
 
@@ -34,17 +34,17 @@ function solveAdvection2D!(fields, fluxes, auxils, params, t)
     φʸ = fluxes[2]
 
     # define physical fluxes
-    @. θˣ.ϕ = vˣ .* u.ϕ
-    @. θʸ.ϕ = vʸ .* u.ϕ
+    @. θˣ.ϕ = vˣ .* θ.ϕ
+    @. θʸ.ϕ = vʸ .* θ.ϕ
 
     # compute volume contributions
     for Ω in 𝒢.Ω
-        computePhysicalFlux!(u.φˣ, φˣ, Ω)
-        computePhysicalFlux!(u.φʸ, φʸ, Ω)
+        computePhysicalFlux!(θ.φˣ, φˣ, Ω)
+        computePhysicalFlux!(θ.φʸ, φʸ, Ω)
 
         # compute volume contributions
-        ∇⨀!(u.𝚽, u.φˣ, u.φʸ, Ω)
-        @. u.ϕ̇[Ω.iⱽ] = u.𝚽[Ω.iⱽ]
+        ∇⨀!(θ.𝚽, θ.φˣ, θ.φʸ, Ω)
+        @. θ.ϕ̇[Ω.iⱽ] = θ.𝚽[Ω.iⱽ]
     end
 
     # compute surface contributions
@@ -55,19 +55,19 @@ function solveAdvection2D!(fields, fluxes, auxils, params, t)
 
             # impose BC
             if f.isBoundary[1]
-                @. θˣ.ϕ°[f.i⁻] = θˣ.ϕ[f.i⁻]
-                @. θʸ.ϕ°[f.i⁻] = θʸ.ϕ[f.i⁻]
+                @. θˣ.ϕ°[f.i⁻] = 0. # -θˣ.ϕ[f.i⁻]
+                @. θʸ.ϕ°[f.i⁻] = 0. # -θʸ.ϕ[f.i⁻]
             end
 
-            computeNumericalFlux!(u.fˣ, φˣ, f)
-            computeNumericalFlux!(u.fʸ, φʸ, f)
+            computeNumericalFlux!(θ.fˣ, φˣ, f)
+            computeNumericalFlux!(θ.fʸ, φʸ, f)
 
             v⁻ = @. abs(f.nˣ * vˣ[f.i⁻] + f.nʸ * vʸ[f.i⁻])
             v⁺ = @. abs(f.nˣ * vˣ[f.i⁺] + f.nʸ * vʸ[f.i⁺])
             C = -maximum([v⁻, v⁺])
-            computeLaxFriedrichsFluxes!(u, f, C)
+            # computeLaxFriedrichsFluxes!(θ, f, C)
 
-            computeSurfaceTerms!(u.ϕ̇, u, Ω, f)
+            computeSurfaceTerms!(θ.ϕ̇, θ, Ω, f)
         end
     end
 

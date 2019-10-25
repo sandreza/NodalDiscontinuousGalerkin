@@ -50,8 +50,8 @@ function solveAdvection2D!(fields, fluxes, auxils, params, t)
     # compute surface contributions
     for Ω in 𝒢.Ω
         for f in Ω.faces
-            computeCentralDifference!(θˣ, f)
-            computeCentralDifference!(θʸ, f)
+            computeUpwindFlux!(θˣ, f, vˣ, vʸ)
+            computeUpwindFlux!(θʸ, f, vˣ, vʸ)
 
             # impose BC
             if f.isBoundary[1]

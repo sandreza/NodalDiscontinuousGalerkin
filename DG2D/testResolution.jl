@@ -5,30 +5,25 @@ include("solveAdvection2D.jl")
 using Plots
 
 # make mesh
-K = 10
-L = 10
+K = 65
 
-Lˣ = 1e6
-H  = 400
+L = 1e6
+H = 400
+τ = 86400
 
 xmin = 0
-xmax = Lˣ
+xmax = L
 zmin = -H
 zmax = 0
-ℳ = rectmesh2D(xmin, xmax, zmin, zmax, K, L)
-
-filename = "Maxwell05.neu"
-filepath = "./DG2D/grids/"
-filename = filepath * filename
-# ℳ = meshreader_gambit2D(filename)
+ℳ = rectmesh2D(xmin, xmax, zmin, zmax, K, K)
 
 # set number of DG elements and poly order
-N = 4
+N = 1
 
 # make grid
 𝒢 = Grid2D(ℳ, N, periodic=false)
 x̃ = 𝒢.x[:,1]
-z̃ = 𝒢.x[:,2]
+ỹ = 𝒢.x[:,2]
 plotgrid2D(𝒢)
 
 dof = 𝒢.nGL
@@ -49,14 +44,14 @@ println("Time step is $dt")
 
 # initialize conditions
 σ = 1.0
-x⁰ = 3//4 * Lˣ
-z⁰ = -H/2
-θ⁰(x, z, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (z - z⁰)^2))
-# @. θ.ϕ = [θ⁰(x̃[i], z̃[i], σ) for i in 1:𝒢.nGL]
+x⁰ = 3//4 * L
+y⁰ = -H/2
+θ⁰(x, y, σ) = 10 * exp(-σ * ((x - x⁰)^2 + (y - y⁰)^2))
+# @. θ.ϕ = [θ⁰(x̃[i], ỹ[i], σ) for i in 1:𝒢.nGL]
 
 
-θ⁰(z) = 9 + 8z/H
-@. θ.ϕ = [θ⁰(z̃[i]) for i in 1:𝒢.nGL]
+θ⁰(y) = 9 + 8y/H
+@. θ.ϕ = [θ⁰(ỹ[i]) for i in 1:𝒢.nGL]
 
 # fluxes
 φˣ = Flux2D([θˣ], [-1])
@@ -64,14 +59,14 @@ z⁰ = -H/2
 
 # parameters
 u = zeros(𝒢.nGL)
-w = zeros(𝒢.nGL)
+v = zeros(𝒢.nGL)
 
 # stream function
-# Ψ(x,z) = cos(π//Lˣ * (x - Lˣ//2)) * cos(π//H * (z + H/2))
-ũ(x,z) = -π/Lˣ * cos(π/Lˣ * (x - Lˣ/2)) * sin(π/H * (z + H/2))
-w̃(x,z) =  π/H  * sin(π/Lˣ * (x - Lˣ/2)) * cos(π/H * (z + H/2))
-@. u = [ũ(x̃[i],z̃[i]) for i in 1:𝒢.nGL]
-@. w = [w̃(x̃[i],z̃[i]) for i in 1:𝒢.nGL]
+# Ψ(x,y) = L*H/τ * cos(π * (x/L - 1/2)) * cos(π * (y/H + 1/2))
+ũ(x,y) = -π*L/τ * cos(π * (x/L - 1/2)) * sin(π * (y/H + 1/2))
+ṽ(x,y) =  π*H/τ * sin(π * (x/L - 1/2)) * cos(π * (y/H + 1/2))
+@. u = [ũ(x̃[i],ỹ[i]) for i in 1:𝒢.nGL]
+@. v = [ṽ(x̃[i],ỹ[i]) for i in 1:𝒢.nGL]
 
 # solve equations
 stoptime = 86400.
@@ -81,22 +76,27 @@ println("Number of steps is $Nsteps")
 fields = [θ]
 auxils = [θˣ, θᶻ]
 fluxes = [φˣ, φᶻ]
-params = (𝒢, u, w)
+params = (𝒢, u, v)
 
 forward = rk_solver!(solveAdvection2D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
 
+solutions = forward[1]
+
 @. u = -u
-@. w = -w
+@. v = -v
 
-backward = rk_solver!(solveAdvection2D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
+# backward = rk_solver!(solveAdvection2D!, fields, fluxes, params, dt, Nsteps; auxils = auxils)
 
-solutions = [forward[1]; backward[1]]
+# solutions = [forward[1]; backward[1]]
 
 Nsteps = floor(Int, length(solutions))
 step = maximum([floor(Int, Nsteps / 60), 1])
 times = 1:step:Nsteps
 # times = 1:100
 
-plotfield2D(times, [solutions], x̃, z̃)
-wrong = rel_error(solutions[1], solutions[end])
-println("The relative error of the solution is $wrong")
+plotfield2D(times, [solutions], x̃, ỹ)
+# wrong = rel_error(solutions[1], solutions[end])
+# println("The relative error of the solution is $wrong")
+
+max = maximum(solutions[end])
+println("The max temperature is $max")

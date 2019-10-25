@@ -74,6 +74,17 @@ function computeCentralDifference!(𝑓::Field2D, f::Face2D)
     return nothing
 end
 
+function computeUpwindFlux!(𝑓::Field2D, f::Face2D, vˣ, vʸ)
+    n̂_v = f.nˣ .* vˣ[f.i⁻] + f.nʸ .* vʸ[f.i⁻]
+
+    # n̂∘v == 0 ==> 𝑓.ϕ == 0 ==> 𝑓.ϕ° == 0
+    for (i, (i⁻, i⁺)) in enumerate(zip(f.i⁻, f.i⁺))
+        𝑓.ϕ°[i⁻] = (n̂_v[i] > 0) ? 𝑓.ϕ[i⁻] : 𝑓.ϕ[i⁺]
+    end
+
+    return nothing
+end
+
 function computeLaxFriedrichsFluxes!(𝑓::Field2D, f::Face2D, C)
     @. 𝑓.fˣ[f.i⁻] += 0.5 * C * f.nˣ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])
     @. 𝑓.fʸ[f.i⁻] += 0.5 * C * f.nʸ * (𝑓.ϕ[f.i⁻] - 𝑓.ϕ[f.i⁺])

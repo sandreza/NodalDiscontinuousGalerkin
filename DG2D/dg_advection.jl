@@ -72,6 +72,39 @@ function dg_central_sym_2D!(u̇, u, params, t)
     return nothing
 end
 
+function dg_central_weak_strong_2D!(u̇, u, params, t)
+    # unpack params
+    𝒢 = params[1] # grid parameters
+    ι = params[2] # internal parameters
+    ε = params[3] # external parameters
+
+    # calculate fluxes
+    @. ι.φˣ = ε.v1 * u
+    @. ι.φʸ = ε.v2 * u
+
+    # now for the boundary conditions
+    # neumann boundary conditions (reflecting)
+    #@. ι.fⁿ[𝒢.mapB] = 2*u[𝒢.vmapB]
+    #=
+    @. ι.fˣ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
+    @. ι.fʸ[𝒢.mapB] = 0.0 #+ 2*u[𝒢.vmapB]
+    =#
+    # Form field differences at faces, computing central flux, half weak half strong
+    @. ι.fˣ[:] = ι.φˣ[𝒢.vmapM]/2 - (ι.φˣ[𝒢.vmapM] + ι.φˣ[𝒢.vmapP])/2
+    @. ι.fʸ[:] = ι.φʸ[𝒢.vmapM]/2 - (ι.φʸ[𝒢.vmapM] + ι.φʸ[𝒢.vmapP])/2
+    #now for the normal component along the faces
+    @. ι.fⁿ = ι.fˣ * 𝒢.nx + ι.fʸ * 𝒢.ny
+
+    # rhs of the semi-discrete PDE, ∂ᵗu = -∂ˣ(v1*u) - ∂ʸ(v2*u)
+    # compute divergence
+    𝒮∇⨀!(u̇, ι.φˣ, ι.φʸ, 𝒢)
+    @. u̇ *= - 1.0
+    lift = 𝒢.lift * (𝒢.fscale .* ι.fⁿ)
+    @. u̇ +=  lift #inefficient part, has to be done pointwise
+        # now hack in zeroness on boundary
+    return nothing
+end
+
 function dg_central_rand_2D!(u̇, u, params, t)
     # unpack params
     𝒢 = params[1] # grid parameters

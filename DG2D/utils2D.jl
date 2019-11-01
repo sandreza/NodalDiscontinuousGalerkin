@@ -29,6 +29,37 @@ function ∇!(uˣ, uʸ, u, Ω)
     return nothing
 end
 
+
+"""
+∇(uˣ, uʸ, u, Ω)
+
+# Description
+
+    Compute gradient of u wrt physical grid
+
+# Arguments
+
+-   `u`: scalar to take gradient of
+-   `Ω`: element to compute in
+
+# Return Values
+- `ux`: partial with respect to x
+- 'uy': partial with respect to y
+
+
+"""
+function ∇( u, Ω)
+    # compute partial derivatives on ideal grid
+    uʳ = Ω.Dʳ * u
+    uˢ = Ω.Dˢ * u
+
+    # compute partial derivatives on physical grid
+    uˣ =  @. Ω.rx * uʳ + Ω.sx * uˢ
+    uʸ =  @. Ω.ry * uʳ + Ω.sy * uˢ
+
+    return uˣ, uʸ
+end
+
 """
 ∇⨀(x, y, Ω)
 
@@ -55,7 +86,7 @@ function ∇⨀(x, y, Ω)
     yˢ = Ω.Dˢ * y
 
     # compute gradient on physical grid
-    ∇⨀u = @. Ω.rˣ * xʳ + Ω.sˣ * xˢ + Ω.rʸ * yʳ + Ω.sʸ * yˢ
+    ∇⨀u = @. Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
 
     return ∇⨀u
 end
@@ -86,7 +117,7 @@ function ∇⨂(x, y, Ω)
     yˢ = Ω.Dˢ * y
 
     # compute gradient on physical grid
-    ∇⨂u = @. Ω.rˣ * yʳ + Ω.sˣ * yˢ - Ω.rʸ * xʳ - Ω.sʸ * xˢ
+    ∇⨂u = @. Ω.rx * yʳ + Ω.sx * yˢ - Ω.ry * xʳ - Ω.sy * xˢ
 
     return ∇⨂u
 end
@@ -157,6 +188,48 @@ function ∇⨀!(∇⨀u, x, y, Ω)
 
     # compute gradient on physical grid
     @. ∇⨀u = Ω.rx * xʳ + Ω.sx * xˢ + Ω.ry * yʳ + Ω.sy * yˢ
+    return nothing
+end
+
+
+
+"""
+𝒮∇⨀!(∇⨀u, fx, fy, Ω)
+
+# Description
+
+    Compute the weak + strong form divergence of u=(fx,fy) wrt physical grid
+    the S stands for "symmetric" but really it should just stand for slow
+
+# Arguments
+-   `∇⨀u`: allocated memory for result
+-   `x`: first component of vector u
+-   `y`: second component of vector u
+-   `Ω`: element to compute in
+
+# Return Values
+
+-   `∇⨀u`: the divergence of u
+
+"""
+function 𝒮∇⨀!(∇⨀u, x, y, Ω)
+    # compute partial derivatives on ideal grid
+    xʳ = Ω.Dʳ * x
+    xˢ = Ω.Dˢ * x
+    yʳ = Ω.Dʳ * y
+    yˢ = Ω.Dˢ * y
+
+    # compute gradient on physical grid
+    number_of_elements = size(mesh.J)[2]
+    for k in 1:number_of_elements
+        ∂ˣ = Diagonal(Ω.rx[:,k]) * Ω.Dʳ + Diagonal(Ω.sx[:,k]) * Ω.Dˢ
+        ∂ʸ = Diagonal(Ω.ry[:,k]) * Ω.Dʳ + Diagonal(Ω.sy[:,k]) * Ω.Dˢ
+        Mᵏ = Diagonal(Ω.J[:,k]) * Ω.M
+        Miᵏ = Ω.Mi * inv(Diagonal(Ω.J[:,k]))
+        tmp = ∂ˣ * x[:,k] + ∂ʸ * y[:,k]
+        tmp -=  Miᵏ * ((Mᵏ * ∂ˣ )') * x[:,k] + Miᵏ * ((Mᵏ * ∂ʸ )') * y[:,k]
+        ∇⨀u[:,k] .= tmp * 0.5
+    end
     return nothing
 end
 

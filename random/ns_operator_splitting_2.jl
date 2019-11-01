@@ -13,7 +13,7 @@ include("../DG2D/triangles.jl")
 # super important when one has a large number of elements, less so with less elements
 
 # define polynomial order, n=11 is about the right size
-n = 12 #even good odd okay
+n = 14 #even good odd okay
 plotting = false
 timings = false
 stommel = true
@@ -43,7 +43,7 @@ mapT, vmapT, bc_label = build_bc_maps(mesh, bctype, bc_name)
 # set time and time step and viscocity
 t = 0.0
 t_list = [t]
-const Δt = 1e-3 # 1e-3 seems good for convergence tests
+const Δt = 1e-4 # 1e-3 seems good for convergence tests
 const ν  = 1e-2
 
 # set up the Helmholtz and Poisson operators
@@ -202,7 +202,7 @@ v¹ = similar(v⁰)
 bᵘ = similar(u⁰)
 bᵛ = similar(u⁰)
 bᵖ = similar(u⁰)
-f = 10^(-1) * 1
+f = 10^(3)
 println("maxval + incomp")
 println(maximum(abs.(u⁰)))
 println(maximum(abs.(v⁰)))
@@ -305,11 +305,22 @@ end
 
 ###
 Ψ = solve_Ψ(u¹, v¹, mesh, chol_Δ) #already flattened
+tmp = reshape(Ψ,size(mesh.x))
+v_tmp, u_tmp = ∇(tmp,mesh)
+@. v_tmp *= -1.0
 
 p3 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (0,90))
 p4 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (25,60))
 p5 = surface(mesh.x[:],mesh.y[:], -Ψ , camera = (0,0))
 display(plot(p5))
+mesh.x[argmax(-Ψ[:])]
+
+p8 = surface(mesh.x[:],mesh.y[:], v_tmp[:] , camera = (0,0))
+
+maximum(abs.(v_tmp-v¹))
+maximum(abs.(u_tmp-u¹))
+
+abs(maximum(v¹) / minimum(v¹))
 
 for j in 0:15:45
     for i in 0:10:90

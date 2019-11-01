@@ -7,14 +7,15 @@ using BenchmarkTools
 using DifferentialEquations
 # choose the polynomial order
 #3 seems to be pretty efficient
-n = 8
+n = 3
 timings = false
 gradients_check = false
 solve_ode = false
 euler = false
 upwind_check = false
 plot_solution = false
-forward_and_backwards = true
+forward = true
+forward_and_backwards = false
 #load file
 #(n=10,05), (n=5, 025), (n=2, 0125), not (n=1, 00625)
 #in timestep length  (), (n=14, 025), (n=5, 0125), (n=1, 00625) [all about 360 microseconds]
@@ -90,16 +91,17 @@ end
 external = velocity_field(v¹, v²) #use numerical instead of exact derivative
 
 #define params
-tspan = (0.0, 8.0)
+tspan = (0.0, 2.0)
 ι = field
 ε = external
 𝒢 = mesh
-#rhs! = dg_central_2D!
-#rhs! = dg_rusonov_2D!
+# rhs! = dg_central_2D!
+# rhs! = dg_rusonov_2D!
 #rhs! = dg_upwind_2D!
 # to reduce aliasing errors
 #rhs! = dg_upwind_sym_2D!
-rhs! = dg_central_sym_2D!
+# rhs! = dg_central_sym_2D!
+rhs! = dg_central_weak_strong_2D!
 #rhs! = dg_central_rand_2D!
 #rhs! = dg_central_switch_2D!
 dt =  0.5 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])
@@ -271,6 +273,30 @@ if plot_solution
     end
     println("The error for nice velocity is")
     println(norm(sol.u[1]-sol.u[end]))
+end
+
+if forward
+    prob = ODEProblem(rhs!, u, tspan, params);
+    sol_f  = solve(prob, RK4(), dt=dt, adaptive = false); # AB3(), RK4(), Tsit5()
+    println("done with forwards")
+
+    #now plot
+    gr()
+    endtime = length(sol_f.t)
+    steps = Int( floor(endtime / 40))
+    camera_top = 90 #this is a very hacky way to get a 2D contour plot
+    camera_side = 0
+    for i in 1:steps:endtime
+        println(i/endtime)
+        u = copy(sol_f.u[i])
+        println(norm(u))
+        p1 = surface(x[:],y[:],u[:], camera = (camera_side,camera_top), zlims =     (0,1))
+        display(plot(p1))
+    end
+    println("The maximum scalar concentration is ")
+    println(maximum(sol_f.u[end]))
+    println("The minimum scalar concentration is ")
+    println(minimum(sol_f.u[end]))
 end
 
 if forward_and_backwards

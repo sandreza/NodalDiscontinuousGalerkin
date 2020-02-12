@@ -11,7 +11,7 @@ periodic = false
 
 # set number of DG elements and polynomial order
 K = 2^3 #number of elements
-n = 2^3-1 #polynomial order,
+n = 2^1-1 #polynomial order,
 # (for 2^8, 2^4 with 2^4-1 seems best)
 println("The degrees of freedom are ")
 println((n+1) * K)

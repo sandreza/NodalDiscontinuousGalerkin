@@ -12,7 +12,7 @@ periodic = false #need to keep as false
 timings = false   #to see how different linear solvers perform
 
 # set number of DG elements and polynomial order
-K = 2^0 #number of elements
+K = 2^3 #number of elements
 n = 2^3 - 1 #polynomial order,
 
 # for 64 total dof, K = 2^3, n = 2^3 -1 is the break even point b/w sparse and full

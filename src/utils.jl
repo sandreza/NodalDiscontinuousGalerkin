@@ -32,7 +32,7 @@ VX, EtoV = unimesh1D(xmin, xmax, K)
 
 """
 function unimesh1D(xmin, xmax, K)
-    VX = @. collect(0:K) / K * (xmax - xmin) + xmin
+    VX = (collect(0:K) ./ K ) .* (xmax - xmin) .+ xmin
     EtoV = Int.(ones(K, 2))
     for i = 1:K
         EtoV[i,1] = Int(i)
@@ -337,7 +337,7 @@ function jacobiGQ(α, β, N)
     end
 
     # form symmetric matrix from recurrence
-    h1 = @. 2 * collect(0:N) + α + β;
+    h1 = 2 .* collect(0:N) .+ α .+ β;
 
     # construct diagonal matrix
     diag = @. - (α^2 - β^2) / (h1 + 2) / h1
@@ -416,7 +416,7 @@ function jacobiGL(α, β, N)
 
     # compute inner nodes
     xview = view(x, 2:N)
-    xtmp,w = jacobiGQ(α+1, β+1, N-2)
+    xtmp, w = jacobiGQ(α+1, β+1, N-2)
     @. xview = xtmp
     return x
 end

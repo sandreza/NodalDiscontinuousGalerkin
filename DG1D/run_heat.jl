@@ -1,6 +1,6 @@
 include("dg1D.jl")
 include("dg_heat.jl")
-include("../utils.jl")
+include("../src/utils.jl")
 
 using Plots
 using BenchmarkTools
@@ -22,7 +22,7 @@ xmin = 0.0
 xmax = L
 
 # generate mesh variables
-𝒢 = mesh(K, n, xmin, xmax)
+𝒢 = Mesh(K, n, xmin, xmax)
 
 # generate internal variables
 ι = dg(𝒢)

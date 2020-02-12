@@ -1,6 +1,7 @@
 # Taken from https://github.com/rleegates/CuthillMcKee.jl/blob/master/src/CuthillMcKee.jl
-
 # All credit goes to rleegates
+# turns out to be unecessary since SparseArrays uses the latest version
+# and it already does this kind of stuff under the hood
 
 using SparseArrays
 

@@ -97,11 +97,11 @@ tspan = (0.0, 2.0)
 𝒢 = mesh
 # rhs! = dg_central_2D!
 # rhs! = dg_rusonov_2D!
-#rhs! = dg_upwind_2D!
+rhs! = dg_upwind_2D!
 # to reduce aliasing errors
 #rhs! = dg_upwind_sym_2D!
 # rhs! = dg_central_sym_2D!
-rhs! = dg_central_weak_strong_2D!
+# rhs! = dg_central_weak_strong_2D!
 #rhs! = dg_central_rand_2D!
 #rhs! = dg_central_switch_2D!
 dt =  0.5 * (mesh.r[2] - mesh.r[1]) / mesh.K / maximum([1, maximum(v¹)])

@@ -1,35 +1,25 @@
-
-using Revise
 using SpecialFunctions # for gamma function reasons
 using LinearAlgebra    # for Guass quadrature
 
+using Revise
+using OffsetArrays
+
 """
 unimesh1D(xmin, xmax, K)
-
 # Description
-
     Generates a uniform 1D mesh
-
 # Arguments
-
     xmin: smallest value of array
-
     xmax: largest values of array
-
     K: number of elements in an array
-
 # Return Values: VX, EtoV
-
     VX: vertex values | an Array of size K+1
-
     EtoV: element to node connectivity | a Matrix of size Kx2
-
 # Example
 xmin = -1
 xmax =  1
 K    =  4
 VX, EtoV = unimesh1D(xmin, xmax, K)
-
 """
 function unimesh1D(xmin, xmax, K)
     VX = collect(0:K) ./ K .* (xmax - xmin) .+ xmin
@@ -41,105 +31,64 @@ function unimesh1D(xmin, xmax, K)
     return VX, EtoV
 end
 
+# Mathy aliases
+const Γ = gamma
+
+# Coefficients in the Jacobi polynomial recurrence relations.
+a(α, β, n) = 2/(2n+α+β) * √(n * (n+α+β) * (n+α) * (n+β) / (2n+α+β-1) / (2n+α+β+1))
+b(α, β, n) = -(α^2 - β^2) / (2n+α+β) / (2n+α+β+2)
+
 #code checked against the matlab code
 """
 jacobi(x, α, β, n)
-
 # Description
-
 - Evaluates the jacobi polynomial at the point x
-
 # Arguments
-
 - `x`: point at which you will evaluate the jacobi polynomial
 - `α`: first parameter for Jacobi polynomials
 - `β`: second parameter for Jacobi polynomials
 - `n` : order
-
 # Return
-
 -  `y`: the value of the of the Jacobi polynomial
-
 """
 function jacobi(x, α, β, n::Int)
-    γ0 = 2^(α + β + 1) / (α + β + 1) * gamma(α+1) * gamma(β+1)
-    γ0 /= gamma(α+β+1)
-    γ1 = (α + 1) * (β + 1) / (α + β + 3) * γ0
-    #create array to return
-    PL = zeros(n+1)
-    PL[1] = 1 / sqrt(γ0)
-    if n==0
-        return PL[end]
-    elseif n==1
-        PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        return PL[end]
-    else
-        PL[2] = ( (α + β + 2) * x / 2 + (α - β) / 2) / sqrt(γ1)
-        aold = 2 / (2 + α + β) * sqrt((α+1)*(β+1)/(α + β + 3))
-        for i in 1:(n-1)
-            h1 = 2 * i + α + β
-            anew = 2 /(h1 + 2)*sqrt((i+1)*(i+1+α+β)*(i+1+α)*(i+1+β)/(h1+1)/(h1+3))
-            bnew = - (α^2 - β^2)/h1/(h1+2)
-            PL[i+2] = 1 / anew * (-aold*PL[i] + (x-bnew)*PL[i+1])
-            aold = anew
-        end
-        return PL[end]
+    Pᵅᵝ = n <= 1 ? OffsetArray(zeros(2), 0:1) : OffsetArray(zeros(n+1), 0:n)
+    Pᵅᵝ[0] = √(2.0^-(α+β+1) * Γ(α+β+2) / Γ(α+1) / Γ(β+1))
+    Pᵅᵝ[1] = Pᵅᵝ[0]/2 * √((α+β+3) / (α+1) / (β+1)) * ((α+β+2)*x + α - β)
+    for n′ in 1:n-1
+        Pᵅᵝ[n′+1] = ((x - b(α,β,n′)) * Pᵅᵝ[n′] - a(α,β,n′) * Pᵅᵝ[n′-1]) / a(α, β, n′+1)
     end
+    return Pᵅᵝ[n]
 end
 
 """
 djacobi(x, α, β, n)
-
 # Description
-
 - Evaluates the derivative of the jacobi polynomial at the point x
-
 # Arguments
-
 - `x`: point at which you will evaluate the derivative of the jacobi polynomial
 - `α`: first parameter for Jacobi polynomials
 - `β`: second parameter for Jacobi polynomials
 - `n` : order
-
 # Return
-
 -  `y`: the derivative of the of the Jacobi polynomial
-
 """
-function djacobi(x, α, β, n::Int)
-    if n==0
-        dp = 0.0
-        return dp
-    end
-    dp = sqrt(n * (n + α + β + 1)) * jacobi(x, α + 1, β + 1, n-1)
-    return dp
-end
-
-
+djacobi(x, α, β, n::Int) = √(n * (n+α+β+1)) * jacobi(x, α+1, β+1, n-1)
 
 """
 vandermonde(x, α, β, N)
-
 # Description
-
     Return vandermonde matrix of order N at the values x
     Allocates a little bit of memory
-
 # Arguments
-
 -   `x`: points at which to evaluate the Jacobi polynomials
 -   `α`: first parameter for Jacobi polynomials
 -   `β`: second parameter for Jacobi polynomials
 -   `N`: maximum order of Jacobi polynomial to include
-
 # Return Values
-
 -   `v`: vandermonde matrix
-
 # Example
-
     See LegendreTests.jl
-
 """
 function vandermonde(x, α, β, N)
     # compute first two coefficients
@@ -188,27 +137,18 @@ end
 
 """
 dvandermonde(x, α, β, N)
-
 # Description
-
     Return the gradient of the vandermonde matrix of order N at the values x
     Allocates a little bit of memory
-
 # Arguments
-
 -   `x`: points at which to evaluate the Jacobi polynomials
 -   `α`: first parameter for Jacobi polynomials
 -   `β`: second paramater for Jacobi polynomials
 -   `N`: maximum order of Jacobi polynomial to include
-
 # Return Values
-
 -   `vr`: gradient of vandermonde matrix
-
 # Example
-
     See LegendreTests.jl
-
 """
 function dvandermonde(x, α, β, N)
     # create empty matrix (also handles first set of derivatives)
@@ -231,27 +171,18 @@ end
 
 """
 dmatrix(x, α, β, N)
-
 # Description
-
     Return the differentiation matrix of order N at the values x
     Allocates too much memory
-
 # Arguments
-
 -   `x`: points at which to evaluate the Jacobi polynomials
 -   `α`: first parameter for Jacobi polynomials
 -   `β`: second paramater for Jacobi polynomials
 -   `N`: maximum order of Jacobi polynomial to include
-
 # Return Values
-
 -   `D`: the differentiation matrix
-
 # Example
-
     See LegendreTests.jl
-
 """
 function dmatrix(x, α, β, N)
     # calculate vandermonde matrix and grad of vandermonde matrix
@@ -267,7 +198,6 @@ end
 """
 lift1D(V, y)
 for computing fluxes
-
 helps compute a surface integral of a quantity
 note that the parantheses are necessary to prevent too much multiplcation
 the E function takes the surface integrals are presents it
@@ -288,7 +218,6 @@ end
 """
 lift1D_v2(V, y)
 for computing fluxes
-
 nodal form
 helps compute a surface integral of a quantity
 note that the parantheses are necessary to prevent too much multiplcation
@@ -318,76 +247,50 @@ N:    order of quadrature points
 # Return: x,w
 x: quadrature points | array of size N+1
 w: quadrature weights | array of size N+1
-
 #Example
 α = 0
 β = 0
 N = 4
 x, w = jacobiGQ(α, β, N)
 """
-
 function jacobiGQ(α, β, N)
-    x = zeros(N+1)
-    w = zeros(N+1)
+    N == 0 && return [(α-β) / (α+β+2)], [2]
 
-    # explicit if N=0
-    if N == 0
-        x[1] = (α - β) / (α + β + 2)
-        w[1] = 2
+    # Form symmetric matrix from recurrence.
+    dv = OffsetArray(zeros(N+1), 0:N)  # diagonal vector
+    ev = OffsetArray(zeros(N+1), 0:N)  # sub/super-diagonal vector
+
+    for n in 0:N
+        dv[n] = b(α, β, n)
+        ev[n] = a(α, β, n)
     end
 
-    # form symmetric matrix from recurrence
-    h1 = 2 .* collect(0:N) .+ α .+ β;
+    # Create full matrix combining the two.
+    # Need to pass arrays that are not offset.
+    J = SymTridiagonal(dv[0:N], ev[1:N])
+    (α + β) ≈ 0 && (J[1, 1] = 0)
 
-    # construct diagonal matrix
-    diag = @. - (α^2 - β^2) / (h1 + 2) / h1
+    # Compute quadrature points and weights by eigenvalue solve.
+    x, V = eigen(J)
+    w = @. V[1, :]^2 * 2^(α+β+1) / (α+β+1)
+    @. w *= factorial(α) * factorial(β) / factorial(α+β)
 
-    # construct super diagonal matrix
-    h1view = view(h1, 1:N)
-    cf = collect(1:N) # common factor that shows up a lot
-    superdiag = @. 2 / (h1view + 2)
-    @. superdiag *= sqrt( cf * (cf + α + β) * (cf + α) * (cf + β) )
-    @. superdiag *= sqrt( 1 / (h1view + 1) / (h1view + 3) )
-
-    # create full matrix combining the two
-    J = SymTridiagonal(diag, superdiag)
-    if (α + β) ≈ 0.0
-        J[1,1] = -0.0
-    end
-
-    # compute quadrature by eigenvalue solve
-    x,V = eigen(J)
-    w = @. (V[1,:] ^ 2 ) * 2^(α + β + 1) / (α + β + 1)
-    @. w *= factorial(α) * factorial(β) / factorial(α + β)
-    return x,w
+    return x, w
 end
 
 """
 jacobiGL(α, β, N)
 # Description
-
     Guass Labatto quadrature points for the Jacobi Polynomial (α,β)
     The quadrature weights are computed as well (but not returned)
-
 # Arguments
-
 - `α, β`: Jacobi polynomial descriptors
 - `N`:    order of quadrature
-
-
 # Return: x
-
 - `x`: quadrature points  | array of size N+1
-
 # Examples
 ```julia-repl
-julia> α = 0
-0
-julia> β = 0
-0
-julia> N = 4
-4
-julia> x = jacobiGL(α, β, N)
+julia> x = jacobiGL(0, 0, 4)
 5-element Array{Float64,1}:
  -1.0
  -0.6546536707079759
@@ -397,27 +300,15 @@ julia> x = jacobiGL(α, β, N)
 ```
 """
 function jacobiGL(α, β, N)
+    N == 0 && error("What are you doing? Gauss-Lobatto points only make sense if N >= 1.")
+    N == 1 && return [-1, 1]
+
     x = zeros(N+1)
-    w = zeros(N+1)
+    x[1], x[N+1] = -1, 1
 
-    # set end points
-    x[1] = -1.0
-    x[end] =  1.0
+    x_GQ, _ = jacobiGQ(α+1, β+1, N-2)
+    x[2:N] .= x_GQ
 
-    # need at least two nodes
-    if N == 0
-        error("What are you doing?")
-    end
-
-    # have exactly two nodes
-    if N == 1
-        return x
-    end
-
-    # compute inner nodes
-    xview = view(x, 2:N)
-    xtmp,w = jacobiGQ(α+1, β+1, N-2)
-    @. xview = xtmp
     return x
 end
 
@@ -428,49 +319,48 @@ rk4c = [ 0.0, 1432997174477.0/9575080441755.0, 2526269341429.0/6820363962896.0, 
 
 """
 rk_solver!(u̇, u, params, t)
-
 # Description
-
     time stepping with 4th order runge-kutta
-
 # Arguments
-
 -   `u̇ = (Eʰ, Hʰ)`: container for numerical solutions to fields
 -   `u  = (E , H )`: container for starting field values
 -   `params = (𝒢, E, H, ext)`: mesh, E sol, H sol, and material parameters
 -   `t`: time to evaluate at
-
 """
-function rk_solver!(rhs!, fields, params, dt, Nsteps)
+function rk_solver!(rhs!, fields, fluxes, params, dt, Nsteps; auxils = [])
     # Runge-Kutta residual storage
     solutions = []
-    for field in fields
-        uᵗ = similar(field.u)
-        @. uᵗ = field.u
-        push!(solutions, [uᵗ])
+    for 𝑓 in fields
+        ϕᵗ = similar(𝑓.ϕ)
+        @. ϕᵗ = 𝑓.ϕ
+        push!(solutions, [ϕᵗ])
     end
 
     # time step loop
     for tstep in 1:Nsteps
+        time = dt * tstep
         for iRK in 1:5
             # get numerical solution
-            rhs!(fields, params)
+            if isempty(auxils)
+                rhs!(fields, fluxes, params, time)
+            else
+                rhs!(fields, fluxes, auxils, params, time)
+            end
 
             # update solutions
-            for field in fields
-                @. field.r = rk4a[iRK] * field.r + field.u̇ * dt
-                @. field.u = rk4b[iRK] * field.r + field.u
-                # seems to differ from matlab code during this step ???
+            for 𝑓 in fields
+                @. 𝑓.r = rk4a[iRK] * 𝑓.r + 𝑓.ϕ̇ * dt
+                @. 𝑓.ϕ = rk4b[iRK] * 𝑓.r + 𝑓.ϕ
             end
         end
 
-        for (i,field) in enumerate(fields)
-            uᵗ = similar(field.u)
-            @. uᵗ = field.u
-            push!(solutions[i], uᵗ)
+        for (i,𝑓) in enumerate(fields)
+            ϕᵗ = similar(𝑓.ϕ)
+            @. ϕᵗ = 𝑓.ϕ
+            push!(solutions[i], ϕᵗ)
         end
 
-        if (tstep % 10000) == 0
+        if (tstep % 1000) == 0
             println( string(tstep, " / ", Nsteps))
         end
     end
@@ -480,7 +370,6 @@ end
 
 """
 Some nice documentation here.
-
 # Examples
 ```jldoctest
 julia> a = [1 2; 3 4]
@@ -496,18 +385,12 @@ end
 
 """
 rel_error(u,v)
-
 # Description
-
 - calculate the relative error between u and v with respect to v
-
 # Arguments
-
 - `u` : a structure of numbers
 - `v` : a structure of numbers
-
 # return
-
 - `relative error`:
 """
 function rel_error(u,v)
@@ -516,18 +399,12 @@ end
 
 """
 rel_1_error(u,v)
-
 # Description
-
 - calculate the relative error between u and v with respect to v
-
 # Arguments
-
 - `u` : a structure of numbers
 - `v` : a structure of numbers
-
 # return
-
 - `relative error`:
 """
 function rel_1_error(u,v)
@@ -538,19 +415,12 @@ end
 
 """
 dropϵzeros!(sparseMatrix)
-
 # Description
-
 - Drops machine zeros in sparse matrix
-
 # Arguments
-
 - `!A`: a sparse matrix
-
 # return
-
 - nothing
-
 """
 function dropϵzeros!(A)
     i,j = findnz(A)
@@ -565,20 +435,13 @@ end
 
 """
 dropϵzeros!(sparseMatrix, drop_criteria)
-
 # Description
-
 - Drops machine zeros in sparse matrix
-
 # Arguments
-
 - `A`: a sparse matrix
 - `drop_criteria`: criteria for dropping entries
-
 # return
-
 - nothing
-
 """
 function dropϵzeros!(A, drop_criteria)
     i,j = findnz(A)

@@ -16,7 +16,7 @@ timings = true   #to see how different linear solvers perform
 K = 2^5 #number of elements
 n = 2^3 - 1 #polynomial order,
 
-# for 64 total dof, K = 2^3, n = 2^3 -1 is the break even point b/w sparse and full
+# for 64 total dof, K = 2^3, n = 2^3 - 1 is the break even point b/w sparse and full
 # for K = 2^4, n = 2^2 - 1 sparse does better
 # for K = 2^2, n = 2^4 - 1 full does better
 
@@ -50,6 +50,7 @@ dq = copy(ι.flux)
 if periodic
     make_periodic1D!(𝒢.vmapP, ι.u)
 end
+
 f = 𝒢.M * sin.(α .* x) .* α^2
 @. f *= 1 / 𝒢.rx
 sol = -sin.(α * x)
@@ -84,7 +85,7 @@ display(plot(p1,p2))
 println("The sparsity is # nonzero / # entries")
 sparsity = length(s∇².rowval) / length(s∇²)
 println(sparsity)
-#check to see how long it takes to solve the system
+# check to see how long it takes to solve the system
 if timings == true
     #=
     println("Full solve")
@@ -105,5 +106,3 @@ if timings == true
     println("factored banded solve")
     @btime comp_sol = qr_b∇² \ tmp;
 end
-
-#scatter(𝒢.x,reshape(eig_vec[:,end],size(𝒢.x)),legend=false)

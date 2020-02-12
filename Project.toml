@@ -4,6 +4,7 @@ authors = ["sandreza <andrenogueirasouza@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+Atom = "c52e3926-4ff0-5f6e-af25-54175e0327b1"
 BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"

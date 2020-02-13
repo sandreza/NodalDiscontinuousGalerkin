@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 """
-conjugate_gradient!(L, x⁰, b; preconditioner = x->x, tolerance = eps(1.0), maximum_iterations = false)
+conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum_iterations = false, track_residual = false)
 
 # Description
 
@@ -14,13 +14,16 @@ conjugate_gradient!(L, x⁰, b; preconditioner = x->x, tolerance = eps(1.0), max
 
 # Keyword Arguments
 
-- 'P': (function). The default is the identity function x->x.
+- 'P': (function). This is the preconditioner. The default is the identity function x->x.
 - 'tolerance': (number). relative error tolerance. default = eps(1.0)
 - 'maximum_iterations': (integer). default = length(x⁰), Maximum iterations for conjugate gradient
-#
+- 'track residual': (boolean). keeps track of norm of residual and returns it
+
+# Return
+- Nothing if track_residual is false. the norm of the residual if track_residual is true
 
 """
-function conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum_iterations = length(x⁰))
+function conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum_iterations = length(x⁰), track_residual = false)
     # calculate the residual and auxillary field
     r⁰ = b - L(x⁰)
     z⁰ = P(r⁰)
@@ -29,24 +32,37 @@ function conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum
     if tolerance_boolean(r⁰, b, tolerance)
         return nothing
     end
+    if track_residual
+        r_tracked = copy(r⁰)
+    end
 
     # start searching
-    for j  in 1:maximum_iterations
+    for j in 1:maximum_iterations
         # create search step size
-        α = (r⁰' * z⁰) / (p⁰' * L(p⁰))
+        Lp = L(p⁰)
+        α = (r⁰' * z⁰) / (p⁰' * Lp)
         # update along preconditioned direction
         @. x⁰ += α .* p⁰
         # form new residual
-        r¹ = r⁰ - α .* L(p⁰)
+        r¹ = r⁰ - α .* Lp
+        # track it
+        if track_residual
+            r_tracked[j] = norm(r¹)
+        end
         # check to see if the update was reasonable
+
         if tolerance_boolean(r¹, b, tolerance)
             return nothing
         end
-        # rinse repeate
+        # update p⁰
         z¹ = P(r¹)
         β  = (z¹' * r¹) / (z⁰' * r⁰)
         @. p⁰ = z¹ + β .* p⁰
+        # rinse repeate
         @. z⁰ = z¹
+    end
+    if track_residual
+        return r_tracked
     end
     return nothing
 end

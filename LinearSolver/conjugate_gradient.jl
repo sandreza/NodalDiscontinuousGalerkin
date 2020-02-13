@@ -28,12 +28,14 @@ function conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum
     r⁰ = b - L(x⁰)
     z⁰ = P(r⁰)
     p⁰ = copy(z⁰)
+
+    if track_residual
+        r_tracked = []
+        push!(r_tracked, norm(r⁰))
+    end
     # check to see if the guess was fantastic
     if tolerance_boolean(r⁰, b, tolerance)
         return nothing
-    end
-    if track_residual
-        r_tracked = copy(r⁰)
     end
 
     # start searching
@@ -45,21 +47,25 @@ function conjugate_gradient!(L, x⁰, b; P = x->x, tolerance = eps(1.0), maximum
         @. x⁰ += α .* p⁰
         # form new residual
         r¹ = r⁰ - α .* Lp
-        # track it
-        if track_residual
-            r_tracked[j] = norm(r¹)
-        end
         # check to see if the update was reasonable
-
+        if track_residual
+            push!(r_tracked, norm(r¹))
+        end
         if tolerance_boolean(r¹, b, tolerance)
-            return nothing
+            # track it
+            if track_residual
+                return r_tracked
+            else
+                return nothing
+            end
         end
         # update p⁰
         z¹ = P(r¹)
         β  = (z¹' * r¹) / (z⁰' * r⁰)
-        @. p⁰ = z¹ + β .* p⁰
-        # rinse repeate
+        # update
+        @. p⁰ = z¹ + β * p⁰
         @. z⁰ = z¹
+        @. r⁰ = r¹
     end
     if track_residual
         return r_tracked

@@ -50,10 +50,39 @@ println(norm(x⁰-b)/norm(b))
 scatter(log.(r)/log(10), ylabel = "log10 residual norm", xlabel = "iterations", title = "Convergence of Conjugate Gradient with the Green's function")
 
 ###
-# Preconditioned Laplacian
+# Preconditioned Laplacian, Perfect
 x⁰ = randn(length(sol))
 P_tmp(x) = G * x
 r = conjugate_gradient!(∇²_tmp, x⁰, b, track_residual = true, P = P_tmp)
 println("The relative error is")
 println(norm(x⁰-solution)/norm(solution))
-scatter(log.(r)/log(10), ylabel = "log10 residual norm", xlabel = "iterations", title = "Laplacian with Preconditioner ")
+scatter(log.(r)/log(10), ylabel = "log10 residual norm", xlabel = "iterations", title = "Laplacian with Perfect Preconditioner ")
+
+###
+# Preconditioned Laplacian, Inverse Diagonal
+x⁰ = randn(length(sol))
+prec = 1.0 ./ diag(s∇²)
+P_tmp(x) = prec .* x
+r = conjugate_gradient!(∇²_tmp, x⁰, b, track_residual = true, P = P_tmp)
+println("The relative error is")
+println(norm(x⁰-solution)/norm(solution))
+scatter(log.(r)/log(10), ylabel = "log10 residual norm", xlabel = "iterations", title = "Laplacian with Bad Preconditioner ")
+
+###
+# Preconditioned Laplacian, Discrete Tridiagonal inverse Laplacian (-1 2 -1)
+x⁰ = randn(length(sol))
+prec = zeros(length(x⁰), length(x⁰))
+for i in eachindex(x⁰)
+    prec[i,i] = -2
+    if i < length(x⁰)
+        prec[i+1,i] = 1
+        prec[i,i+1] = 1
+    end
+end
+# this is a tridiagonal matrix thus doing this is a bad idea
+prec = inv(prec)
+P_tmp(x) = prec * x
+r = conjugate_gradient!(∇²_tmp, x⁰, b, track_residual = true, P = P_tmp)
+println("The relative error is")
+println(norm(x⁰-solution)/norm(solution))
+scatter(log.(r)/log(10), ylabel = "log10 residual norm", xlabel = "iterations", title = "Laplacian with Bad Preconditioner ")

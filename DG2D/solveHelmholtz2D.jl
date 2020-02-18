@@ -49,21 +49,21 @@ end
 
 # builds the affine operator (one column at a time) (sparse matrix)
 # here Δ[u] = L[u] + b (b is where the boundary conditions go as a forcing term)
-function constructHelmholtzOperator(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
+function constructHelmholtzOperator(𝑓::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
     L = spzeros(𝒢.nGL, 𝒢.nGL)
 
-    @. ϕ.u = 0.0
-    Δq = copy(ϕ.u)
-    q  = copy(ϕ.u)
-    b  = copy(ϕ.u)
+    @. 𝑓.ϕ = 0.0
+    Δq = copy(𝑓.ϕ)
+    q  = copy(𝑓.ϕ)
+    b  = copy(𝑓.ϕ)
 
     # affine part of operator
-    solveHelmholtz!(b, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+    solveHelmholtz!(b, q, 𝑓, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
     @. q = 0.0
 
     for i in 1:𝒢.nGL
         q[i] = 1.0
-        solveHelmholtz!(Δq, q, ϕ, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
+        solveHelmholtz!(Δq, q, 𝑓, 𝒢, params, BCᵈ = BCᵈ, BCⁿ = BCⁿ)
         @. L[:,i] = Δq[:] - b[:]
         q[i] = 0.0
     end
@@ -74,7 +74,7 @@ function constructHelmholtzOperator(ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Un
 end
 
 """
-solveHelmholtz!(Δu, u, ϕ::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC, BCⁿ::NeumannBC2D)
+solveHelmholtz!(Δu, u, 𝑓::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC, BCⁿ::NeumannBC2D)
 
 
 # Description
@@ -85,26 +85,26 @@ solveHelmholtz!(Δu, u, ϕ::Element2D, 𝒢::Field2D, params, BCᵈ::DirichletBC
 
 - `Δu` : helholtz operator acting on u
 - `u` :  the thing we want to take laplacian of
-- `ϕ` : the field
+- `𝑓` : the field
 - `𝒢` : the grid
 - `params`: any penalty parameters that we would like to include
 - `bc` : boundary condition tuple with indices
 - `dbc` : boundary condition tuple with indices
 
 """
-function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
+function solveHelmholtz!(ΔU, U, 𝑓::Field2D, 𝒢::Grid2D, params; BCᵈ::Union{DirichletBC, Nothing} = nothing, BCⁿ::Union{NeumannBC2D, Nothing} = nothing)
     # unpack parameters
     τ = params[1]
     γ = params[2]
 
-    @. ϕ.u = U
+    @. 𝑓.ϕ = U
 
     # Form q-flux differences at faces
-    @. ϕ.Δu = ϕ.u[𝒢.nodes⁻] - 1//2 * (ϕ.u[𝒢.nodes⁻] + ϕ.u[𝒢.nodes⁺])
+    @. 𝑓.Δϕ = 𝑓.ϕ[𝒢.nodes⁻] - 1//2 * (𝑓.ϕ[𝒢.nodes⁻] + 𝑓.ϕ[𝒢.nodes⁺])
 
     # Choose boundary condition type, dirichlet
     if BCᵈ != nothing
-        dirichlet!(ϕ, BCᵈ)
+        dirichlet!(𝑓, BCᵈ)
     end
 
     # compute fluxes for each element
@@ -117,29 +117,29 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             nBP += Ωᵏ.nBP
 
             # get views of computation elements
-            u  = view(ϕ.u,  GLᵏ)
-            φˣ = view(ϕ.φˣ, GLᵏ)
-            φʸ = view(ϕ.φʸ, GLᵏ)
-            Δu = view(ϕ.Δu, BPᵏ)
+            u  = view(𝑓.ϕ,  GLᵏ)
+            φˣ = view(𝑓.φˣ, GLᵏ)
+            φʸ = view(𝑓.φʸ, GLᵏ)
+            Δu = view(𝑓.Δϕ, BPᵏ)
 
-            liftˣ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
-            liftʸ = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
+            ∮ˣu = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nˣ .* Δu)
+            ∮ʸu = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* Ωᵏ.nʸ .* Δu)
 
             # lhs of the semi-discerte PDE, ∇⋅(q) = f , q  = ∇u, qˣ = ∂ˣu, qʸ = ∂ʸu
             # first get ∇q + flux terms
             ∇!(φˣ, φʸ, u, Ωᵏ)
-            @. φˣ -= liftˣ
-            @. φʸ -= liftʸ
+            @. φˣ -= ∮ˣu
+            @. φʸ -= ∮ʸu
         end
     end
 
     # Form field differences at faces for x and y partial derivatives
-    @. ϕ.fˣ = ϕ.φˣ[𝒢.nodes⁻] - 1//2 * (ϕ.φˣ[𝒢.nodes⁺] + ϕ.φˣ[𝒢.nodes⁻])
-    @. ϕ.fʸ = ϕ.φʸ[𝒢.nodes⁻] - 1//2 * (ϕ.φʸ[𝒢.nodes⁺] + ϕ.φʸ[𝒢.nodes⁻])
+    @. 𝑓.fˣ = 𝑓.φˣ[𝒢.nodes⁻] - 1//2 * (𝑓.φˣ[𝒢.nodes⁺] + 𝑓.φˣ[𝒢.nodes⁻])
+    @. 𝑓.fʸ = 𝑓.φʸ[𝒢.nodes⁻] - 1//2 * (𝑓.φʸ[𝒢.nodes⁺] + 𝑓.φʸ[𝒢.nodes⁻])
 
     # enfore boundary conditions for flux (neumann)
     if BCⁿ != nothing
-        neumann!(ϕ, BCⁿ)
+        neumann!(𝑓, BCⁿ)
     end
 
     # compute tendecy for each element
@@ -152,27 +152,26 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
             nBP += Ωᵏ.nBP
 
             # get views of computation elements
-            u  = view(ϕ.u,  GLᵏ)
-            u̇  = view(ϕ.u̇,  GLᵏ)
-            ∇u = view(ϕ.∇u, GLᵏ)
-            φˣ = view(ϕ.φˣ, GLᵏ)
-            φʸ = view(ϕ.φʸ, GLᵏ)
+            u  = view(𝑓.ϕ,  GLᵏ)
+            u̇  = view(𝑓.ϕ̇,  GLᵏ)
+            ∇u = view(𝑓.∇ϕ, GLᵏ)
+            φˣ = view(𝑓.φˣ, GLᵏ)
+            φʸ = view(𝑓.φʸ, GLᵏ)
 
-            Δu = view(ϕ.Δu, BPᵏ)
-            # the bug is here
-            fˣ = view(ϕ.fˣ, BPᵏ)
-            fʸ = view(ϕ.fʸ, BPᵏ)
-            fⁿ = view(ϕ.fⁿ, BPᵏ)
-            r  = view(ϕ.r,  GLᵏ)
-
-            # modify with τ, remember fⁿ is field differences at face points
-            @. fⁿ = Ωᵏ.nˣ * fˣ + Ωᵏ.nʸ * fʸ + τ * Δu
+            Δu = view(𝑓.Δϕ, BPᵏ)
+            fˣ = view(𝑓.fˣ, BPᵏ)
+            fʸ = view(𝑓.fʸ, BPᵏ)
+            fⁿ = view(𝑓.fⁿ, BPᵏ)
+            r  = view(𝑓.r,  GLᵏ)
 
             # compute divergence of flux, volume term
             ∇⨀!(∇u, φˣ, φʸ, Ωᵏ)
 
+            # modify with τ, remember fⁿ is field differences at face points
+            @. fⁿ = Ωᵏ.nˣ * fˣ + Ωᵏ.nʸ * fʸ + τ * Δu
+
             # compute surface term
-            lift = inv(Ωᵏ.M) * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
+            lift = Ωᵏ.M⁺ * Ωᵏ.∮ * (Ωᵏ.volume .* fⁿ)
 
             # combine the terms
             @. r = ∇u - lift - γ * u
@@ -183,7 +182,7 @@ function solveHelmholtz!(ΔU, U, ϕ::Field2D, 𝒢::Grid2D, params; BCᵈ::Union
         end
     end
 
-    @. ΔU = ϕ.u̇
+    @. ΔU = 𝑓.ϕ̇
 
     return nothing
 end

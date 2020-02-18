@@ -55,6 +55,8 @@ function triangle(index, vertices, N, vmap)
 
     # construct normals
     nˣ,nʸ,Jˢ = normals2D(x̃[:,1], x̃[:,2], D[1], D[2], fmask, N+1, 1)
+    nˣ = reshape(nˣ, length(nˣ))
+    nʸ = reshape(nʸ, length(nʸ))
     Jˢ = reshape(Jˢ, length(Jˢ))
 
     # construct element
